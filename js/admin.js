@@ -1,11 +1,46 @@
 // ============================================
-// ADMIN - CON ESPERA PARA SUPABASE
+// ADMIN - COMPLETO CON REFRESCAR Y TICKET CORREGIDO
 // ============================================
 
 let productoEditando = null;
 let finanzaEditando = null;
 let eliminarId = null;
 let eliminarTipo = null;
+
+// ============================================
+// VARIABLES PARA TICKET
+// ============================================
+let ticketProductos = [];
+let productosDisponibles = [];
+
+// ============================================
+// FUNCIONES PARA REFRESCAR PESTAÑAS
+// ============================================
+
+function agregarEventoRefrescar(id, callback, tabId) {
+  const btn = document.getElementById(id);
+  if (!btn) {
+    console.warn(`⚠️ Botón ${id} no encontrado`);
+    return;
+  }
+
+  btn.addEventListener("click", function () {
+    const tabContent = document.getElementById(tabId);
+    if (!tabContent || tabContent.style.display === "none") {
+      console.log(`ℹ️ La pestaña ${tabId} no está activa, omitiendo refresco`);
+      return;
+    }
+
+    const originalText = this.innerHTML;
+    this.disabled = true;
+    this.innerHTML = "⏳ Cargando...";
+
+    Promise.resolve(callback()).finally(() => {
+      this.disabled = false;
+      this.innerHTML = originalText;
+    });
+  });
+}
 
 // ============================================
 // ESPERAR A QUE SUPABASE ESTÉ LISTO
@@ -28,12 +63,6 @@ function esperarSupabase(callback) {
       callback();
     }
   }, 200);
-}
-
-function esperarSupabasePromise() {
-  return new Promise((resolve) => {
-    esperarSupabase(resolve);
-  });
 }
 
 // ============================================
@@ -73,7 +102,62 @@ function setValue(id, value) {
 document.addEventListener("DOMContentLoaded", function () {
   console.log("📦 Inicializando panel admin...");
 
-  // Verificar sesión
+  function cambiarTab(tabId) {
+    document.querySelectorAll(".tab-content").forEach((t) => {
+      t.classList.remove("active");
+      t.style.display = "none";
+    });
+
+    const target = document.getElementById("tab-" + tabId);
+    if (target) {
+      target.classList.add("active");
+      target.style.display = "block";
+    }
+
+    document.querySelectorAll("[data-tab]").forEach((b) => {
+      b.classList.remove("active");
+      if (b.dataset.tab === tabId) {
+        b.classList.add("active");
+      }
+    });
+
+    if (tabId === "productos") cargarProductos();
+    if (tabId === "inventario") cargarInventario();
+    if (tabId === "pedidos") cargarPedidos();
+    if (tabId === "finanzas") cargarFinanzas();
+  }
+
+  document.querySelectorAll("[data-tab]").forEach((btn) => {
+    btn.addEventListener("click", function () {
+      const tab = this.dataset.tab;
+      console.log("📂 Cambiando a pestaña:", tab);
+      cambiarTab(tab);
+    });
+  });
+
+  // ============================================
+  // BOTONES REFRESCAR
+  // ============================================
+  agregarEventoRefrescar(
+    "btnRefrescarProductos",
+    cargarProductos,
+    "tab-productos"
+  );
+  agregarEventoRefrescar(
+    "btnRefrescarInventario",
+    cargarInventario,
+    "tab-inventario"
+  );
+  agregarEventoRefrescar("btnRefrescarPedidos", cargarPedidos, "tab-pedidos");
+  agregarEventoRefrescar(
+    "btnRefrescarFinanzas",
+    cargarFinanzas,
+    "tab-finanzas"
+  );
+
+  // ============================================
+  // VERIFICAR SESIÓN
+  // ============================================
   if (typeof verificarSesion === "function") {
     verificarSesion().then((user) => {
       if (user) {
@@ -83,27 +167,9 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  // Tabs
-  document.querySelectorAll("[data-tab]").forEach((btn) => {
-    btn.addEventListener("click", function () {
-      const tab = this.dataset.tab;
-      document
-        .querySelectorAll(".tab-content")
-        .forEach((t) => t.classList.remove("active"));
-      document
-        .querySelectorAll("[data-tab]")
-        .forEach((b) => b.classList.remove("active"));
-      const target = document.getElementById("tab-" + tab);
-      if (target) target.classList.add("active");
-      this.classList.add("active");
-      if (tab === "productos") cargarProductos();
-      if (tab === "inventario") cargarInventario();
-      if (tab === "pedidos") cargarPedidos();
-      if (tab === "finanzas") cargarFinanzas();
-    });
-  });
-
-  // Productos
+  // ============================================
+  // PRODUCTOS
+  // ============================================
   addEventListenerSafe("btnAgregarProducto", "click", () =>
     mostrarFormProducto()
   );
@@ -112,7 +178,9 @@ document.addEventListener("DOMContentLoaded", function () {
   const formProducto = document.getElementById("formProducto");
   if (formProducto) formProducto.addEventListener("submit", guardarProducto);
 
-  // Inventario
+  // ============================================
+  // INVENTARIO
+  // ============================================
   addEventListenerSafe("btnAgregarMovimiento", "click", () =>
     mostrarFormMovimiento()
   );
@@ -122,7 +190,9 @@ document.addEventListener("DOMContentLoaded", function () {
   if (formMovimiento)
     formMovimiento.addEventListener("submit", guardarMovimiento);
 
-  // Finanzas
+  // ============================================
+  // FINANZAS
+  // ============================================
   addEventListenerSafe("btnAgregarFinanza", "click", () =>
     mostrarFormFinanza()
   );
@@ -131,11 +201,34 @@ document.addEventListener("DOMContentLoaded", function () {
   const formFinanza = document.getElementById("formFinanza");
   if (formFinanza) formFinanza.addEventListener("submit", guardarFinanza);
 
-  // Ticket
-  const formTicket = document.getElementById("formTicket");
-  if (formTicket) formTicket.addEventListener("submit", generarTicketManual);
+  // ============================================
+  // TICKET
+  // ============================================
+  document
+    .getElementById("btnAgregarProductoTicket")
+    ?.addEventListener("click", agregarProductoTicket);
+  document
+    .getElementById("ticketCantidad")
+    ?.addEventListener("keypress", function (e) {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        agregarProductoTicket();
+      }
+    });
+  document
+    .getElementById("ticketEnvio")
+    ?.addEventListener("input", actualizarTotalesTicket);
+  document
+    .getElementById("formTicketVenta")
+    ?.addEventListener("submit", generarTicketVenta);
 
-  // Código de barras
+  esperarSupabase(function () {
+    cargarProductosTicket();
+  });
+
+  // ============================================
+  // CÓDIGO DE BARRAS
+  // ============================================
   addEventListenerSafe("btnBuscarCodigo", "click", buscarPorCodigoBarras);
 
   const inputCodigo = document.getElementById("inputCodigoBarras");
@@ -148,7 +241,9 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  // Filtros pedidos
+  // ============================================
+  // FILTROS PEDIDOS
+  // ============================================
   document.querySelectorAll(".filtro-pedido").forEach((btn) => {
     btn.addEventListener("click", function () {
       document
@@ -159,11 +254,15 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   });
 
-  // Modal
+  // ============================================
+  // MODAL
+  // ============================================
   addEventListenerSafe("modalCancelar", "click", cerrarModal);
   addEventListenerSafe("modalConfirmar", "click", confirmarEliminar);
 
-  // Logout
+  // ============================================
+  // LOGOUT
+  // ============================================
   const btnLogout = document.getElementById("btnLogout");
   if (btnLogout) {
     btnLogout.addEventListener("click", function () {
@@ -173,17 +272,9 @@ document.addEventListener("DOMContentLoaded", function () {
         window.location.href = "login.html";
       }
     });
-  } else {
-    console.warn("⚠️ Botón de logout no encontrado");
   }
 
-  // Cargar productos (esperando a Supabase)
-  console.log("⏳ Esperando a Supabase para cargar productos...");
-  esperarSupabase(function () {
-    console.log("✅ Supabase listo, cargando productos...");
-    cargarProductos();
-  });
-
+  cambiarTab("productos");
   console.log("✅ Panel admin inicializado");
 });
 
@@ -195,11 +286,16 @@ async function cargarProductos() {
   const container = document.getElementById("listaProductos");
   if (!container) return;
 
+  const tabProductos = document.getElementById("tab-productos");
+  if (tabProductos && tabProductos.style.display === "none") {
+    console.log("ℹ️ Pestaña de productos no visible, omitiendo carga");
+    return;
+  }
+
   container.innerHTML =
     '<div class="text-center text-secondary py-3">Cargando...</div>';
 
   try {
-    // Verificar que supabase esté disponible
     if (!window.supabase || typeof window.supabase.from !== "function") {
       console.warn("⏳ Supabase no disponible, reintentando...");
       setTimeout(cargarProductos, 500);
@@ -367,19 +463,47 @@ async function guardarProducto(e) {
 
     const id = getValue("prodId");
     let result;
+    let productoId;
+
     if (id) {
       result = await window.supabase
         .from("productos")
         .update(datos)
         .eq("id", id);
+      productoId = id;
     } else {
-      result = await window.supabase.from("productos").insert([datos]);
+      result = await window.supabase.from("productos").insert([datos]).select();
+      if (result.error) throw result.error;
+      if (result.data && result.data.length > 0) {
+        productoId = result.data[0].id;
+      }
     }
+
     if (result.error) throw result.error;
+
+    if (!id && datos.stock > 0 && productoId) {
+      try {
+        const { error: invError } = await window.supabase
+          .from("inventario")
+          .insert([
+            {
+              producto_id: productoId,
+              tipo: "entrada",
+              cantidad: datos.stock,
+              descripcion: "📦 Producto agregado al catálogo",
+            },
+          ]);
+        if (invError)
+          console.warn("⚠️ Error al registrar inventario:", invError);
+      } catch (invError) {
+        console.warn("⚠️ Error al registrar inventario:", invError);
+      }
+    }
 
     if (msg) mostrarMensaje(msg, "✅ Producto guardado correctamente", "exito");
     ocultarFormProducto();
     cargarProductos();
+    cargarInventario();
   } catch (error) {
     console.error("Error:", error);
     if (msg) mostrarMensaje(msg, "❌ " + error.message, "error");
@@ -532,6 +656,12 @@ async function cargarInventario() {
   const container = document.getElementById("listaInventario");
   if (!container) return;
 
+  const tabInventario = document.getElementById("tab-inventario");
+  if (tabInventario && tabInventario.style.display === "none") {
+    console.log("ℹ️ Pestaña de inventario no visible, omitiendo carga");
+    return;
+  }
+
   container.innerHTML =
     '<div class="text-center text-secondary py-3">Cargando...</div>';
 
@@ -626,6 +756,12 @@ async function cargarInventario() {
 async function cargarPedidos(estado = "todos") {
   const container = document.getElementById("listaPedidos");
   if (!container) return;
+
+  const tabPedidos = document.getElementById("tab-pedidos");
+  if (tabPedidos && tabPedidos.style.display === "none") {
+    console.log("ℹ️ Pestaña de pedidos no visible, omitiendo carga");
+    return;
+  }
 
   container.innerHTML =
     '<div class="text-center text-secondary py-3">Cargando...</div>';
@@ -803,6 +939,12 @@ async function cargarFinanzas() {
   const container = document.getElementById("listaFinanzas");
   if (!container) return;
 
+  const tabFinanzas = document.getElementById("tab-finanzas");
+  if (tabFinanzas && tabFinanzas.style.display === "none") {
+    console.log("ℹ️ Pestaña de finanzas no visible, omitiendo carga");
+    return;
+  }
+
   container.innerHTML =
     '<div class="text-center text-secondary py-3">Cargando...</div>';
 
@@ -974,71 +1116,389 @@ async function guardarFinanza(e) {
 }
 
 // ============================================
-// 6. TICKET MANUAL
+// 6. TICKET - FUNCIONES COMPLETAS (CON DEVOLUCIÓN DE STOCK CORREGIDA)
 // ============================================
 
-function generarTicketManual(e) {
-  e.preventDefault();
-  const msg = document.getElementById("mensajeTicket");
+async function cargarProductosTicket() {
+  const select = document.getElementById("ticketProductoSelect");
+  if (!select) return;
 
-  const cliente = getValue("ticketCliente").trim();
-  const telefono = getValue("ticketTelefono").trim();
-  const direccion = getValue("ticketDireccion").trim();
-  const productosText = getValue("ticketProductos").trim();
-  const metodoPago = getValue("ticketMetodoPago");
-  const envio = parseFloat(getValue("ticketEnvio")) || 0;
-
-  if (!cliente || !telefono || !productosText) {
-    if (msg)
-      mostrarMensaje(msg, "❌ Completa los campos obligatorios", "error");
+  if (!window.supabase || typeof window.supabase.from !== "function") {
+    console.log("⏳ Esperando a Supabase para cargar productos del ticket...");
+    setTimeout(cargarProductosTicket, 500);
     return;
   }
 
-  const items = productosText
-    .split("\n")
-    .filter((l) => l.trim())
-    .map((line) => {
-      const m = line.match(/^(.+?)\s*-\s*\$?([\d.]+)(?:\s*x\s*(\d+))?$/);
-      if (!m) return null;
-      return {
-        nombre: m[1].trim(),
-        precio: parseFloat(m[2]),
-        cantidad: parseInt(m[3]) || 1,
-      };
-    })
-    .filter((i) => i);
+  try {
+    console.log("🔄 Cargando productos para ticket...");
 
-  if (!items.length) {
-    if (msg)
-      mostrarMensaje(
-        msg,
-        "❌ Formato inválido. Usa: Producto - $100 x2",
-        "error"
+    const { data, error } = await window.supabase
+      .from("productos")
+      .select("id, nombre, precio, stock")
+      .order("nombre");
+
+    if (error) throw error;
+
+    productosDisponibles = data || [];
+    select.innerHTML = '<option value="">Selecciona un producto...</option>';
+
+    const productosConStock = data?.filter((p) => p.stock > 0) || [];
+
+    if (productosConStock.length === 0) {
+      select.innerHTML =
+        '<option value="">⚠️ No hay productos con stock disponible</option>';
+      return;
+    }
+
+    productosConStock.forEach((p) => {
+      const precio = Number(p.precio) || 0;
+      select.innerHTML += `<option value="${p.id}" data-stock="${p.stock}" data-precio="${precio}">${p.nombre} - $${precio} (Stock: ${p.stock})</option>`;
+    });
+
+    console.log(
+      `✅ Productos para ticket cargados: ${productosConStock.length}`
+    );
+  } catch (error) {
+    console.error("Error cargando productos para ticket:", error);
+    select.innerHTML = '<option value="">❌ Error al cargar productos</option>';
+  }
+}
+
+function agregarProductoTicket() {
+  const select = document.getElementById("ticketProductoSelect");
+  const cantidadInput = document.getElementById("ticketCantidad");
+  const cantidad = parseInt(cantidadInput.value) || 1;
+  const productoId = select.value;
+
+  if (!productoId) {
+    alert("❌ Selecciona un producto");
+    return;
+  }
+
+  const option = select.options[select.selectedIndex];
+  const precio = Number(option?.dataset?.precio) || 0;
+
+  console.log(
+    "🔍 Producto seleccionado - ID:",
+    productoId,
+    "Precio:",
+    precio,
+    "Cantidad:",
+    cantidad
+  );
+
+  const producto = productosDisponibles.find((p) => p.id === productoId);
+  if (!producto) {
+    alert("❌ Producto no encontrado");
+    return;
+  }
+
+  if (cantidad < 1) {
+    alert("❌ La cantidad debe ser al menos 1");
+    return;
+  }
+
+  if (cantidad > producto.stock) {
+    alert(`❌ Stock insuficiente. Disponible: ${producto.stock}`);
+    return;
+  }
+
+  // Guardar el stock original antes de modificarlo
+  const stockOriginal = producto.stock;
+
+  const existente = ticketProductos.find((p) => p.id === productoId);
+  if (existente) {
+    const nuevaCantidad = existente.cantidad + cantidad;
+    if (nuevaCantidad > stockOriginal) {
+      alert(`❌ Stock insuficiente. Disponible: ${stockOriginal}`);
+      return;
+    }
+    existente.cantidad = nuevaCantidad;
+    console.log("✅ Producto actualizado:", existente);
+  } else {
+    const nuevoProducto = {
+      id: producto.id,
+      nombre: producto.nombre,
+      precio: precio,
+      cantidad: cantidad,
+      stockOriginal: stockOriginal, // 🔥 Guardar el stock original
+    };
+    ticketProductos.push(nuevoProducto);
+    console.log("✅ Producto agregado:", nuevoProducto);
+  }
+
+  // Actualizar el stock en productosDisponibles
+  producto.stock -= cantidad;
+
+  actualizarListaTicket();
+  actualizarTotalesTicket();
+
+  if (option) {
+    const nuevoStock = producto.stock;
+    option.dataset.stock = nuevoStock;
+    option.textContent = `${producto.nombre} - $${precio} (Stock: ${nuevoStock})`;
+    if (nuevoStock <= 0) {
+      option.disabled = true;
+    }
+  }
+
+  cantidadInput.value = "1";
+}
+
+function actualizarListaTicket() {
+  const container = document.getElementById("ticketListaProductos");
+  if (!container) return;
+
+  if (ticketProductos.length === 0) {
+    container.innerHTML =
+      '<p class="text-secondary text-center small">No hay productos agregados</p>';
+    document.getElementById("ticketSubtotal").value = "$0.00";
+    document.getElementById("ticketTotal").value = "$0.00";
+    return;
+  }
+
+  container.innerHTML = ticketProductos
+    .map(
+      (p, index) => `
+        <div class="d-flex justify-content-between align-items-center bg-secondary bg-opacity-25 p-2 rounded-2 mb-1">
+            <div>
+                <span class="text-white">${p.nombre}</span>
+                <span class="text-secondary small"> x${p.cantidad}</span>
+                <span class="text-warning small">$${(
+                  p.precio * p.cantidad
+                ).toFixed(2)}</span>
+            </div>
+            <button onclick="eliminarProductoTicket(${index})" class="btn btn-danger btn-sm">✕</button>
+        </div>
+    `
+    )
+    .join("");
+}
+
+function eliminarProductoTicket(index) {
+  const productoEliminado = ticketProductos[index];
+  if (!productoEliminado) return;
+
+  console.log("🗑️ Eliminando producto:", productoEliminado);
+
+  // 🔥 DEVOLVER EL STOCK AL PRODUCTO ORIGINAL
+  const productoOriginal = productosDisponibles.find(
+    (p) => p.id === productoEliminado.id
+  );
+  if (productoOriginal) {
+    // 🔥 Restaurar el stock original (no sumar sobre el stock actual)
+    productoOriginal.stock = productoEliminado.stockOriginal;
+    console.log(
+      `✅ Stock restaurado a ${productoOriginal.nombre}: ${productoOriginal.stock}`
+    );
+
+    const select = document.getElementById("ticketProductoSelect");
+    if (select) {
+      const option = select.querySelector(
+        `option[value="${productoOriginal.id}"]`
       );
-    return;
+      if (option) {
+        const nuevoStock = productoOriginal.stock;
+        const precio = Number(productoOriginal.precio) || 0;
+        option.dataset.stock = nuevoStock;
+        option.textContent = `${productoOriginal.nombre} - $${precio} (Stock: ${nuevoStock})`;
+        option.disabled = false;
+        console.log(
+          `✅ Select actualizado: ${productoOriginal.nombre} - Stock: ${nuevoStock}`
+        );
+      }
+    }
   }
 
-  const subtotal = items.reduce((s, i) => s + i.precio * i.cantidad, 0);
+  ticketProductos.splice(index, 1);
+
+  actualizarListaTicket();
+  actualizarTotalesTicket();
+
+  if (ticketProductos.length === 0) {
+    document.getElementById("ticketSubtotal").value = "$0.00";
+    document.getElementById("ticketTotal").value = "$0.00";
+    const envioInput = document.getElementById("ticketEnvio");
+    if (envioInput) envioInput.value = "0";
+  }
+}
+
+function actualizarTotalesTicket() {
+  console.log("🔍 ticketProductos:", JSON.stringify(ticketProductos));
+
+  let subtotal = 0;
+  for (const p of ticketProductos) {
+    const precio = Number(p.precio) || 0;
+    const cantidad = Number(p.cantidad) || 0;
+    const totalItem = precio * cantidad;
+    subtotal += totalItem;
+    console.log(`📦 ${p.nombre}: $${precio} x ${cantidad} = $${totalItem}`);
+  }
+
+  const envioInput = document.getElementById("ticketEnvio");
+  const envio = Number(envioInput?.value) || 0;
   const total = subtotal + envio;
 
-  const datosTicket = {
-    cliente,
-    telefono,
-    direccion,
-    metodo_pago: metodoPago === "transferencia" ? "Transferencia" : "Efectivo",
-    items,
-    subtotal,
-    envio,
-    total,
-    fecha: new Date().toISOString(),
-  };
+  const subtotalInput = document.getElementById("ticketSubtotal");
+  const totalInput = document.getElementById("ticketTotal");
 
-  window.open(
-    `ticket.html?pedido=${encodeURIComponent(JSON.stringify(datosTicket))}`,
-    "_blank",
-    "width=400,height=700"
-  );
-  if (msg) mostrarMensaje(msg, "✅ Ticket generado", "exito");
+  if (subtotalInput) subtotalInput.value = `$${subtotal.toFixed(2)}`;
+  if (totalInput) totalInput.value = `$${total.toFixed(2)}`;
+
+  console.log("📊 Subtotal:", subtotal, "Envío:", envio, "Total:", total);
+}
+
+async function generarTicketVenta(e) {
+  e.preventDefault();
+  const msg = document.getElementById("mensajeTicket");
+  const btn = e.target.querySelector('button[type="submit"]');
+
+  const cliente = document.getElementById("ticketCliente").value.trim();
+  const telefono = document.getElementById("ticketTelefono").value.trim();
+  const direccion = document.getElementById("ticketDireccion").value.trim();
+  const envio = parseFloat(document.getElementById("ticketEnvio").value) || 0;
+
+  if (!cliente || !telefono) {
+    return mostrarMensaje(
+      msg,
+      "❌ Cliente y teléfono son obligatorios",
+      "error"
+    );
+  }
+
+  if (ticketProductos.length === 0) {
+    return mostrarMensaje(msg, "❌ Agrega al menos un producto", "error");
+  }
+
+  let subtotal = 0;
+  for (const item of ticketProductos) {
+    const producto = productosDisponibles.find((p) => p.id === item.id);
+    if (!producto) {
+      return mostrarMensaje(
+        msg,
+        `❌ Producto "${item.nombre}" no encontrado`,
+        "error"
+      );
+    }
+    if (item.cantidad > producto.stock) {
+      return mostrarMensaje(
+        msg,
+        `❌ Stock insuficiente para "${item.nombre}". Disponible: ${producto.stock}`,
+        "error"
+      );
+    }
+    const precio = Number(item.precio) || 0;
+    const cantidad = Number(item.cantidad) || 0;
+    subtotal += precio * cantidad;
+    console.log(
+      `📦 ${item.nombre}: $${precio} x ${cantidad} = $${precio * cantidad}`
+    );
+  }
+
+  const total = subtotal + envio;
+  console.log("📊 Subtotal:", subtotal, "Envío:", envio, "Total:", total);
+
+  try {
+    btn.disabled = true;
+    btn.textContent = "Procesando...";
+
+    const pedido = {
+      cliente_nombre: cliente,
+      cliente_telefono: telefono,
+      direccion_entrega: direccion || null,
+      productos: ticketProductos.map((p) => ({
+        nombre: p.nombre,
+        precio: Number(p.precio) || 0,
+        cantidad: Number(p.cantidad) || 0,
+      })),
+      total: total,
+      metodo_pago: "efectivo",
+      estado: "entregado",
+      notas: `Ticket generado desde el panel. Envío: $${envio.toFixed(2)}`,
+    };
+
+    const { data: pedidoData, error: pedidoError } = await window.supabase
+      .from("pedidos")
+      .insert([pedido])
+      .select();
+
+    if (pedidoError) throw pedidoError;
+
+    for (const item of ticketProductos) {
+      const { error: invError } = await window.supabase
+        .from("inventario")
+        .insert([
+          {
+            producto_id: item.id,
+            tipo: "salida",
+            cantidad: Number(item.cantidad) || 0,
+            descripcion: `Venta a ${cliente}`,
+          },
+        ]);
+      if (invError) throw invError;
+    }
+
+    const { error: finError } = await window.supabase.from("finanzas").insert([
+      {
+        tipo: "ingreso",
+        categoria: "venta",
+        descripcion: `Venta a ${cliente}`,
+        monto: total,
+      },
+    ]);
+    if (finError) throw finError;
+
+    const datosTicket = {
+      cliente: cliente,
+      telefono: telefono,
+      direccion: direccion || "",
+      metodo_pago: "Efectivo",
+      items: ticketProductos.map((p) => ({
+        nombre: p.nombre,
+        precio: Number(p.precio) || 0,
+        cantidad: Number(p.cantidad) || 0,
+      })),
+      subtotal: subtotal,
+      envio: envio,
+      total: total,
+      fecha: new Date().toISOString(),
+      ticket_numero: `T-${Date.now().toString(36).toUpperCase()}`,
+    };
+
+    window.open(
+      `ticket.html?pedido=${encodeURIComponent(JSON.stringify(datosTicket))}`,
+      "_blank",
+      "width=400,height=700"
+    );
+
+    mostrarMensaje(msg, "✅ ¡Venta registrada! Ticket generado.", "exito");
+
+    // 🔥 LIMPIAR TODO CORRECTAMENTE
+    ticketProductos = [];
+    actualizarListaTicket();
+    actualizarTotalesTicket();
+
+    // 🔥 FORZAR LIMPIEZA DE CAMPOS
+    document.getElementById("ticketCliente").value = "";
+    document.getElementById("ticketTelefono").value = "";
+    document.getElementById("ticketDireccion").value = "";
+    document.getElementById("ticketEnvio").value = "0";
+    document.getElementById("ticketSubtotal").value = "$0.00";
+    document.getElementById("ticketTotal").value = "$0.00";
+
+    // 🔥 ACTUALIZAR TABLAS
+    cargarProductos();
+    cargarInventario();
+    cargarPedidos();
+    cargarFinanzas();
+    cargarProductosTicket();
+  } catch (error) {
+    console.error("Error:", error);
+    mostrarMensaje(msg, "❌ Error: " + error.message, "error");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "🖨️ Generar Ticket y Registrar Venta";
+  }
 }
 
 // ============================================
@@ -1122,7 +1582,14 @@ function cerrarModal() {
 }
 
 // ============================================
-// 8. FUNCIONES DE UTILIDAD (FALLBACK)
+// 8. EXPONER FUNCIONES AL WINDOW
+// ============================================
+window.eliminarProductoTicket = eliminarProductoTicket;
+window.agregarProductoTicket = agregarProductoTicket;
+window.cargarProductosTicket = cargarProductosTicket;
+
+// ============================================
+// 9. FUNCIONES DE UTILIDAD (FALLBACK)
 // ============================================
 
 if (typeof mostrarMensaje === "undefined") {

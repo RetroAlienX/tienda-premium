@@ -5,9 +5,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Panel Admin</title>
-    <!-- NETLIFY: Meta tags para inyección de variables -->
-    <meta name="supabase-url" id="supabase-url" content="">
-    <meta name="supabase-key" id="supabase-key" content="">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="css/custom.css">
     <style>
@@ -207,6 +204,32 @@
             text-align: center;
             color: #666;
         }
+
+        .tabla-scroll {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .ticket-lista {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .ticket-item {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 8px 12px;
+            border-radius: 4px;
+            margin-bottom: 4px;
+        }
+
+        .ticket-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .ticket-item .btn-remove {
+            padding: 0 6px;
+            font-size: 12px;
+        }
     </style>
 </head>
 
@@ -226,7 +249,7 @@
 
     <!-- TABS -->
     <div class="container mt-3">
-        <ul class="nav nav-tabs border-secondary">
+        <ul class="nav nav-tabs border-secondary" id="adminTabs">
             <li class="nav-item"><button class="nav-link text-warning active" data-tab="productos">📦 Productos</button>
             </li>
             <li class="nav-item"><button class="nav-link text-warning" data-tab="inventario">📊 Inventario</button></li>
@@ -246,7 +269,11 @@
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <h5 class="text-white">📦 Gestión de Productos</h5>
-                        <button id="btnAgregarProducto" class="btn btn-warning btn-sm">+ Agregar</button>
+                        <div>
+                            <button id="btnRefrescarProductos" class="btn btn-outline-secondary btn-sm me-2">🔄
+                                Refrescar</button>
+                            <button id="btnAgregarProducto" class="btn btn-warning btn-sm">+ Agregar</button>
+                        </div>
                     </div>
 
                     <!-- Buscador por código de barras -->
@@ -331,12 +358,17 @@
         <!-- ========================================== -->
         <!-- TAB: INVENTARIO                           -->
         <!-- ========================================== -->
-        <div id="tab-inventario" class="tab-content">
+        <div id="tab-inventario" class="tab-content" style="display:none;">
             <div class="card border-secondary">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <h5 class="text-white">📊 Control de Inventario</h5>
-                        <button id="btnAgregarMovimiento" class="btn btn-warning btn-sm">+ Registrar Movimiento</button>
+                        <div>
+                            <button id="btnRefrescarInventario" class="btn btn-outline-secondary btn-sm me-2">🔄
+                                Refrescar</button>
+                            <button id="btnAgregarMovimiento" class="btn btn-warning btn-sm">+ Registrar
+                                Movimiento</button>
+                        </div>
                     </div>
 
                     <div class="row g-3 mb-3">
@@ -403,10 +435,14 @@
         <!-- ========================================== -->
         <!-- TAB: PEDIDOS                              -->
         <!-- ========================================== -->
-        <div id="tab-pedidos" class="tab-content">
+        <div id="tab-pedidos" class="tab-content" style="display:none;">
             <div class="card border-secondary">
                 <div class="card-body">
-                    <h5 class="text-white">🛒 Pedidos</h5>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="text-white">🛒 Pedidos</h5>
+                        <button id="btnRefrescarPedidos" class="btn btn-outline-secondary btn-sm">🔄 Refrescar</button>
+                    </div>
+
                     <div class="d-flex gap-2 flex-wrap mb-3">
                         <button class="btn btn-outline-warning btn-sm filtro-pedido active"
                             data-estado="todos">Todos</button>
@@ -429,12 +465,16 @@
         <!-- ========================================== -->
         <!-- TAB: FINANZAS                             -->
         <!-- ========================================== -->
-        <div id="tab-finanzas" class="tab-content">
+        <div id="tab-finanzas" class="tab-content" style="display:none;">
             <div class="card border-secondary">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <h5 class="text-white">💰 Control Financiero</h5>
-                        <button id="btnAgregarFinanza" class="btn btn-warning btn-sm">+ Registrar</button>
+                        <div>
+                            <button id="btnRefrescarFinanzas" class="btn btn-outline-secondary btn-sm me-2">🔄
+                                Refrescar</button>
+                            <button id="btnAgregarFinanza" class="btn btn-warning btn-sm">+ Registrar</button>
+                        </div>
                     </div>
 
                     <div class="row g-3 mb-3">
@@ -510,47 +550,125 @@
         </div>
 
         <!-- ========================================== -->
-        <!-- TAB: TICKET                               -->
+        <!-- TAB: TICKET (REDISEÑADO)                  -->
         <!-- ========================================== -->
-        <div id="tab-ticket" class="tab-content">
+        <div id="tab-ticket" class="tab-content" style="display:none;">
             <div class="card border-secondary">
                 <div class="card-body">
-                    <h5 class="text-white">🧾 Generar Ticket</h5>
-                    <form id="formTicket" class="bg-secondary bg-opacity-25 p-3 rounded-3">
-                        <div class="row g-2">
-                            <div class="col-md-6">
-                                <input type="text" id="ticketCliente" class="form-control" placeholder="Cliente *"
-                                    required>
-                            </div>
-                            <div class="col-md-6">
-                                <input type="text" id="ticketTelefono" class="form-control" placeholder="Teléfono *"
-                                    required>
-                            </div>
-                            <div class="col-12">
-                                <input type="text" id="ticketDireccion" class="form-control" placeholder="Dirección">
-                            </div>
-                            <div class="col-12">
-                                <textarea id="ticketProductos" class="form-control" rows="4"
-                                    placeholder="Producto1 - $100 x2&#10;Producto2 - $200 x1" required></textarea>
-                                <small class="text-secondary">Formato: Nombre - $Precio xCantidad</small>
-                            </div>
-                            <div class="col-md-6">
-                                <select id="ticketMetodoPago" class="form-select">
-                                    <option value="transferencia">Transferencia Bancaria</option>
-                                    <option value="efectivo">Efectivo contra entrega</option>
-                                </select>
-                            </div>
-                            <div class="col-md-6">
-                                <input type="number" id="ticketEnvio" class="form-control" placeholder="Envío" value="0"
-                                    step="0.01">
+                    <h5 class="text-white">🧾 Generar Ticket de Venta</h5>
+                    <p class="text-secondary">Selecciona los productos y genera el ticket. El stock se actualizará
+                        automáticamente.</p>
+
+                    <div class="row">
+                        <!-- Columna izquierda: Formulario -->
+                        <div class="col-md-6">
+                            <form id="formTicketVenta" class="bg-secondary bg-opacity-25 p-3 rounded-3">
+                                <div class="mb-3">
+                                    <label class="text-secondary">Cliente *</label>
+                                    <input type="text" id="ticketCliente" class="form-control"
+                                        placeholder="Nombre del cliente" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="text-secondary">Teléfono *</label>
+                                    <input type="text" id="ticketTelefono" class="form-control" placeholder="Teléfono"
+                                        required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="text-secondary">Dirección</label>
+                                    <input type="text" id="ticketDireccion" class="form-control"
+                                        placeholder="Dirección de entrega">
+                                </div>
+
+                                <hr class="border-secondary">
+                                <h6 class="text-warning">Agregar Producto</h6>
+
+                                <div class="row g-2">
+                                    <div class="col-md-7">
+                                        <label class="text-secondary">Producto *</label>
+                                        <select id="ticketProductoSelect" class="form-select" required>
+                                            <option value="">Selecciona un producto...</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="text-secondary">Cantidad *</label>
+                                        <input type="number" id="ticketCantidad" class="form-control" value="1" min="1"
+                                            required>
+                                    </div>
+                                    <div class="col-md-2 d-flex align-items-end">
+                                        <button type="button" id="btnAgregarProductoTicket"
+                                            class="btn btn-warning btn-sm w-100">➕</button>
+                                    </div>
+                                </div>
+
+                                <!-- <div class="mt-2">
+                                    <small class="text-secondary" id="ticketStockInfo">Stock disponible: -</small>
+                                </div> -->
+
+                                <hr class="border-secondary">
+
+                                <!-- Lista de productos agregados -->
+                                <div class="mb-3">
+                                    <label class="text-secondary">Productos agregados</label>
+                                    <div id="ticketListaProductos" class="ticket-lista bg-black p-2 rounded-3"
+                                        style="min-height:80px;">
+                                        <p class="text-secondary text-center small">No hay productos agregados</p>
+                                    </div>
+                                </div>
+
+                                <div class="row g-2">
+                                    <div class="col-md-6">
+                                        <label class="text-secondary">Subtotal</label>
+                                        <input type="text" id="ticketSubtotal" class="form-control" value="$0.00"
+                                            readonly>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="text-secondary">Envío</label>
+                                        <input type="number" id="ticketEnvio" class="form-control" value="0"
+                                            step="0.01">
+                                    </div>
+                                </div>
+                                <div class="mt-2">
+                                    <label class="text-secondary">Total</label>
+                                    <input type="text" id="ticketTotal" class="form-control" value="$0.00" readonly
+                                        style="font-size:1.2rem; font-weight:bold; color:#c9a84c;">
+                                </div>
+
+                                <div class="mt-3">
+                                    <button type="submit" class="btn btn-warning w-100">🖨️ Generar Ticket y Registrar
+                                        Venta</button>
+                                </div>
+                                <div id="mensajeTicket" class="mt-2"></div>
+                            </form>
+                        </div>
+
+                        <!-- Columna derecha: Instrucciones -->
+                        <div class="col-md-6">
+                            <div class="bg-secondary bg-opacity-25 p-3 rounded-3 h-100">
+                                <h6 class="text-warning">📋 Instrucciones</h6>
+                                <ol class="text-secondary small">
+                                    <li>Selecciona un producto de la lista</li>
+                                    <li>Indica la cantidad deseada</li>
+                                    <li>Haz clic en ➕ para agregar al ticket</li>
+                                    <li>Repite el proceso para más productos</li>
+                                    <li>Completa los datos del cliente</li>
+                                    <li>Haz clic en "Generar Ticket"</li>
+                                </ol>
+                                <div class="alert alert-info alert-sm mt-3">
+                                    <strong>✅ ¿Qué pasa al generar?</strong>
+                                    <ul class="mb-0 small">
+                                        <li>Se genera el ticket</li>
+                                        <li>El stock se descuenta automáticamente</li>
+                                        <li>Se registra en inventario (salida)</li>
+                                        <li>Se registra en finanzas (ingreso)</li>
+                                    </ul>
+                                </div>
                             </div>
                         </div>
-                        <button type="submit" class="btn btn-warning w-100 mt-3">🖨️ Generar Ticket</button>
-                        <div id="mensajeTicket" class="mt-2"></div>
-                    </form>
+                    </div>
                 </div>
             </div>
         </div>
+
     </div>
 
     <!-- MODAL CONFIRMAR -->
@@ -584,30 +702,19 @@
     <!-- Configuración de Netlify (meta tags) -->
     <script src="js/config.netlify.js"></script>
 
-    <!-- Configuración local (solo en desarrollo local) -->
-    <!-- Este script solo se carga si el archivo existe LOCALMENTE -->
-    <!-- En Netlify, el archivo no existe y el error se captura silenciosamente -->
+    <!-- Configuración local (solo en desarrollo) -->
     <script>
-        (function () {
-            // Verificar si estamos en local (no en Netlify)
-            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-                try {
-                    var script = document.createElement('script');
-                    script.src = 'js/config.local.js';
-                    script.onload = function () {
-                        console.log('✅ config.local.js cargado (local)');
-                    };
-                    script.onerror = function () {
-                        console.warn('⚠️ config.local.js no encontrado (local)');
-                    };
-                    document.head.appendChild(script);
-                } catch (e) {
-                    console.log('ℹ️ config.local.js no disponible');
-                }
-            } else {
-                console.log('ℹ️ Entorno de producción, omitiendo config.local.js');
-            }
-        })();
+        // Intentar cargar config.local.js solo si existe (local)
+        try {
+            var script = document.createElement('script');
+            script.src = 'js/config.local.js';
+            script.onerror = function () {
+                console.log('ℹ️ config.local.js no encontrado (entorno de producción)');
+            };
+            document.head.appendChild(script);
+        } catch (e) {
+            console.log('ℹ️ config.local.js no disponible');
+        }
     </script>
 
     <!-- Configuración principal -->
@@ -615,8 +722,6 @@
 
     <!-- Supabase -->
     <script src="js/supabase.js"></script>
-
-    <!-- Resto de scripts... -->
 
     <!-- Utils -->
     <script src="js/utils.js"></script>
@@ -626,6 +731,7 @@
 
     <!-- Admin -->
     <script src="js/admin.js"></script>
+
 </body>
 
 </html>
