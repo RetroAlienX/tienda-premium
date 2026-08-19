@@ -231,19 +231,30 @@
     <!-- Configuración de Netlify (meta tags) -->
     <script src="js/config.netlify.js"></script>
 
-    <!-- Configuración local (solo en desarrollo) -->
+    <!-- Configuración local (solo en desarrollo local) -->
+    <!-- Este script solo se carga si el archivo existe LOCALMENTE -->
+    <!-- En Netlify, el archivo no existe y el error se captura silenciosamente -->
     <script>
-        // Intentar cargar config.local.js solo si existe (local)
-        try {
-            var script = document.createElement('script');
-            script.src = 'js/config.local.js';
-            script.onerror = function () {
-                console.log('ℹ️ config.local.js no encontrado (entorno de producción)');
-            };
-            document.head.appendChild(script);
-        } catch (e) {
-            console.log('ℹ️ config.local.js no disponible');
-        }
+        (function () {
+            // Verificar si estamos en local (no en Netlify)
+            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                try {
+                    var script = document.createElement('script');
+                    script.src = 'js/config.local.js';
+                    script.onload = function () {
+                        console.log('✅ config.local.js cargado (local)');
+                    };
+                    script.onerror = function () {
+                        console.warn('⚠️ config.local.js no encontrado (local)');
+                    };
+                    document.head.appendChild(script);
+                } catch (e) {
+                    console.log('ℹ️ config.local.js no disponible');
+                }
+            } else {
+                console.log('ℹ️ Entorno de producción, omitiendo config.local.js');
+            }
+        })();
     </script>
 
     <!-- Configuración principal -->
