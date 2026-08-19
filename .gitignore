@@ -1,4 +1,4 @@
-# Configuraciones locales
+# Configuración local (NO SUBIR A GITHUB)
 js/config.local.js
 .env
 .env.local
@@ -6,11 +6,14 @@ js/config.local.js
 # Archivos del sistema
 .DS_Store
 Thumbs.db
+desktop.ini
 
 # IDE
 .vscode/
 .idea/
+*.swp
+*.swo
 
-# Node (si usas)
-node_modules/
-package-lock.json
+# Logs
+*.log
+npm-debug.log*

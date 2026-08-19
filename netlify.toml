@@ -1,0 +1,17 @@
+[build]
+  publish = "."
+  functions = "netlify/functions"
+
+[build.environment]
+  SUPABASE_URL = "https://xsactvcmsaxrjwyeaimf.supabase.co"
+  SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhzYWN0dmNtc2F4cmp3eWVhaW1mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcxMDg3MzUsImV4cCI6MjEwMjY4NDczNX0.hqCzaGI21WOh5BYw-MWi0-vwbLoH4_E7eXsr3Sa73Ww"
+
+[[redirects]]
+  from = "/api/config"
+  to = "/.netlify/functions/inject-config"
+  status = 200
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

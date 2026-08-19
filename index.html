@@ -5,6 +5,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>✨ Tienda Premium</title>
+    <!-- NETLIFY: Meta tags para inyección de variables -->
+    <meta name="supabase-url" id="supabase-url" content="">
+    <meta name="supabase-key" id="supabase-key" content="">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="css/custom.css">
 </head>
@@ -216,11 +219,28 @@
     <!-- BOTÓN VOLVER ARRIBA -->
     <button onclick="window.scrollTo({top:0,behavior:'smooth'})" id="btnScrollTop" class="btn-scroll-top">⬆</button>
 
-    <!-- SCRIPTS -->
+    <!-- ========================================== -->
+    <!-- SCRIPTS - ORDEN CRÍTICO                    -->
+    <!-- ========================================== -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- 1️⃣ PRIMERO: Configuración local -->
+    <script src="js/config.local.js"></script>
+
+    <!-- 2️⃣ SEGUNDO: Configuración principal -->
+    <script src="js/config.js"></script>
+
+    <!-- Configuración de Netlify (inyecta variables) -->
+    <script src="js/config.netlify.js"></script>
+
+    <!-- 3️⃣ TERCERO: Supabase -->
     <script src="js/supabase.js"></script>
+
+    <!-- 4️⃣ CUARTO: Utils -->
     <script src="js/utils.js"></script>
+
+    <!-- 5️⃣ QUINTO: Catálogo -->
     <script src="js/catalog.js"></script>
 
     <!-- SCRIPT PARA EL BOTÓN VOLVER ARRIBA -->
