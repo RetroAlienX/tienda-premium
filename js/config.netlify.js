@@ -5,11 +5,16 @@
 (function () {
   console.log("🔧 Iniciando config.netlify.js...");
 
-  // Leer variables del HTML (inyectadas por Netlify)
+  // En Netlify, las variables de entorno se inyectan en el BUILD
+  // No están disponibles directamente en el frontend.
+  // Pero podemos usar un enfoque diferente:
+  // 1. Leer desde meta tags (inyectadas manualmente)
+  // 2. O usar un archivo de configuración generado en el build
+
+  // MÉTODO: Leer desde el HTML (meta tags)
   const urlMeta = document.querySelector('meta[name="supabase-url"]');
   const keyMeta = document.querySelector('meta[name="supabase-key"]');
 
-  // Si las meta tags existen, usarlas
   if (urlMeta && keyMeta) {
     const url = urlMeta.getAttribute("content");
     const key = keyMeta.getAttribute("content");
@@ -27,27 +32,25 @@
     }
   }
 
-  // Si no hay meta tags, intentar con variables de entorno (Netlify)
-  // En Netlify, las variables de entorno se inyectan en el build
-  // y pueden ser leídas desde el frontend mediante este método
-
-  // Crear un script para cargar la configuración desde la función serverless
-  console.log("🔄 Intentando cargar configuración desde función serverless...");
-
-  // Hacer una petición a la función serverless para obtener la configuración
-  fetch("/api/config")
-    .then((response) => response.text())
-    .then((data) => {
-      // Ejecutar el script que devuelve la función
-      eval(data);
-      console.log("✅ Configuración cargada desde función serverless");
-    })
-    .catch((error) => {
+  // Si no hay meta tags, intentar con el archivo de configuración generado
+  // Este script se ejecutará en Netlify si existe
+  try {
+    // Intentar cargar el archivo de configuración generado por Netlify
+    const script = document.createElement("script");
+    script.src = "/js/config.netlify.generated.js";
+    script.onload = function () {
+      console.log("✅ Configuración cargada desde archivo generado");
+    };
+    script.onerror = function () {
+      console.warn("⚠️ No se encontró archivo de configuración generado");
       console.warn(
-        "⚠️ No se pudo cargar configuración desde función serverless"
+        "⚠️ Asegúrate de configurar las variables de entorno en Netlify"
       );
-      console.warn(
-        "⚠️ Usando valores de respaldo (solo para desarrollo local)"
-      );
-    });
+    };
+    document.head.appendChild(script);
+  } catch (e) {
+    console.warn("⚠️ Error al cargar configuración generada");
+  }
+
+  console.log("ℹ️ Esperando configuración...");
 })();
