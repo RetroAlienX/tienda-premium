@@ -105,7 +105,19 @@
     <script src="js/config.netlify.js"></script>
 
     <!-- Configuración local (solo en desarrollo) -->
-    <script src="js/config.local.js" onerror="console.log('ℹ️ config.local.js no encontrado (producción)')"></script>
+    <script>
+        // Intentar cargar config.local.js solo si existe (local)
+        try {
+            var script = document.createElement('script');
+            script.src = 'js/config.local.js';
+            script.onerror = function () {
+                console.log('ℹ️ config.local.js no encontrado (entorno de producción)');
+            };
+            document.head.appendChild(script);
+        } catch (e) {
+            console.log('ℹ️ config.local.js no disponible');
+        }
+    </script>
 
     <!-- Configuración principal -->
     <script src="js/config.js"></script>
