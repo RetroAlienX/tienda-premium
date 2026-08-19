@@ -97,18 +97,24 @@
     </div>
 
     <!-- ========================================== -->
-    <!-- SCRIPTS - ORDEN CORRECTO                   -->
+    <!-- SCRIPTS                                    -->
     <!-- ========================================== -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-    <!-- Configuración local (si existe) -->
-    <script src="js/config.local.js"></script>
+    <!-- Configuración de Netlify -->
+    <script src="js/config.netlify.js"></script>
+
+    <!-- Configuración local (solo en desarrollo) -->
+    <script src="js/config.local.js" onerror="console.log('ℹ️ config.local.js no encontrado (producción)')"></script>
 
     <!-- Configuración principal -->
     <script src="js/config.js"></script>
 
     <!-- Supabase -->
     <script src="js/supabase.js"></script>
+
+    <!-- Auth -->
+    <script src="js/auth.js"></script>
 
     <script>
         // ============================================

@@ -2,47 +2,88 @@
 // AUTENTICACIÓN
 // ============================================
 
-async function iniciarSesion(email, password) {
-  try {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: email,
-      password: password,
-    });
-    if (error) throw error;
-    localStorage.setItem("adminEmail", email);
-    return { success: true };
-  } catch (error) {
-    return { success: false, error: error.message };
+function esperarSupabase(callback) {
+  // Si supabase ya está listo, ejecutar inmediatamente
+  if (window.supabase && typeof window.supabase.auth !== "undefined") {
+    callback();
+    return;
   }
+
+  // Escuchar evento personalizado
+  document.addEventListener("supabaseReady", function handler() {
+    document.removeEventListener("supabaseReady", handler);
+    callback();
+  });
+
+  // También verificar cada 200ms
+  const intervalo = setInterval(function () {
+    if (window.supabase && typeof window.supabase.auth !== "undefined") {
+      clearInterval(intervalo);
+      callback();
+    }
+  }, 200);
+}
+
+async function verificarSesion() {
+  return new Promise((resolve) => {
+    esperarSupabase(async function () {
+      try {
+        const {
+          data: { session },
+          error,
+        } = await window.supabase.auth.getSession();
+        if (error || !session) {
+          console.log("🔐 No hay sesión activa");
+          window.location.href = "login.html";
+          resolve(null);
+          return;
+        }
+        console.log("🔐 Sesión activa:", session.user.email);
+        resolve(session.user);
+      } catch (error) {
+        console.error("❌ Error verificando sesión:", error);
+        window.location.href = "login.html";
+        resolve(null);
+      }
+    });
+  });
 }
 
 async function cerrarSesion() {
   try {
-    await supabase.auth.signOut();
+    await window.supabase.auth.signOut();
     localStorage.removeItem("adminEmail");
     window.location.href = "login.html";
   } catch (error) {
-    console.error("Error:", error);
+    console.error("❌ Error:", error);
     alert("Error al cerrar sesión");
   }
 }
 
-async function verificarSesion() {
-  try {
-    const {
-      data: { session },
-      error,
-    } = await supabase.auth.getSession();
-    if (error || !session) {
-      window.location.href = "login.html";
-      return null;
-    }
-    return session.user;
-  } catch (error) {
-    console.error("Error:", error);
-    window.location.href = "login.html";
-    return null;
-  }
+async function iniciarSesion(email, password) {
+  return new Promise((resolve) => {
+    console.log("🔐 Esperando Supabase para login...");
+    esperarSupabase(async function () {
+      try {
+        console.log("🔐 Intentando login con:", email);
+        const { data, error } = await window.supabase.auth.signInWithPassword({
+          email: email,
+          password: password,
+        });
+        if (error) {
+          console.log("❌ Error login:", error.message);
+          resolve({ success: false, error: error.message });
+          return;
+        }
+        console.log("✅ Login exitoso:", data.user.email);
+        localStorage.setItem("adminEmail", email);
+        resolve({ success: true });
+      } catch (error) {
+        console.error("❌ Error inesperado:", error);
+        resolve({ success: false, error: error.message });
+      }
+    });
+  });
 }
 
 function mostrarAdminEmail() {
@@ -53,13 +94,8 @@ function mostrarAdminEmail() {
   }
 }
 
-// ============================================
-// EVENTOS
-// ============================================
-
 document.addEventListener("DOMContentLoaded", function () {
   console.log("🔐 auth.js cargado");
-  console.log("📦 supabase disponible:", typeof supabase !== "undefined");
 
   // Verificar sesión en admin.html
   if (window.location.pathname.includes("admin.html")) {
@@ -79,21 +115,27 @@ document.addEventListener("DOMContentLoaded", function () {
   if (loginForm) {
     loginForm.addEventListener("submit", async (e) => {
       e.preventDefault();
-      const email = document.getElementById("email").value;
-      const password = document.getElementById("password").value;
+
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value.trim();
       const mensaje = document.getElementById("mensajeLogin");
 
-      console.log("🔐 Intentando login con:", email);
+      if (!email || !password) {
+        mensaje.textContent = "❌ Completa todos los campos";
+        mensaje.style.color = "#dc3545";
+        return;
+      }
 
-      mensaje.textContent = "Iniciando sesión...";
+      mensaje.textContent = "⏳ Iniciando sesión...";
       mensaje.style.color = "#a0a0a0";
 
       const result = await iniciarSesion(email, password);
+
       if (result.success) {
-        console.log("✅ Login exitoso");
+        mensaje.textContent = "✅ Redirigiendo...";
+        mensaje.style.color = "#28a745";
         window.location.href = "admin.html";
       } else {
-        console.log("❌ Login fallido:", result.error);
         mensaje.textContent = "❌ " + result.error;
         mensaje.style.color = "#dc3545";
       }

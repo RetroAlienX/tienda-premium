@@ -1,5 +1,5 @@
 // ============================================
-// FUNCIÓN SERVERLESS PARA INYECTAR CONFIGURACIÓN
+// INYECCIÓN DE CONFIGURACIÓN PARA NETLIFY
 // ============================================
 
 exports.handler = async function (event, context) {
@@ -16,7 +16,12 @@ exports.handler = async function (event, context) {
             // Configuración inyectada desde Netlify
             window.SUPABASE_URL = '${supabaseUrl}';
             window.SUPABASE_ANON_KEY = '${supabaseKey}';
+            window.CONFIG = {
+                SUPABASE_URL: '${supabaseUrl}',
+                SUPABASE_ANON_KEY: '${supabaseKey}'
+            };
             console.log('✅ Configuración inyectada desde Netlify');
+            console.log('📋 URL:', '${supabaseUrl}'.substring(0, 30) + '...');
         `,
   };
 };

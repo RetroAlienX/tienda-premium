@@ -228,9 +228,8 @@
     <!-- Configuración de Netlify -->
     <script src="js/config.netlify.js"></script>
 
-    <!-- Configuración local (solo funciona en local) -->
-    <!-- Netlify devuelve 404 pero no afecta porque config.js maneja el error -->
-    <script src="js/config.local.js" onerror="console.log('ℹ️ config.local.js no encontrado')"></script>
+    <!-- Configuración local (solo en desarrollo) -->
+    <script src="js/config.local.js" onerror="console.log('ℹ️ config.local.js no encontrado (producción)')"></script>
 
     <!-- Configuración principal -->
     <script src="js/config.js"></script>

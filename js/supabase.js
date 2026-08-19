@@ -1,46 +1,60 @@
 // ============================================
-// CONFIGURACIÓN DE SUPABASE
+// SUPABASE - CON DISPARO DE EVENTO
 // ============================================
 
-(function () {
-  // Obtener credenciales desde window.CONFIG
-  const config = window.CONFIG || {};
-  const SUPABASE_URL = config.SUPABASE_URL || window.SUPABASE_URL || null;
-  const SUPABASE_ANON_KEY =
-    config.SUPABASE_ANON_KEY || window.SUPABASE_ANON_KEY || null;
+function iniciarSupabase() {
+  console.log("🔧 Iniciando Supabase...");
 
-  // Verificar credenciales
+  const config = window.CONFIG || {};
+  const SUPABASE_URL = config.SUPABASE_URL || null;
+  const SUPABASE_ANON_KEY = config.SUPABASE_ANON_KEY || null;
+
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-    console.error("❌ No se encontraron credenciales de Supabase");
-    console.error("❌ En Netlify: configura variables de entorno");
-    console.error("❌ En local: crea js/config.local.js");
-    window.supabase = null;
+    console.warn("⚠️ Credenciales no disponibles, reintentando...");
+    setTimeout(iniciarSupabase, 500);
     return;
   }
 
-  // Verificar que no sean valores por defecto
   if (
     SUPABASE_URL === "https://tu-proyecto.supabase.co" ||
     SUPABASE_ANON_KEY === "tu-anon-key"
   ) {
     console.error("❌ Credenciales con valores por defecto");
-    console.error("❌ Configura las variables de entorno correctamente");
     window.supabase = null;
     return;
   }
 
-  // Crear cliente
   try {
+    // Crear el cliente de Supabase
     const supabaseClient = window.supabase.createClient(
       SUPABASE_URL,
       SUPABASE_ANON_KEY
     );
     window.supabase = supabaseClient;
-    console.log("✅ Supabase configurado correctamente");
+
+    console.log("✅ Supabase configurado");
     console.log("📋 URL:", SUPABASE_URL);
-    console.log("🔑 KEY:", SUPABASE_ANON_KEY.substring(0, 15) + "...");
+
+    // Disparar evento para que otros scripts sepan que Supabase está listo
+    document.dispatchEvent(new Event("supabaseReady"));
+    console.log("📢 Evento supabaseReady disparado");
   } catch (error) {
     console.error("❌ Error al crear cliente Supabase:", error);
     window.supabase = null;
   }
-})();
+}
+
+// Esperar a que el DOM esté listo
+document.addEventListener("DOMContentLoaded", function () {
+  console.log("📄 DOM cargado, iniciando Supabase...");
+  setTimeout(iniciarSupabase, 100);
+});
+
+// Si el DOM ya está cargado, iniciar inmediatamente
+if (
+  document.readyState === "complete" ||
+  document.readyState === "interactive"
+) {
+  console.log("📄 DOM ya cargado, iniciando Supabase...");
+  setTimeout(iniciarSupabase, 100);
+}

@@ -1,22 +1,26 @@
 // ============================================
-// CONFIGURACIÓN PARA NETLIFY
+// NETLIFY - INYECCIÓN DE VARIABLES
 // ============================================
 
-// ⚠️ ESTE ARCHIVO SE SUBE A GITHUB
-// Las credenciales se inyectan desde Netlify en el build
-
 (function () {
-  // Leer variables desde el HTML (inyectadas por Netlify)
+  console.log("🔧 Iniciando config.netlify.js...");
+
   const urlMeta = document.querySelector('meta[name="supabase-url"]');
   const keyMeta = document.querySelector('meta[name="supabase-key"]');
 
   if (urlMeta && keyMeta) {
-    window.SUPABASE_URL = urlMeta.getAttribute("content");
-    window.SUPABASE_ANON_KEY = keyMeta.getAttribute("content");
-    console.log("✅ Configuración inyectada desde meta tags");
-    return;
+    const url = urlMeta.getAttribute("content");
+    const key = keyMeta.getAttribute("content");
+
+    if (url && key) {
+      window.SUPABASE_URL = url;
+      window.SUPABASE_ANON_KEY = key;
+      window.CONFIG = { SUPABASE_URL: url, SUPABASE_ANON_KEY: key };
+      console.log("✅ Configuración inyectada");
+      console.log("📋 URL:", url.substring(0, 30) + "...");
+      return;
+    }
   }
 
-  // Fallback: usar valores por defecto (solo para desarrollo)
-  console.warn("⚠️ No se encontraron meta tags de configuración");
+  console.warn("⚠️ No se encontraron meta tags");
 })();

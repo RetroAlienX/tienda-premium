@@ -1,13 +1,41 @@
 // ============================================
-// CATÁLOGO + WHATSAPP (SOLO CLIENTES)
+// CATÁLOGO - CON ESPERA PARA SUPABASE
 // ============================================
 
-// ⚠️ CAMBIA ESTO CON TU NÚMERO DE WHATSAPP
-const CONFIG = {
-  WHATSAPP: "521TU_NUMERO_AQUI", // Ejemplo: 5215512345678
-};
+const WHATSAPP_NUMERO = "521TU_NUMERO_AQUI"; // ⚠️ CAMBIA ESTO
 
 let productos = [];
+let supabaseListo = false;
+
+// ============================================
+// ESPERAR A QUE SUPABASE ESTÉ LISTO
+// ============================================
+
+function esperarSupabase(callback) {
+  // Si supabase ya está listo, ejecutar inmediatamente
+  if (window.supabase && typeof window.supabase.from === "function") {
+    callback();
+    return;
+  }
+
+  // Escuchar evento personalizado
+  document.addEventListener("supabaseReady", function handler() {
+    document.removeEventListener("supabaseReady", handler);
+    callback();
+  });
+
+  // También verificar cada 200ms por si el evento no se dispara
+  const intervalo = setInterval(function () {
+    if (window.supabase && typeof window.supabase.from === "function") {
+      clearInterval(intervalo);
+      callback();
+    }
+  }, 200);
+}
+
+// ============================================
+// CARGAR PRODUCTOS
+// ============================================
 
 async function cargarProductos() {
   const grid = document.getElementById("productos-grid");
@@ -18,26 +46,43 @@ async function cargarProductos() {
         </div>
     `;
 
-  const { data, error } = await supabase
-    .from("productos")
-    .select("*")
-    .order("created_at", { ascending: false });
+  esperarSupabase(async function () {
+    try {
+      console.log("🔄 Intentando cargar productos...");
+      console.log("📦 supabase disponible:", !!window.supabase);
+      console.log(
+        "📦 supabase.from disponible:",
+        typeof window.supabase.from === "function"
+      );
 
-  if (error) {
-    grid.innerHTML = `<p class="text-danger text-center">❌ Error al cargar productos</p>`;
-    return;
-  }
+      const { data, error } = await window.supabase
+        .from("productos")
+        .select("*")
+        .order("created_at", { ascending: false });
 
-  productos = data || [];
-  mostrarProductos(productos);
-  cargarSelectProductos(productos);
+      if (error) throw error;
+
+      productos = data || [];
+      console.log("✅ Productos cargados:", productos.length);
+      mostrarProductos(productos);
+      cargarSelectProductos(productos);
+    } catch (error) {
+      console.error("Error cargando productos:", error);
+      grid.innerHTML = `
+                <div class="text-center text-danger py-4">
+                    <p>❌ Error al cargar productos</p>
+                    <button onclick="cargarProductos()" class="btn btn-warning">Reintentar</button>
+                </div>
+            `;
+    }
+  });
 }
 
 function mostrarProductos(lista) {
   const grid = document.getElementById("productos-grid");
 
   if (!lista.length) {
-    grid.innerHTML = `<p class="text-center text-secondary py-4">📦 No hay productos disponibles</p>`;
+    grid.innerHTML = `<p class="text-center text-secondary py-4">📦 No hay productos</p>`;
     return;
   }
 
@@ -80,16 +125,16 @@ function hacerPedido(id) {
     p.nombre
   }*%0A💰 ${formatearMoneda(
     p.precio
-  )}%0A📌 Cantidad: _[escribe la cantidad]_%0A📍 Dirección: _[escribe tu dirección]_%0A💳 Pago: _[Transferencia / Efectivo]_%0A%0A¡Gracias!`;
+  )}%0A📌 Cantidad: _[escribe]_%0A📍 Dirección: _[escribe]_%0A💳 Pago: _[Transferencia / Efectivo]_`;
 
-  window.open(`https://wa.me/${CONFIG.WHATSAPP}?text=${mensaje}`, "_blank");
+  window.open(`https://wa.me/${WHATSAPP_NUMERO}?text=${mensaje}`, "_blank");
 }
 
 function cargarSelectProductos(lista) {
   const sel = document.getElementById("productoSelect");
   if (!sel) return;
 
-  sel.innerHTML = '<option value="">Selecciona un producto...</option>';
+  sel.innerHTML = '<option value="">Selecciona...</option>';
   lista.forEach((p) => {
     sel.innerHTML += `<option value="${p.id}">${p.nombre} - ${formatearMoneda(
       p.precio
@@ -110,6 +155,7 @@ function filtrarProductos(categoria) {
 }
 
 document.addEventListener("DOMContentLoaded", function () {
+  console.log("📦 catalog.js cargado, esperando Supabase...");
   cargarProductos();
 
   document.querySelectorAll(".filtro-btn").forEach((b) => {
@@ -137,11 +183,7 @@ document.addEventListener("DOMContentLoaded", function () {
       const notas = document.getElementById("notasPedido").value.trim();
 
       if (!nombre || !telefono || !productoId || !metodoPago) {
-        return mostrarMensaje(
-          mensaje,
-          "❌ Completa todos los campos obligatorios",
-          "error"
-        );
+        return mostrarMensaje(mensaje, "❌ Completa todos los campos", "error");
       }
 
       const producto = productos.find((p) => p.id === productoId);
@@ -173,10 +215,12 @@ document.addEventListener("DOMContentLoaded", function () {
         btn.disabled = true;
         btn.textContent = "Enviando...";
 
-        const { error } = await supabase.from("pedidos").insert([pedido]);
+        const { error } = await window.supabase
+          .from("pedidos")
+          .insert([pedido]);
         if (error) throw error;
 
-        const fecha = formatearFecha(new Date());
+        const fecha = new Date().toLocaleString();
         const waMsg = `🛍️ *NUEVO PEDIDO*%0A%0A📅 ${fecha}%0A👤 ${nombre}%0A📱 ${telefono}%0A${
           email ? `📧 ${email}%0A` : ""
         }%0A📦 *${producto.nombre}* x${cantidad}%0A💰 Total: ${formatearMoneda(
@@ -186,13 +230,9 @@ document.addEventListener("DOMContentLoaded", function () {
         }${direccion ? `%0A📍 ${direccion}` : ""}${
           notas ? `%0A📝 ${notas}` : ""
         }`;
-        window.open(`https://wa.me/${CONFIG.WHATSAPP}?text=${waMsg}`, "_blank");
+        window.open(`https://wa.me/${WHATSAPP_NUMERO}?text=${waMsg}`, "_blank");
 
-        mostrarMensaje(
-          mensaje,
-          "✅ ¡Pedido enviado! Te contactaremos pronto.",
-          "exito"
-        );
+        mostrarMensaje(mensaje, "✅ ¡Pedido enviado!", "exito");
         formPedido.reset();
         cargarSelectProductos(productos);
       } catch (error) {
