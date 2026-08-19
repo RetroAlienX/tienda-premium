@@ -9,13 +9,25 @@ exports.handler = async function (event, context) {
 
   console.log("🔧 Inyectando configuración desde función serverless");
   console.log("📋 URL:", supabaseUrl);
+  console.log(
+    "🔑 KEY:",
+    supabaseKey ? supabaseKey.substring(0, 15) + "..." : "No disponible"
+  );
+
+  // Si no hay credenciales, devolver error
+  if (!supabaseUrl || !supabaseKey) {
+    console.error("❌ Faltan variables de entorno en Netlify");
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: "Faltan variables de entorno" }),
+    };
+  }
 
   return {
     statusCode: 200,
     headers: {
       "Content-Type": "application/javascript",
       "Cache-Control": "no-cache",
-      "Access-Control-Allow-Origin": "*",
     },
     body: `
             // Configuración inyectada desde Netlify (función serverless)
