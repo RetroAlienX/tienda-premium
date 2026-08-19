@@ -1,19 +1,596 @@
-<!-- ========================================== -->
-<!-- SCRIPTS                                    -->
-<!-- ========================================== -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="js/config.js"></script>
-<script src="js/supabase.js"></script>
-<script>
-    // ============================================
-    // CONFIGURACIÓN - VARIABLES DE ENTORNO
-    // ============================================
+<!DOCTYPE html>
+<html lang="es-MX">
 
-    // Las credenciales ya están en supabase.js
-    // No es necesario declararlas aquí
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Admin</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="css/custom.css">
+    <style>
+        body {
+            background: #0a0a0a;
+            color: #ffffff;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+        }
 
-    console.log('✅ Panel admin iniciado');
+        .card {
+            background: #1a1a1a;
+            border-color: #2a2a2a;
+        }
 
-    // ... resto del código admin.js
-</script>
+        .btn-warning {
+            background: #c9a84c;
+            border: none;
+            color: #0a0a0a;
+        }
+
+        .btn-warning:hover {
+            background: #dbb95c;
+        }
+
+        .btn-outline-warning {
+            color: #c9a84c;
+            border-color: #c9a84c;
+        }
+
+        .btn-outline-warning:hover {
+            background: #c9a84c;
+            color: #0a0a0a;
+        }
+
+        .text-warning {
+            color: #c9a84c !important;
+        }
+
+        .text-secondary {
+            color: #a0a0a0 !important;
+        }
+
+        .form-control,
+        .form-select {
+            background: #0a0a0a !important;
+            color: #ffffff !important;
+            border-color: #2a2a2a !important;
+        }
+
+        .form-control:focus,
+        .form-select:focus {
+            border-color: #c9a84c !important;
+            box-shadow: 0 0 0 0.25rem rgba(201, 168, 76, 0.25) !important;
+        }
+
+        .table {
+            color: #ffffff;
+            border-color: #2a2a2a;
+        }
+
+        .table thead th {
+            color: #a0a0a0;
+            border-bottom-color: #2a2a2a;
+        }
+
+        .table tbody tr:hover {
+            background: #1a1a1a;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .nav-tabs .nav-link {
+            color: #a0a0a0;
+            border: none;
+            cursor: pointer;
+        }
+
+        .nav-tabs .nav-link:hover {
+            color: #c9a84c;
+        }
+
+        .nav-tabs .nav-link.active {
+            color: #c9a84c;
+            background: transparent;
+            border-bottom: 2px solid #c9a84c;
+        }
+
+        .navbar {
+            background: #0a0a0a !important;
+            border-bottom: 1px solid #2a2a2a !important;
+        }
+
+        .btn-scroll-top {
+            position: fixed;
+            bottom: 100px;
+            right: 30px;
+            width: 50px;
+            height: 50px;
+            background: #c9a84c;
+            color: #0a0a0a;
+            border: none;
+            border-radius: 50%;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(201, 168, 76, 0.4);
+            transition: all 0.3s ease;
+            z-index: 998;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(20px);
+        }
+
+        .btn-scroll-top:hover {
+            background: #dbb95c;
+            transform: scale(1.1);
+        }
+
+        .btn-scroll-top.visible {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        @media (max-width: 576px) {
+            .btn-scroll-top {
+                width: 45px;
+                height: 45px;
+                font-size: 20px;
+                bottom: 90px;
+                right: 20px;
+            }
+        }
+
+        .mensaje-exito {
+            color: #28a745;
+        }
+
+        .mensaje-error {
+            color: #dc3545;
+        }
+
+        .filtro-btn.active {
+            background: #c9a84c !important;
+            color: #0a0a0a !important;
+        }
+
+        .filtro-btn {
+            color: #a0a0a0;
+            border-color: #2a2a2a;
+        }
+
+        .filtro-btn:hover {
+            color: #ffffff;
+            border-color: #c9a84c;
+        }
+
+        .bg-opacity-25 {
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .badge {
+            font-size: 0.75rem;
+        }
+
+        .modal-content {
+            background: #1a1a1a;
+            border-color: #2a2a2a;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            border: none;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        .producto-thumb {
+            width: 40px;
+            height: 40px;
+            object-fit: cover;
+            border-radius: 4px;
+            background: #1a1a1a;
+        }
+
+        .placeholder-icon {
+            font-size: 24px;
+            display: inline-block;
+            width: 40px;
+            text-align: center;
+            color: #666;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- HEADER ADMIN -->
+    <nav class="navbar navbar-dark">
+        <div class="container">
+            <span class="navbar-brand">👑 Panel Admin</span>
+            <div class="d-flex align-items-center gap-2">
+                <span id="adminEmail" class="text-secondary small"></span>
+                <button id="btnLogout" class="btn btn-outline-danger btn-sm">Cerrar</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- TABS -->
+    <div class="container mt-3">
+        <ul class="nav nav-tabs border-secondary">
+            <li class="nav-item"><button class="nav-link text-warning active" data-tab="productos">📦 Productos</button>
+            </li>
+            <li class="nav-item"><button class="nav-link text-warning" data-tab="inventario">📊 Inventario</button></li>
+            <li class="nav-item"><button class="nav-link text-warning" data-tab="pedidos">🛒 Pedidos</button></li>
+            <li class="nav-item"><button class="nav-link text-warning" data-tab="finanzas">💰 Finanzas</button></li>
+            <li class="nav-item"><button class="nav-link text-warning" data-tab="ticket">🧾 Ticket</button></li>
+        </ul>
+    </div>
+
+    <div class="container mt-4 pb-5">
+
+        <!-- ========================================== -->
+        <!-- TAB: PRODUCTOS                            -->
+        <!-- ========================================== -->
+        <div id="tab-productos" class="tab-content active">
+            <div class="card border-secondary">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="text-white">📦 Gestión de Productos</h5>
+                        <button id="btnAgregarProducto" class="btn btn-warning btn-sm">+ Agregar</button>
+                    </div>
+
+                    <!-- Buscador por código de barras -->
+                    <div class="bg-secondary bg-opacity-25 p-3 rounded-3 mb-3">
+                        <div class="row g-2 align-items-center">
+                            <div class="col-md-8">
+                                <div class="d-flex gap-2">
+                                    <input type="text" id="inputCodigoBarras" class="form-control"
+                                        placeholder="📷 Escanea o escribe el código de barras">
+                                    <button id="btnBuscarCodigo" class="btn btn-warning btn-sm">🔍 Buscar</button>
+                                </div>
+                                <small class="text-secondary">Escanea con la pistola o escribe el código de barras para
+                                    encontrar el producto</small>
+                            </div>
+                            <div class="col-md-4" id="resultadoBusquedaCodigo">
+                                <span class="text-secondary">📷 Esperando escaneo...</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Formulario Producto -->
+                    <div id="formProductoContainer" style="display:none;">
+                        <form id="formProducto" class="bg-secondary bg-opacity-25 p-3 rounded-3 mb-3">
+                            <h6 class="text-warning" id="formProductoTitulo">Agregar Producto</h6>
+                            <div class="row g-2">
+                                <div class="col-md-6">
+                                    <input type="text" id="prodNombre" class="form-control" placeholder="Nombre *"
+                                        required>
+                                </div>
+                                <div class="col-md-6">
+                                    <input type="number" id="prodPrecio" class="form-control" placeholder="Precio *"
+                                        step="0.01" required>
+                                </div>
+                                <div class="col-md-4">
+                                    <select id="prodCategoria" class="form-select">
+                                        <option value="perfumes">Perfumes</option>
+                                        <option value="cuidado_personal">Cuidado Personal</option>
+                                        <option value="juguetes">Juguetes</option>
+                                        <option value="otros">Otros</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <input type="number" id="prodStock" class="form-control" placeholder="Stock inicial"
+                                        min="0" value="0">
+                                </div>
+                                <div class="col-md-4">
+                                    <input type="text" id="prodTienda" class="form-control" placeholder="Tienda origen">
+                                </div>
+                                <div class="col-md-6">
+                                    <input type="text" id="prodCodigoBarras" class="form-control"
+                                        placeholder="Código de barras (opcional)">
+                                    <small class="text-secondary">Escanea con la pistola o escribe el código</small>
+                                </div>
+                                <div class="col-md-6">
+                                    <input type="text" id="prodImagen" class="form-control"
+                                        placeholder="URL de imagen (https://...)">
+                                    <small class="text-secondary">Sube a ImgBB y pega la URL directa</small>
+                                </div>
+                                <div class="col-12">
+                                    <textarea id="prodDescripcion" class="form-control" rows="2"
+                                        placeholder="Descripción"></textarea>
+                                </div>
+                            </div>
+                            <input type="hidden" id="prodId">
+                            <div class="mt-2 d-flex gap-2">
+                                <button type="submit" class="btn btn-warning btn-sm">💾 Guardar</button>
+                                <button type="button" id="btnCancelarProducto"
+                                    class="btn btn-secondary btn-sm">Cancelar</button>
+                            </div>
+                            <div id="mensajeProducto" class="mt-2"></div>
+                        </form>
+                    </div>
+
+                    <!-- Lista de productos -->
+                    <div id="listaProductos" class="table-responsive">
+                        <div class="text-center text-secondary py-4">Cargando productos...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- TAB: INVENTARIO                           -->
+        <!-- ========================================== -->
+        <div id="tab-inventario" class="tab-content">
+            <div class="card border-secondary">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="text-white">📊 Control de Inventario</h5>
+                        <button id="btnAgregarMovimiento" class="btn btn-warning btn-sm">+ Registrar Movimiento</button>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-4">
+                            <div class="bg-secondary bg-opacity-25 p-3 rounded-3 text-center">
+                                <small class="text-secondary">Productos en stock</small>
+                                <h5 class="text-warning" id="totalProductosStock">0</h5>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="bg-secondary bg-opacity-25 p-3 rounded-3 text-center">
+                                <small class="text-secondary">Sin stock</small>
+                                <h5 class="text-danger" id="totalSinStock">0</h5>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="bg-secondary bg-opacity-25 p-3 rounded-3 text-center">
+                                <small class="text-secondary">Movimientos totales</small>
+                                <h5 class="text-info" id="totalMovimientos">0</h5>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="formMovimientoContainer" style="display:none;">
+                        <form id="formMovimiento" class="bg-secondary bg-opacity-25 p-3 rounded-3 mb-3">
+                            <h6 class="text-warning">Registrar Movimiento de Inventario</h6>
+                            <div class="row g-2">
+                                <div class="col-md-6">
+                                    <select id="movProducto" class="form-select" required>
+                                        <option value="">Selecciona un producto...</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <select id="movTipo" class="form-select" required>
+                                        <option value="entrada">📥 Entrada</option>
+                                        <option value="salida">📤 Salida</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <input type="number" id="movCantidad" class="form-control" placeholder="Cantidad *"
+                                        min="1" required>
+                                </div>
+                                <div class="col-12">
+                                    <input type="text" id="movDescripcion" class="form-control"
+                                        placeholder="Descripción (ej: Compra a proveedor)">
+                                </div>
+                            </div>
+                            <div class="mt-2 d-flex gap-2">
+                                <button type="submit" class="btn btn-warning btn-sm">💾 Registrar</button>
+                                <button type="button" id="btnCancelarMovimiento"
+                                    class="btn btn-secondary btn-sm">Cancelar</button>
+                            </div>
+                            <div id="mensajeMovimiento" class="mt-2"></div>
+                        </form>
+                    </div>
+
+                    <div id="listaInventario" class="table-responsive">
+                        <div class="text-center text-secondary py-4">Cargando movimientos...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- TAB: PEDIDOS                              -->
+        <!-- ========================================== -->
+        <div id="tab-pedidos" class="tab-content">
+            <div class="card border-secondary">
+                <div class="card-body">
+                    <h5 class="text-white">🛒 Pedidos</h5>
+                    <div class="d-flex gap-2 flex-wrap mb-3">
+                        <button class="btn btn-outline-warning btn-sm filtro-pedido active"
+                            data-estado="todos">Todos</button>
+                        <button class="btn btn-outline-warning btn-sm filtro-pedido" data-estado="pendiente">📋
+                            Pendientes</button>
+                        <button class="btn btn-outline-warning btn-sm filtro-pedido" data-estado="confirmado">✅
+                            Confirmados</button>
+                        <button class="btn btn-outline-warning btn-sm filtro-pedido" data-estado="entregado">📦
+                            Entregados</button>
+                        <button class="btn btn-outline-warning btn-sm filtro-pedido" data-estado="cancelado">❌
+                            Cancelados</button>
+                    </div>
+                    <div id="listaPedidos" class="table-responsive">
+                        <div class="text-center text-secondary py-4">Cargando pedidos...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- TAB: FINANZAS                             -->
+        <!-- ========================================== -->
+        <div id="tab-finanzas" class="tab-content">
+            <div class="card border-secondary">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="text-white">💰 Control Financiero</h5>
+                        <button id="btnAgregarFinanza" class="btn btn-warning btn-sm">+ Registrar</button>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-3">
+                            <div class="bg-secondary bg-opacity-25 p-3 rounded-3 text-center">
+                                <small class="text-secondary">Ingresos</small>
+                                <h5 class="text-success" id="totalIngresos">$0.00</h5>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="bg-secondary bg-opacity-25 p-3 rounded-3 text-center">
+                                <small class="text-secondary">Gastos</small>
+                                <h5 class="text-danger" id="totalGastos">$0.00</h5>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="bg-secondary bg-opacity-25 p-3 rounded-3 text-center">
+                                <small class="text-secondary">Ganancia</small>
+                                <h5 id="gananciaNeta">$0.00</h5>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="bg-secondary bg-opacity-25 p-3 rounded-3 text-center">
+                                <small class="text-secondary">Pedidos</small>
+                                <h5 class="text-warning" id="totalPedidos">0</h5>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="formFinanzaContainer" style="display:none;">
+                        <form id="formFinanza" class="bg-secondary bg-opacity-25 p-3 rounded-3 mb-3">
+                            <h6 class="text-warning">Registrar Movimiento</h6>
+                            <div class="row g-2">
+                                <div class="col-md-4">
+                                    <select id="finTipo" class="form-select" required>
+                                        <option value="ingreso">Ingreso</option>
+                                        <option value="gasto">Gasto</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <select id="finCategoria" class="form-select" required>
+                                        <option value="compra_mercancia">Compra mercancía</option>
+                                        <option value="venta">Venta</option>
+                                        <option value="envio">Envío</option>
+                                        <option value="gastos_varios">Gastos varios</option>
+                                        <option value="otros">Otros</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <input type="number" id="finMonto" class="form-control" placeholder="Monto *"
+                                        step="0.01" required>
+                                </div>
+                                <div class="col-12">
+                                    <input type="text" id="finDescripcion" class="form-control"
+                                        placeholder="Descripción *" required>
+                                </div>
+                            </div>
+                            <input type="hidden" id="finId">
+                            <div class="mt-2 d-flex gap-2">
+                                <button type="submit" class="btn btn-warning btn-sm">💾 Guardar</button>
+                                <button type="button" id="btnCancelarFinanza"
+                                    class="btn btn-secondary btn-sm">Cancelar</button>
+                            </div>
+                            <div id="mensajeFinanza" class="mt-2"></div>
+                        </form>
+                    </div>
+
+                    <div id="listaFinanzas" class="table-responsive">
+                        <div class="text-center text-secondary py-4">Cargando movimientos...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- TAB: TICKET                               -->
+        <!-- ========================================== -->
+        <div id="tab-ticket" class="tab-content">
+            <div class="card border-secondary">
+                <div class="card-body">
+                    <h5 class="text-white">🧾 Generar Ticket</h5>
+                    <form id="formTicket" class="bg-secondary bg-opacity-25 p-3 rounded-3">
+                        <div class="row g-2">
+                            <div class="col-md-6">
+                                <input type="text" id="ticketCliente" class="form-control" placeholder="Cliente *"
+                                    required>
+                            </div>
+                            <div class="col-md-6">
+                                <input type="text" id="ticketTelefono" class="form-control" placeholder="Teléfono *"
+                                    required>
+                            </div>
+                            <div class="col-12">
+                                <input type="text" id="ticketDireccion" class="form-control" placeholder="Dirección">
+                            </div>
+                            <div class="col-12">
+                                <textarea id="ticketProductos" class="form-control" rows="4"
+                                    placeholder="Producto1 - $100 x2&#10;Producto2 - $200 x1" required></textarea>
+                                <small class="text-secondary">Formato: Nombre - $Precio xCantidad</small>
+                            </div>
+                            <div class="col-md-6">
+                                <select id="ticketMetodoPago" class="form-select">
+                                    <option value="transferencia">Transferencia Bancaria</option>
+                                    <option value="efectivo">Efectivo contra entrega</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <input type="number" id="ticketEnvio" class="form-control" placeholder="Envío" value="0"
+                                    step="0.01">
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-warning w-100 mt-3">🖨️ Generar Ticket</button>
+                        <div id="mensajeTicket" class="mt-2"></div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL CONFIRMAR -->
+    <div class="modal fade" id="modalConfirm" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-body text-center">
+                    <h5 class="text-danger">⚠️ ¿Estás seguro?</h5>
+                    <p id="modalMensaje" class="text-secondary">¿Deseas eliminar este elemento?</p>
+                    <div class="d-flex gap-2 justify-content-center">
+                        <button id="modalConfirmar" class="btn btn-danger">Eliminar</button>
+                        <button id="modalCancelar" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- BOTÓN VOLVER ARRIBA -->
+    <button onclick="window.scrollTo({top:0,behavior:'smooth'})" id="btnScrollTop" class="btn-scroll-top">⬆</button>
+
+    <!-- ========================================== -->
+    <!-- SCRIPTS                                    -->
+    <!-- ========================================== -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- Configuración local (si existe) -->
+    <script src="js/config.local.js"></script>
+
+    <!-- Configuración principal -->
+    <script src="js/config.js"></script>
+
+    <!-- Supabase -->
+    <script src="js/supabase.js"></script>
+
+    <!-- Utils -->
+    <script src="js/utils.js"></script>
+
+    <!-- Auth -->
+    <script src="js/auth.js"></script>
+
+    <!-- Admin -->
+    <script src="js/admin.js"></script>
+</body>
+
+</html>
