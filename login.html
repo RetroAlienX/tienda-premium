@@ -1,0 +1,71 @@
+<!-- ========================================== -->
+<!-- SCRIPTS - ORDEN CORRECTO                   -->
+<!-- ========================================== -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/config.js"></script>
+<script src="js/supabase.js"></script>
+<script>
+    // ============================================
+    // LOGIN - USANDO supabase QUE YA EXISTE
+    // ============================================
+
+    // Verificar que supabase existe
+    if (typeof supabase === 'undefined') {
+        console.error('❌ supabase no está disponible');
+        document.getElementById('mensajeLogin').innerHTML =
+            '<span style="color:#dc3545;">❌ Error de conexión. Recarga la página.</span>';
+    } else {
+        console.log('✅ supabase disponible para login');
+    }
+
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const email = document.getElementById('email').value.trim();
+        const password = document.getElementById('password').value.trim();
+        const mensaje = document.getElementById('mensajeLogin');
+        const boton = document.querySelector('button[type="submit"]');
+
+        if (!email || !password) {
+            mensaje.innerHTML = '<span style="color:#dc3545;">❌ Completa todos los campos</span>';
+            return;
+        }
+
+        mensaje.innerHTML = '<span style="color:#a0a0a0;">⏳ Iniciando sesión...</span>';
+        boton.disabled = true;
+        boton.textContent = '⏳ Cargando...';
+
+        try {
+            console.log('🔐 Intentando login con:', email);
+
+            const { data, error } = await supabase.auth.signInWithPassword({
+                email: email,
+                password: password
+            });
+
+            if (error) {
+                console.log('❌ Error:', error.message);
+                mensaje.innerHTML = '<span style="color:#dc3545;">❌ ' + error.message + '</span>';
+                boton.disabled = false;
+                boton.textContent = '🔐 Iniciar Sesión';
+                return;
+            }
+
+            console.log('✅ Login exitoso:', data.user.email);
+            mensaje.innerHTML = '<span style="color:#28a745;">✅ Redirigiendo...</span>';
+            localStorage.setItem('adminEmail', email);
+
+            setTimeout(() => {
+                window.location.href = 'admin.html';
+            }, 1000);
+
+        } catch (error) {
+            console.log('❌ Error inesperado:', error);
+            mensaje.innerHTML = '<span style="color:#dc3545;">❌ Error inesperado</span>';
+            boton.disabled = false;
+            boton.textContent = '🔐 Iniciar Sesión';
+        }
+    });
+
+    console.log('✅ Login listo');
+</script>

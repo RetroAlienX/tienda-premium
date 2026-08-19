@@ -1,0 +1,88 @@
+/* ============================================
+   ESTILOS PERSONALIZADOS - BOOTSTRAP + OSCURO
+   ============================================ */
+
+body {
+    background: #0a0a0a;
+    color: #ffffff;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+}
+
+/* ============================================
+   SCROLLBAR PERSONALIZADA
+   ============================================ */
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: #1a1a1a; }
+::-webkit-scrollbar-thumb { background: #c9a84c; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #dbb95c; }
+
+/* ============================================
+   HERO
+   ============================================ */
+.hero-section {
+    background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
+    min-height: 50vh;
+    display: flex;
+    align-items: center;
+}
+
+/* ============================================
+   WHATSAPP FLOTANTE
+   ============================================ */
+.whatsapp-float {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    background: #25D366;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 20px rgba(37, 211, 102, 0.4);
+    transition: all 0.3s ease;
+    z-index: 999;
+}
+.whatsapp-float:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 30px rgba(37, 211, 102, 0.6);
+}
+
+/* ============================================
+   BOTÓN VOLVER ARRIBA
+   ============================================ */
+.btn-scroll-top {
+    position: fixed;
+    bottom: 100px;
+    right: 30px;
+    width: 50px;
+    height: 50px;
+    background: #c9a84c;
+    color: #0a0a0a;
+    border: none;
+    border-radius: 50%;
+    font-size: 24px;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(201, 168, 76, 0.4);
+    transition: all 0.3s ease;
+    z-index: 998;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(20px);
+}
+
+.btn-scroll-top:hover {
+    background: #dbb95c;
+    transform: scale(1.1);
+    box-shadow: 0 6px 25px rgba(201, 168, 76, 0.6);
+}
+
+.btn-scroll-top.visible {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+/* ============================================
+   TABS

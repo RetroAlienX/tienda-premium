@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="es-MX">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ticket</title>
+    <link rel="stylesheet" href="css/custom.css">
+    <style>
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+
+            #ticket-content,
+            #ticket-content * {
+                visibility: visible;
+            }
+
+            #ticket-content {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 80mm;
+                padding: 5mm;
+                background: white;
+                color: black;
+            }
+
+            @page {
+                margin: 0;
+                size: 80mm auto;
+            }
+
+            .no-print {
+                display: none !important;
+            }
+        }
+
+        .ticket-preview {
+            max-width: 80mm;
+            margin: 0 auto;
+            padding: 5mm;
+            background: white;
+            color: black;
+            font-family: monospace;
+            font-size: 11px;
+        }
+
+        .ticket-header {
+            text-align: center;
+            border-bottom: 2px dashed #000;
+            padding-bottom: 8px;
+            margin-bottom: 8px;
+        }
+
+        .ticket-header h2 {
+            font-size: 16px;
+            margin: 0;
+        }
+
+        .ticket-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 3px 0;
+        }
+
+        .ticket-total {
+            font-size: 15px;
+            font-weight: bold;
+            text-align: right;
+            border-top: 2px solid #000;
+            padding-top: 8px;
+            margin-top: 8px;
+        }
+
+        .ticket-footer {
+            text-align: center;
+            margin-top: 12px;
+            padding-top: 8px;
+            border-top: 2px dashed #000;
+        }
+
+        .ticket-footer .thanks {
+            font-size: 13px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body class="bg-black">
+    <div class="no-print py-4">
+        <div class="container text-center">
+            <h5 class="text-white">🧾 Ticket</h5>
+            <div class="d-flex gap-2 justify-content-center flex-wrap">
+                <button onclick="window.print()" class="btn btn-warning">🖨️ Imprimir</button>
+                <button onclick="window.close()" class="btn btn-secondary">✕ Cerrar</button>
+            </div>
+            <button onclick="cargarEjemplo()" class="btn btn-outline-secondary btn-sm mt-2">📋 Cargar ejemplo</button>
+        </div>
+    </div>
+
+    <div id="ticket-content" class="ticket-preview">
+        <div id="ticketBody" class="text-center text-secondary py-5">Esperando datos...</div>
+    </div>
+
+    <script src="js/ticket.js"></script>
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const pedidoData = urlParams.get('pedido');
+        if (pedidoData) {
+            try { generarTicket(JSON.parse(decodeURIComponent(pedidoData))); } catch (e) { }
+        }
+        function cargarEjemplo() {
+            generarTicket({
+                cliente: 'María García', telefono: '555-123-4567', direccion: 'Calle #123',
+                metodo_pago: 'Transferencia', items: [{ nombre: 'Perfume', precio: 450, cantidad: 2 }],
+                subtotal: 900, envio: 80, total: 980
+            });
+        }
+    </script>
+</body>
+
+</html>
