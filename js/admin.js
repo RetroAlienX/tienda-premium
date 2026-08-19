@@ -1,5 +1,5 @@
 // ============================================
-// PANEL ADMIN - VERSIÓN CORREGIDA
+// ADMIN - CON ESPERA PARA SUPABASE
 // ============================================
 
 let productoEditando = null;
@@ -8,7 +8,36 @@ let eliminarId = null;
 let eliminarTipo = null;
 
 // ============================================
-// FUNCIÓN SEGURA PARA EVENTOS
+// ESPERAR A QUE SUPABASE ESTÉ LISTO
+// ============================================
+
+function esperarSupabase(callback) {
+  if (window.supabase && typeof window.supabase.from === "function") {
+    callback();
+    return;
+  }
+
+  document.addEventListener("supabaseReady", function handler() {
+    document.removeEventListener("supabaseReady", handler);
+    callback();
+  });
+
+  const intervalo = setInterval(function () {
+    if (window.supabase && typeof window.supabase.from === "function") {
+      clearInterval(intervalo);
+      callback();
+    }
+  }, 200);
+}
+
+function esperarSupabasePromise() {
+  return new Promise((resolve) => {
+    esperarSupabase(resolve);
+  });
+}
+
+// ============================================
+// FUNCIONES DE SEGURIDAD
 // ============================================
 
 function addEventListenerSafe(id, event, handler) {
@@ -23,9 +52,7 @@ function addEventListenerSafe(id, event, handler) {
 
 function getElement(id) {
   const el = document.getElementById(id);
-  if (!el) {
-    console.warn(`⚠️ Elemento no encontrado: #${id}`);
-  }
+  if (!el) console.warn(`⚠️ Elemento no encontrado: #${id}`);
   return el;
 }
 
@@ -46,9 +73,7 @@ function setValue(id, value) {
 document.addEventListener("DOMContentLoaded", function () {
   console.log("📦 Inicializando panel admin...");
 
-  // ============================================
-  // VERIFICAR SESIÓN
-  // ============================================
+  // Verificar sesión
   if (typeof verificarSesion === "function") {
     verificarSesion().then((user) => {
       if (user) {
@@ -58,9 +83,7 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  // ============================================
-  // TABS
-  // ============================================
+  // Tabs
   document.querySelectorAll("[data-tab]").forEach((btn) => {
     btn.addEventListener("click", function () {
       const tab = this.dataset.tab;
@@ -80,56 +103,39 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   });
 
-  // ============================================
-  // PRODUCTOS
-  // ============================================
+  // Productos
   addEventListenerSafe("btnAgregarProducto", "click", () =>
     mostrarFormProducto()
   );
   addEventListenerSafe("btnCancelarProducto", "click", ocultarFormProducto);
 
   const formProducto = document.getElementById("formProducto");
-  if (formProducto) {
-    formProducto.addEventListener("submit", guardarProducto);
-  }
+  if (formProducto) formProducto.addEventListener("submit", guardarProducto);
 
-  // ============================================
-  // INVENTARIO
-  // ============================================
+  // Inventario
   addEventListenerSafe("btnAgregarMovimiento", "click", () =>
     mostrarFormMovimiento()
   );
   addEventListenerSafe("btnCancelarMovimiento", "click", ocultarFormMovimiento);
 
   const formMovimiento = document.getElementById("formMovimiento");
-  if (formMovimiento) {
+  if (formMovimiento)
     formMovimiento.addEventListener("submit", guardarMovimiento);
-  }
 
-  // ============================================
-  // FINANZAS
-  // ============================================
+  // Finanzas
   addEventListenerSafe("btnAgregarFinanza", "click", () =>
     mostrarFormFinanza()
   );
   addEventListenerSafe("btnCancelarFinanza", "click", ocultarFormFinanza);
 
   const formFinanza = document.getElementById("formFinanza");
-  if (formFinanza) {
-    formFinanza.addEventListener("submit", guardarFinanza);
-  }
+  if (formFinanza) formFinanza.addEventListener("submit", guardarFinanza);
 
-  // ============================================
-  // TICKET
-  // ============================================
+  // Ticket
   const formTicket = document.getElementById("formTicket");
-  if (formTicket) {
-    formTicket.addEventListener("submit", generarTicketManual);
-  }
+  if (formTicket) formTicket.addEventListener("submit", generarTicketManual);
 
-  // ============================================
-  // BÚSQUEDA POR CÓDIGO DE BARRAS
-  // ============================================
+  // Código de barras
   addEventListenerSafe("btnBuscarCodigo", "click", buscarPorCodigoBarras);
 
   const inputCodigo = document.getElementById("inputCodigoBarras");
@@ -142,9 +148,7 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  // ============================================
-  // FILTROS PEDIDOS
-  // ============================================
+  // Filtros pedidos
   document.querySelectorAll(".filtro-pedido").forEach((btn) => {
     btn.addEventListener("click", function () {
       document
@@ -155,22 +159,17 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   });
 
-  // ============================================
-  // MODAL
-  // ============================================
+  // Modal
   addEventListenerSafe("modalCancelar", "click", cerrarModal);
   addEventListenerSafe("modalConfirmar", "click", confirmarEliminar);
 
-  // ============================================
-  // LOGOUT
-  // ============================================
+  // Logout
   const btnLogout = document.getElementById("btnLogout");
   if (btnLogout) {
     btnLogout.addEventListener("click", function () {
       if (typeof cerrarSesion === "function") {
         cerrarSesion();
       } else {
-        console.warn("⚠️ cerrarSesion no está definida");
         window.location.href = "login.html";
       }
     });
@@ -178,10 +177,13 @@ document.addEventListener("DOMContentLoaded", function () {
     console.warn("⚠️ Botón de logout no encontrado");
   }
 
-  // ============================================
-  // CARGAR DATOS INICIALES
-  // ============================================
-  cargarProductos();
+  // Cargar productos (esperando a Supabase)
+  console.log("⏳ Esperando a Supabase para cargar productos...");
+  esperarSupabase(function () {
+    console.log("✅ Supabase listo, cargando productos...");
+    cargarProductos();
+  });
+
   console.log("✅ Panel admin inicializado");
 });
 
@@ -197,19 +199,22 @@ async function cargarProductos() {
     '<div class="text-center text-secondary py-3">Cargando...</div>';
 
   try {
+    // Verificar que supabase esté disponible
+    if (!window.supabase || typeof window.supabase.from !== "function") {
+      console.warn("⏳ Supabase no disponible, reintentando...");
+      setTimeout(cargarProductos, 500);
+      return;
+    }
+
     const { data, error } = await window.supabase
       .from("productos")
       .select("*")
       .order("created_at", { ascending: false });
-    if (error) {
-      container.innerHTML =
-        '<p class="text-danger text-center">❌ Error al cargar</p>';
-      return;
-    }
+    if (error) throw error;
 
     if (!data || !data.length) {
       container.innerHTML =
-        '<p class="text-center text-secondary py-3">📦 No hay productos. Agrega uno!</p>';
+        '<p class="text-center text-secondary py-3">📦 No hay productos</p>';
       cargarSelectProductosInventario();
       return;
     }
@@ -262,8 +267,12 @@ async function cargarProductos() {
     cargarSelectProductosInventario();
   } catch (error) {
     console.error("Error cargando productos:", error);
-    container.innerHTML =
-      '<p class="text-danger text-center">❌ Error al cargar productos</p>';
+    container.innerHTML = `
+            <div class="text-center text-danger py-3">
+                <p>❌ Error al cargar productos</p>
+                <button onclick="cargarProductos()" class="btn btn-warning btn-sm">Reintentar</button>
+            </div>
+        `;
   }
 }
 
@@ -394,7 +403,7 @@ async function buscarPorCodigoBarras() {
   const codigo = input.value.trim();
   if (!codigo) {
     resultado.innerHTML =
-      '<span class="text-secondary">📷 Escanea un código de barras o escribe el número</span>';
+      '<span class="text-secondary">📷 Escanea un código de barras</span>';
     return;
   }
 
@@ -407,7 +416,7 @@ async function buscarPorCodigoBarras() {
       .eq("codigo_barras", codigo)
       .single();
     if (error || !data) {
-      resultado.innerHTML = `<div class="alert alert-danger alert-sm mt-2">❌ Producto no encontrado con código: <strong>${codigo}</strong></div>`;
+      resultado.innerHTML = `<div class="alert alert-danger alert-sm mt-2">❌ Producto no encontrado: <strong>${codigo}</strong></div>`;
       input.value = "";
       return;
     }
@@ -421,7 +430,7 @@ async function buscarPorCodigoBarras() {
     )} | Stock: ${data.stock}</small></div>
                     <button onclick="editarProducto('${
                       data.id
-                    }')" class="btn btn-warning btn-sm">✏️ Editar</button>
+                    }')" class="btn btn-warning btn-sm">✏️</button>
                 </div>
             </div>
         `;
@@ -451,7 +460,7 @@ async function cargarSelectProductosInventario() {
       sel.innerHTML += `<option value="${p.id}">${p.nombre}${codigo} (Stock: ${p.stock})</option>`;
     });
   } catch (error) {
-    console.error("Error cargando productos:", error);
+    console.error("Error:", error);
   }
 }
 
@@ -504,8 +513,7 @@ async function guardarMovimiento(e) {
 
     if (error) throw error;
 
-    if (msg)
-      mostrarMensaje(msg, "✅ Movimiento registrado correctamente", "exito");
+    if (msg) mostrarMensaje(msg, "✅ Movimiento registrado", "exito");
     ocultarFormMovimiento();
     cargarInventario();
     cargarProductos();
@@ -557,7 +565,7 @@ async function cargarInventario() {
 
     if (!data || !data.length) {
       container.innerHTML =
-        '<p class="text-center text-secondary py-3">📊 No hay movimientos registrados</p>';
+        '<p class="text-center text-secondary py-3">📊 No hay movimientos</p>';
       return;
     }
 
@@ -742,21 +750,13 @@ async function verDetallePedido(id) {
       )
       .join("\n");
     alert(
-      `📋 DETALLE DEL PEDIDO\n\n👤 Cliente: ${
-        data.cliente_nombre
-      }\n📱 Teléfono: ${data.cliente_telefono}\n${
-        data.cliente_email ? `📧 Email: ${data.cliente_email}\n` : ""
-      }\n📦 Productos:\n${productos}\n\n💰 Total: ${formatearMoneda(
+      `📋 DETALLE\n\n👤 ${data.cliente_nombre}\n📱 ${
+        data.cliente_telefono
+      }\n📦 Productos:\n${productos}\n💰 Total: ${formatearMoneda(
         data.total
-      )}\n💳 Pago: ${
+      )}\n💳 ${
         data.metodo_pago === "transferencia" ? "Transferencia" : "Efectivo"
-      }\n${
-        data.direccion_entrega
-          ? `📍 Dirección: ${data.direccion_entrega}\n`
-          : ""
-      }${
-        data.notas ? `📝 Notas: ${data.notas}\n` : ""
-      }📌 Estado: ${data.estado.toUpperCase()}`
+      }\n📌 Estado: ${data.estado.toUpperCase()}`
     );
   } catch (error) {
     console.error("Error:", error);
@@ -819,7 +819,7 @@ async function cargarFinanzas() {
 
     if (!data || !data.length) {
       container.innerHTML =
-        '<p class="text-center text-secondary py-3">💰 No hay movimientos registrados</p>';
+        '<p class="text-center text-secondary py-3">💰 No hay movimientos</p>';
       return;
     }
 
@@ -1049,9 +1049,9 @@ function pedirEliminar(id, tipo) {
   eliminarId = id;
   eliminarTipo = tipo;
   const mensajes = {
-    producto: "¿Eliminar este producto permanentemente?",
-    inventario: "¿Eliminar este movimiento de inventario?",
-    finanza: "¿Eliminar este registro financiero?",
+    producto: "¿Eliminar este producto?",
+    inventario: "¿Eliminar este movimiento?",
+    finanza: "¿Eliminar este registro?",
   };
   const modalMensaje = document.getElementById("modalMensaje");
   if (modalMensaje)
@@ -1122,10 +1122,9 @@ function cerrarModal() {
 }
 
 // ============================================
-// 8. FUNCIONES UTILES (FALLBACK)
+// 8. FUNCIONES DE UTILIDAD (FALLBACK)
 // ============================================
 
-// Si no existen, definir funciones de utilidad
 if (typeof mostrarMensaje === "undefined") {
   window.mostrarMensaje = function (el, msg, tipo) {
     if (!el) return;
