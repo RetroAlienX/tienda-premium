@@ -256,6 +256,7 @@
             <li class="nav-item"><button class="nav-link text-warning" data-tab="pedidos">🛒 Pedidos</button></li>
             <li class="nav-item"><button class="nav-link text-warning" data-tab="finanzas">💰 Finanzas</button></li>
             <li class="nav-item"><button class="nav-link text-warning" data-tab="ticket">🧾 Ticket</button></li>
+            <li class="nav-item"><button class="nav-link text-warning" data-tab="envios">📧 Envíos</button></li>
         </ul>
     </div>
 
@@ -356,7 +357,7 @@
         </div>
 
         <!-- ========================================== -->
-        <!-- TAB: INVENTARIO                           -->
+        <!-- TAB: INVENTARIO                            -->
         <!-- ========================================== -->
         <div id="tab-inventario" class="tab-content" style="display:none;">
             <div class="card border-secondary">
@@ -379,7 +380,8 @@
                             </div>
                         </div>
                         <div class="col-md-4">
-                            <div class="bg-secondary bg-opacity-25 p-3 rounded-3 text-center">
+                            <div class="bg-secondary bg-opacity-25 p-3 rounded-3 text-center" style="cursor:pointer;"
+                                onclick="verProductosSinStock()">
                                 <small class="text-secondary">Sin stock</small>
                                 <h5 class="text-danger" id="totalSinStock">0</h5>
                             </div>
@@ -416,6 +418,7 @@
                                         placeholder="Descripción (ej: Compra a proveedor)">
                                 </div>
                             </div>
+                            <input type="hidden" id="movId" value="">
                             <div class="mt-2 d-flex gap-2">
                                 <button type="submit" class="btn btn-warning btn-sm">💾 Registrar</button>
                                 <button type="button" id="btnCancelarMovimiento"
@@ -550,7 +553,7 @@
         </div>
 
         <!-- ========================================== -->
-        <!-- TAB: TICKET (REDISEÑADO)                  -->
+        <!-- TAB: TICKET                               -->
         <!-- ========================================== -->
         <div id="tab-ticket" class="tab-content" style="display:none;">
             <div class="card border-secondary">
@@ -560,7 +563,6 @@
                         automáticamente.</p>
 
                     <div class="row">
-                        <!-- Columna izquierda: Formulario -->
                         <div class="col-md-6">
                             <form id="formTicketVenta" class="bg-secondary bg-opacity-25 p-3 rounded-3">
                                 <div class="mb-3">
@@ -600,13 +602,8 @@
                                     </div>
                                 </div>
 
-                                <!-- <div class="mt-2">
-                                    <small class="text-secondary" id="ticketStockInfo">Stock disponible: -</small>
-                                </div> -->
-
                                 <hr class="border-secondary">
 
-                                <!-- Lista de productos agregados -->
                                 <div class="mb-3">
                                     <label class="text-secondary">Productos agregados</label>
                                     <div id="ticketListaProductos" class="ticket-lista bg-black p-2 rounded-3"
@@ -641,7 +638,6 @@
                             </form>
                         </div>
 
-                        <!-- Columna derecha: Instrucciones -->
                         <div class="col-md-6">
                             <div class="bg-secondary bg-opacity-25 p-3 rounded-3 h-100">
                                 <h6 class="text-warning">📋 Instrucciones</h6>
@@ -669,6 +665,91 @@
             </div>
         </div>
 
+        <!-- ========================================== -->
+        <!-- TAB: ENVÍOS - CORREO MANUAL                -->
+        <!-- ========================================== -->
+        <div id="tab-envios" class="tab-content" style="display:none;">
+            <div class="card border-secondary">
+                <div class="card-body">
+                    <h5 class="text-white">📧 Enviar Correo al Cliente</h5>
+                    <p class="text-secondary">Envía un correo al cliente con toda la información de su pedido y envío.
+                    </p>
+
+                    <form id="formEnvioCorreo" class="bg-secondary bg-opacity-25 p-3 rounded-3">
+                        <div class="row g-2">
+                            <div class="col-md-6">
+                                <label class="text-secondary">Correo del cliente *</label>
+                                <input type="email" id="correoCliente"
+                                    class="form-control bg-black text-white border-secondary"
+                                    placeholder="cliente@email.com" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="text-secondary">Número de pedido *</label>
+                                <input type="text" id="numeroPedidoCorreo"
+                                    class="form-control bg-black text-white border-secondary"
+                                    placeholder="P-240817-0042" required>
+                            </div>
+                            <div class="col-12">
+                                <label class="text-secondary">Nombre del cliente *</label>
+                                <input type="text" id="nombreClienteCorreo"
+                                    class="form-control bg-black text-white border-secondary" placeholder="María García"
+                                    required>
+                            </div>
+                            <div class="col-12">
+                                <label class="text-secondary">Productos *</label>
+                                <textarea id="productosCorreo" class="form-control bg-black text-white border-secondary"
+                                    rows="3" placeholder="Perfume Cherry x2 = $900&#10;Loción Warm x1 = $280"
+                                    required></textarea>
+                                <small class="text-secondary">Formato: Producto xCantidad = $Precio (uno por
+                                    línea)</small>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="text-secondary">Total *</label>
+                                <input type="text" id="totalCorreo"
+                                    class="form-control bg-black text-white border-secondary" placeholder="$1,530.00"
+                                    required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="text-secondary">Método de pago</label>
+                                <input type="text" id="metodoPagoCorreo"
+                                    class="form-control bg-black text-white border-secondary"
+                                    placeholder="Transferencia / Efectivo">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="text-secondary">Costo de envío</label>
+                                <input type="text" id="envioCorreo"
+                                    class="form-control bg-black text-white border-secondary"
+                                    placeholder="$150.00 (opcional)">
+                            </div>
+                            <div class="col-12">
+                                <label class="text-secondary">Dirección de entrega</label>
+                                <input type="text" id="direccionCorreo"
+                                    class="form-control bg-black text-white border-secondary"
+                                    placeholder="Calle #123, Colonia Centro">
+                            </div>
+                            <div class="col-12">
+                                <label class="text-secondary">Mensaje adicional</label>
+                                <textarea id="mensajeCorreo" class="form-control bg-black text-white border-secondary"
+                                    rows="2" placeholder="Mensaje personalizado (opcional)"></textarea>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-warning w-100 mt-3">📧 Enviar Correo</button>
+                        <div id="mensajeCorreo" class="mt-2"></div>
+                    </form>
+
+                    <div class="mt-3">
+                        <h6 class="text-warning">📋 Instrucciones</h6>
+                        <ol class="text-secondary small">
+                            <li>Llena los datos del cliente y su pedido</li>
+                            <li>Agrega el costo de envío si aplica</li>
+                            <li>El correo se enviará automáticamente</li>
+                            <li>El cliente recibirá toda la información</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <!-- MODAL CONFIRMAR -->
@@ -690,21 +771,13 @@
     <!-- BOTÓN VOLVER ARRIBA -->
     <button onclick="window.scrollTo({top:0,behavior:'smooth'})" id="btnScrollTop" class="btn-scroll-top">⬆</button>
 
-    <!-- ========================================== -->
-    <!-- SCRIPTS                                    -->
-    <!-- ========================================== -->
+    <!-- SCRIPTS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-    <!-- Configuración de Netlify (archivo generado) -->
     <script src="js/config.netlify.generated.js"></script>
-
-    <!-- Configuración de Netlify (meta tags) -->
     <script src="js/config.netlify.js"></script>
-
-    <!-- Configuración local (solo en desarrollo) -->
     <script>
-        // Intentar cargar config.local.js solo si existe (local)
         try {
             var script = document.createElement('script');
             script.src = 'js/config.local.js';
@@ -717,19 +790,10 @@
         }
     </script>
 
-    <!-- Configuración principal -->
     <script src="js/config.js"></script>
-
-    <!-- Supabase -->
     <script src="js/supabase.js"></script>
-
-    <!-- Utils -->
     <script src="js/utils.js"></script>
-
-    <!-- Auth -->
     <script src="js/auth.js"></script>
-
-    <!-- Admin -->
     <script src="js/admin.js"></script>
 
 </body>

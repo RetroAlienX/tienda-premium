@@ -13,6 +13,13 @@ let eliminarTipo = null;
 let ticketProductos = [];
 let productosDisponibles = [];
 
+// 🔥 CONFIGURACIÓN DE EMAILJS - CAMBIA ESTOS VALORES
+const EMAILJS_CONFIG = {
+  SERVICE_ID: "service_4utb13l", // De EmailJS → service_xxxxx
+  TEMPLATE_ID: "template_e454v8w", // De EmailJS → template_xxxxx
+  USER_ID: "u-BAOu3SbKHhBY2qk", // De EmailJS → user_xxxxx
+};
+
 // ============================================
 // FUNCIONES PARA REFRESCAR PESTAÑAS
 // ============================================
@@ -93,6 +100,137 @@ function getValue(id) {
 function setValue(id, value) {
   const el = document.getElementById(id);
   if (el) el.value = value;
+}
+
+// ============================================
+// PRODUCTOS SIN STOCK
+// ============================================
+
+async function verProductosSinStock() {
+  try {
+    const { data, error } = await window.supabase
+      .from("productos")
+      .select("id, nombre, stock, precio, categoria")
+      .eq("stock", 0)
+      .order("nombre");
+
+    if (error) throw error;
+
+    if (!data || data.length === 0) {
+      alert("✅ Todos los productos tienen stock disponible.");
+      return;
+    }
+
+    let mensaje = "📦 PRODUCTOS SIN STOCK (0 unidades):\n\n";
+    mensaje += `Total: ${data.length} productos\n`;
+    mensaje += "═".repeat(30) + "\n\n";
+
+    data.forEach((p, i) => {
+      mensaje += `${i + 1}. ${p.nombre}\n`;
+      mensaje += `   💰 ${formatearMoneda(p.precio)}\n`;
+      mensaje += `   📂 ${p.categoria || "Sin categoría"}\n\n`;
+    });
+
+    alert(mensaje);
+  } catch (error) {
+    console.error("Error:", error);
+    alert("❌ Error al cargar productos sin stock");
+  }
+}
+
+// ============================================
+// ENVÍO DE CORREO MANUAL DESDE EL PANEL ADMIN
+// ============================================
+
+async function enviarCorreoManual(e) {
+  e.preventDefault();
+  const msg = document.getElementById("mensajeCorreo");
+  const btn = e.target.querySelector('button[type="submit"]');
+
+  const email = document.getElementById("correoCliente").value.trim();
+  const numeroPedido = document
+    .getElementById("numeroPedidoCorreo")
+    .value.trim();
+  const nombre = document.getElementById("nombreClienteCorreo").value.trim();
+  const productos = document.getElementById("productosCorreo").value.trim();
+  const total = document.getElementById("totalCorreo").value.trim();
+  const metodoPago = document.getElementById("metodoPagoCorreo").value.trim();
+  const envio = document.getElementById("envioCorreo").value.trim();
+  const direccion = document.getElementById("direccionCorreo").value.trim();
+  const mensajeAdicional = document
+    .getElementById("mensajeCorreo")
+    .value.trim();
+
+  if (!email || !numeroPedido || !nombre || !productos || !total) {
+    return mostrarMensaje(
+      msg,
+      "❌ Completa los campos obligatorios (*)",
+      "error"
+    );
+  }
+
+  try {
+    btn.disabled = true;
+    btn.textContent = "Enviando...";
+
+    // Cargar EmailJS
+    if (typeof emailjs === "undefined") {
+      await new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        script.src =
+          "https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js";
+        script.onload = resolve;
+        script.onerror = reject;
+        document.head.appendChild(script);
+      });
+      emailjs.init(EMAILJS_CONFIG.USER_ID);
+    }
+
+    // Parsear productos para el template
+    const lineas = productos.split("\n").filter((line) => line.trim());
+    const items = lineas.map((line) => {
+      const match = line.match(/^(.+?)\s*(?:x|×)\s*(\d+)\s*=\s*\$?([\d.]+)/);
+      if (match) {
+        return {
+          nombre: match[1].trim(),
+          cantidad: parseInt(match[2]),
+          precio: "$" + match[3],
+        };
+      }
+      return { nombre: line, cantidad: 1, precio: "" };
+    });
+
+    const params = {
+      cliente: nombre,
+      numero_pedido: numeroPedido,
+      fecha: new Date().toLocaleString("es-MX"),
+      productos: items,
+      total: total,
+      metodo_pago: metodoPago || "No especificado",
+      direccion:
+        direccion || "No especificada (te contactaremos para coordinar envío)",
+      envio: envio || "El costo de envío se acordará al contactarnos",
+      mensaje_adicional:
+        mensajeAdicional ||
+        "Gracias por tu compra. Nos pondremos en contacto para coordinar la entrega.",
+      to_email: email,
+    };
+
+    const response = await emailjs.send(
+      EMAILJS_CONFIG.SERVICE_ID,
+      EMAILJS_CONFIG.TEMPLATE_ID,
+      params
+    );
+
+    mostrarMensaje(msg, "✅ Correo enviado correctamente a " + email, "exito");
+    document.getElementById("formEnvioCorreo").reset();
+  } catch (error) {
+    console.error("Error:", error);
+    mostrarMensaje(msg, "❌ Error al enviar correo: " + error.message, "error");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "📧 Enviar Correo";
+  }
 }
 
 // ============================================
@@ -181,9 +319,14 @@ document.addEventListener("DOMContentLoaded", function () {
   // ============================================
   // INVENTARIO
   // ============================================
-  addEventListenerSafe("btnAgregarMovimiento", "click", () =>
-    mostrarFormMovimiento()
-  );
+  addEventListenerSafe("btnAgregarMovimiento", "click", () => {
+    document.getElementById("movId").value = "";
+    const submitBtn = document.querySelector(
+      '#formMovimiento button[type="submit"]'
+    );
+    if (submitBtn) submitBtn.textContent = "💾 Registrar";
+    mostrarFormMovimiento();
+  });
   addEventListenerSafe("btnCancelarMovimiento", "click", ocultarFormMovimiento);
 
   const formMovimiento = document.getElementById("formMovimiento");
@@ -272,6 +415,14 @@ document.addEventListener("DOMContentLoaded", function () {
         window.location.href = "login.html";
       }
     });
+  }
+
+  // ============================================
+  // ENVÍO DE CORREO MANUAL
+  // ============================================
+  const formEnvioCorreo = document.getElementById("formEnvioCorreo");
+  if (formEnvioCorreo) {
+    formEnvioCorreo.addEventListener("submit", enviarCorreoManual);
   }
 
   cambiarTab("productos");
@@ -438,16 +589,21 @@ async function guardarProducto(e) {
   const msg = document.getElementById("mensajeProducto");
   const btn = e.target.querySelector('button[type="submit"]');
 
+  const productoId = document.getElementById("prodId").value || null;
+  const esEdicion = productoId && productoId !== "";
+
   const datos = {
-    nombre: getValue("prodNombre").trim(),
-    precio: parseFloat(getValue("prodPrecio")),
-    categoria: getValue("prodCategoria"),
-    stock: parseInt(getValue("prodStock")) || 0,
-    descripcion: getValue("prodDescripcion").trim(),
-    imagen_url: getValue("prodImagen").trim(),
-    tienda_origen: getValue("prodTienda").trim(),
-    codigo_barras: getValue("prodCodigoBarras").trim() || null,
+    nombre: document.getElementById("prodNombre").value.trim(),
+    precio: parseFloat(document.getElementById("prodPrecio").value),
+    categoria: document.getElementById("prodCategoria").value,
+    descripcion: document.getElementById("prodDescripcion").value.trim(),
+    imagen_url: document.getElementById("prodImagen").value.trim(),
+    tienda_origen: document.getElementById("prodTienda").value.trim(),
+    codigo_barras:
+      document.getElementById("prodCodigoBarras").value.trim() || null,
   };
+
+  const stockNuevo = parseInt(document.getElementById("prodStock").value) || 0;
 
   if (!datos.nombre || !datos.precio) {
     if (msg)
@@ -461,42 +617,67 @@ async function guardarProducto(e) {
       btn.textContent = "Guardando...";
     }
 
-    const id = getValue("prodId");
     let result;
-    let productoId;
+    let nuevoId = null;
 
-    if (id) {
+    if (esEdicion) {
+      const { data: productoActual, error: getError } = await window.supabase
+        .from("productos")
+        .select("stock")
+        .eq("id", productoId)
+        .single();
+
+      if (getError) throw getError;
+
+      const stockAnterior = productoActual?.stock || 0;
+      const diferencia = stockNuevo - stockAnterior;
+
       result = await window.supabase
         .from("productos")
-        .update(datos)
-        .eq("id", id);
-      productoId = id;
-    } else {
-      result = await window.supabase.from("productos").insert([datos]).select();
+        .update({ ...datos, stock: stockNuevo })
+        .eq("id", productoId);
+
       if (result.error) throw result.error;
-      if (result.data && result.data.length > 0) {
-        productoId = result.data[0].id;
+
+      if (diferencia !== 0) {
+        const tipo = diferencia > 0 ? "entrada" : "salida";
+        await window.supabase.from("inventario").insert([
+          {
+            producto_id: productoId,
+            tipo: tipo,
+            cantidad: Math.abs(diferencia),
+            descripcion: `📦 Ajuste de stock: ${
+              diferencia > 0 ? "+" : ""
+            }${diferencia} unidades`,
+          },
+        ]);
       }
-    }
+    } else {
+      const datosProducto = {
+        ...datos,
+        stock: stockNuevo,
+      };
 
-    if (result.error) throw result.error;
+      result = await window.supabase
+        .from("productos")
+        .insert([datosProducto])
+        .select();
 
-    if (!id && datos.stock > 0 && productoId) {
-      try {
-        const { error: invError } = await window.supabase
-          .from("inventario")
-          .insert([
-            {
-              producto_id: productoId,
-              tipo: "entrada",
-              cantidad: datos.stock,
-              descripcion: "📦 Producto agregado al catálogo",
-            },
-          ]);
-        if (invError)
-          console.warn("⚠️ Error al registrar inventario:", invError);
-      } catch (invError) {
-        console.warn("⚠️ Error al registrar inventario:", invError);
+      if (result.error) throw result.error;
+
+      if (result.data && result.data.length > 0) {
+        nuevoId = result.data[0].id;
+      }
+
+      if (stockNuevo > 0 && nuevoId) {
+        await window.supabase.from("inventario").insert([
+          {
+            producto_id: nuevoId,
+            tipo: "entrada",
+            cantidad: stockNuevo,
+            descripcion: "📦 Stock inicial al crear producto",
+          },
+        ]);
       }
     }
 
@@ -510,7 +691,7 @@ async function guardarProducto(e) {
   } finally {
     if (btn) {
       btn.disabled = false;
-      btn.textContent = id ? "💾 Actualizar" : "💾 Guardar";
+      btn.textContent = esEdicion ? "💾 Actualizar" : "💾 Guardar";
     }
   }
 }
@@ -566,7 +747,7 @@ async function buscarPorCodigoBarras() {
 }
 
 // ============================================
-// 3. INVENTARIO
+// 3. INVENTARIO - COMPLETO (SIN EDICIÓN)
 // ============================================
 
 async function cargarSelectProductosInventario() {
@@ -602,6 +783,11 @@ function ocultarFormMovimiento() {
   if (container) container.style.display = "none";
   const form = document.getElementById("formMovimiento");
   if (form) form.reset();
+  document.getElementById("movId").value = "";
+  const submitBtn = document.querySelector(
+    '#formMovimiento button[type="submit"]'
+  );
+  if (submitBtn) submitBtn.textContent = "💾 Registrar";
 }
 
 async function guardarMovimiento(e) {
@@ -623,21 +809,46 @@ async function guardarMovimiento(e) {
   try {
     if (btn) {
       btn.disabled = true;
-      btn.textContent = "Registrando...";
+      btn.textContent = "Guardando...";
     }
 
-    const { error } = await window.supabase.from("inventario").insert([
-      {
-        producto_id: productoId,
-        tipo: tipo,
-        cantidad: cantidad,
-        descripcion: descripcion || null,
-      },
-    ]);
+    const { data: productoActual, error: prodError } = await window.supabase
+      .from("productos")
+      .select("stock")
+      .eq("id", productoId)
+      .single();
 
-    if (error) throw error;
+    if (prodError) throw prodError;
 
-    if (msg) mostrarMensaje(msg, "✅ Movimiento registrado", "exito");
+    let stockFinal = productoActual.stock;
+    if (tipo === "entrada") {
+      stockFinal = productoActual.stock + cantidad;
+    } else if (tipo === "salida") {
+      stockFinal = productoActual.stock - cantidad;
+    }
+    if (stockFinal < 0) stockFinal = 0;
+
+    const { error: insertError } = await window.supabase
+      .from("inventario")
+      .insert([
+        {
+          producto_id: productoId,
+          tipo: tipo,
+          cantidad: cantidad,
+          descripcion: descripcion || null,
+        },
+      ]);
+
+    if (insertError) throw insertError;
+
+    await window.supabase
+      .from("productos")
+      .update({ stock: stockFinal })
+      .eq("id", productoId);
+
+    if (msg)
+      mostrarMensaje(msg, "✅ Movimiento registrado correctamente", "exito");
+
     ocultarFormMovimiento();
     cargarInventario();
     cargarProductos();
@@ -668,18 +879,24 @@ async function cargarInventario() {
   try {
     const { data, error } = await window.supabase
       .from("inventario")
-      .select(`*, productos (nombre, precio, codigo_barras)`)
+      .select(`*, productos (id, nombre, precio, codigo_barras, stock)`)
       .order("fecha", { ascending: false });
 
     if (error) {
       container.innerHTML =
         '<p class="text-danger text-center">❌ Error al cargar</p>';
+      console.error("Error cargando inventario:", error);
       return;
     }
 
-    const { data: productos } = await window.supabase
+    const { data: productos, error: prodError } = await window.supabase
       .from("productos")
-      .select("stock");
+      .select("id, nombre, stock");
+
+    if (prodError) {
+      console.error("Error cargando productos:", prodError);
+    }
+
     const conStock = productos?.filter((p) => p.stock > 0).length || 0;
     const sinStock = productos?.filter((p) => p.stock === 0).length || 0;
 
@@ -701,7 +918,19 @@ async function cargarInventario() {
 
     container.innerHTML = `
             <table class="table table-dark table-hover table-sm">
-                <thead><tr><th>Fecha</th><th>Producto</th><th>Código</th><th>Tipo</th><th>Cantidad</th><th>Descripción</th><th>Stock actual</th><th>Acciones</th></tr></thead>
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Producto</th>
+                        <th>Precio</th>
+                        <th>Código</th>
+                        <th>Tipo</th>
+                        <th>Cantidad</th>
+                        <th>Descripción</th>
+                        <th>Stock actual</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
                 <tbody>
                     ${data
                       .map(
@@ -711,30 +940,45 @@ async function cargarInventario() {
                             <td><strong>${
                               m.productos?.nombre || "Producto eliminado"
                             }</strong></td>
+                            <td>${
+                              m.productos?.precio
+                                ? formatearMoneda(m.productos.precio)
+                                : "-"
+                            }</td>
                             <td><code style="background:#1a1a1a;padding:2px 6px;border-radius:4px;font-size:11px;color:#c9a84c;">${
                               m.productos?.codigo_barras || "-"
                             }</code></td>
-                            <td><span class="${
-                              m.tipo === "entrada"
-                                ? "text-success"
-                                : "text-danger"
-                            }">${
-                          m.tipo === "entrada" ? "📥 Entrada" : "📤 Salida"
-                        }</span></td>
+                            <td>
+                                <span class="${
+                                  m.tipo === "entrada"
+                                    ? "text-success"
+                                    : "text-danger"
+                                }">
+                                    ${
+                                      m.tipo === "entrada"
+                                        ? "📥 Entrada"
+                                        : "📤 Salida"
+                                    }
+                                </span>
+                            </td>
                             <td class="${
                               m.tipo === "entrada"
                                 ? "text-success"
                                 : "text-danger"
-                            }">${m.tipo === "entrada" ? "+" : "-"} ${
+                            }">
+                                ${m.tipo === "entrada" ? "+" : "-"} ${
                           m.cantidad
-                        }</td>
+                        }
+                            </td>
                             <td><small>${m.descripcion || "-"}</small></td>
                             <td><span class="text-warning">${
                               m.productos?.stock || 0
                             }</span></td>
-                            <td><button onclick="pedirEliminar('${
-                              m.id
-                            }','inventario')" class="btn btn-outline-danger btn-sm">🗑️</button></td>
+                            <td>
+                                <button onclick="pedirEliminar('${
+                                  m.id
+                                }','inventario')" class="btn btn-outline-danger btn-sm">🗑️</button>
+                            </td>
                         </tr>
                     `
                       )
@@ -750,7 +994,7 @@ async function cargarInventario() {
 }
 
 // ============================================
-// 4. PEDIDOS
+// 4. PEDIDOS - CON CONTADORES Y FORMATO MEJORADO
 // ============================================
 
 async function cargarPedidos(estado = "todos") {
@@ -767,6 +1011,44 @@ async function cargarPedidos(estado = "todos") {
     '<div class="text-center text-secondary py-3">Cargando...</div>';
 
   try {
+    // 🔥 OBTENER TODOS LOS PEDIDOS PARA CONTADORES
+    const { data: todosPedidos, error: countError } = await window.supabase
+      .from("pedidos")
+      .select("estado");
+
+    if (countError) throw countError;
+
+    // 🔥 CALCULAR CONTADORES
+    const total = todosPedidos?.length || 0;
+    const pendientes =
+      todosPedidos?.filter((p) => p.estado === "pendiente").length || 0;
+    const confirmados =
+      todosPedidos?.filter((p) => p.estado === "confirmado").length || 0;
+    const entregados =
+      todosPedidos?.filter((p) => p.estado === "entregado").length || 0;
+    const cancelados =
+      todosPedidos?.filter((p) => p.estado === "cancelado").length || 0;
+
+    // 🔥 ACTUALIZAR BADGES DE LOS BOTONES DE FILTRO
+    document.querySelectorAll(".filtro-pedido").forEach((btn) => {
+      const estadoBtn = btn.dataset.estado;
+      let count = 0;
+      if (estadoBtn === "todos") count = total;
+      else if (estadoBtn === "pendiente") count = pendientes;
+      else if (estadoBtn === "confirmado") count = confirmados;
+      else if (estadoBtn === "entregado") count = entregados;
+      else if (estadoBtn === "cancelado") count = cancelados;
+
+      let badge = btn.querySelector(".badge");
+      if (!badge) {
+        badge = document.createElement("span");
+        badge.className = "badge bg-secondary ms-1";
+        btn.appendChild(badge);
+      }
+      badge.textContent = count;
+    });
+
+    // 🔥 OBTENER PEDIDOS SEGÚN FILTRO
     let query = window.supabase
       .from("pedidos")
       .select("*")
@@ -791,30 +1073,71 @@ async function cargarPedidos(estado = "todos") {
 
     container.innerHTML = `
             <table class="table table-dark table-hover table-sm">
-                <thead><tr><th>Fecha</th><th>Cliente</th><th>Productos</th><th>Total</th><th>Estado</th><th>Acciones</th></tr></thead>
+                <thead>
+                    <tr>
+                        <th>N° Pedido</th>
+                        <th>Fecha</th>
+                        <th>Cliente</th>
+                        <th>Productos</th>
+                        <th>Total</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
                 <tbody>
                     ${data
                       .map(
                         (p) => `
                         <tr>
+                            <td><code style="background:#1a1a1a;padding:2px 8px;border-radius:4px;color:#c9a84c;font-size:12px;">${
+                              p.numero_pedido || "N/A"
+                            }</code></td>
                             <td><small>${formatearFecha(
                               p.fecha_pedido
                             )}</small></td>
-                            <td><strong>${
-                              p.cliente_nombre
-                            }</strong><br><small class="text-secondary">${
-                          p.cliente_telefono
-                        }</small></td>
-                            <td><small>${p.productos
-                              .map((x) => `${x.nombre} x${x.cantidad}`)
-                              .join("<br>")}</small></td>
-                            <td><strong>${formatearMoneda(
+                            <td>
+                                <div style="font-size:1.1rem; font-weight:600; color:#fff; margin-bottom:4px;">
+                                    ${p.cliente_nombre}
+                                </div>
+                                <div style="font-size:0.95rem; color: #a0a0a0; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                                    <span style="font-size:1rem;">📱</span>
+                                    <span style="font-weight:500; color:#c9a84c; font-size:0.95rem;">${
+                                      p.cliente_telefono || "Sin teléfono"
+                                    }</span>
+                                    ${
+                                      p.cliente_email
+                                        ? `<span style="color:#666; margin-left:4px;">|</span> <span style="font-size:1rem;">📧</span> <span style="color:#8ab4f8; font-size:0.95rem;">${p.cliente_email}</span>`
+                                        : ""
+                                    }
+                                </div>
+                            </td>
+                            <td style="font-size:13px; line-height:1.6;">
+                                ${p.productos
+                                  .map(
+                                    (x) => `
+                                    <div style="display:flex; align-items:center; gap:6px; padding:2px 0; border-bottom:1px solid rgba(255,255,255,0.05);">
+                                        <span style="color:#c9a84c; font-weight:500;">${
+                                          x.nombre
+                                        }</span>
+                                        <span style="color:#666;">×</span>
+                                        <span style="color:#fff; font-weight:600;">${
+                                          x.cantidad
+                                        }</span>
+                                        <span style="color:#666; margin-left:auto;">${formatearMoneda(
+                                          x.precio * x.cantidad
+                                        )}</span>
+                                    </div>
+                                `
+                                  )
+                                  .join("")}
+                            </td>
+                            <td><strong style="color:#c9a84c; font-size:1.1rem;">${formatearMoneda(
                               p.total
                             )}</strong></td>
                             <td>
                                 <select onchange="cambiarEstadoPedido('${
                                   p.id
-                                }', this.value)" class="form-select form-select-sm bg-black text-white border-secondary" style="width:auto;">
+                                }', this.value)" class="form-select form-select-sm bg-black text-white border-secondary" style="width:auto; min-width:120px;">
                                     <option value="pendiente" ${
                                       p.estado === "pendiente" ? "selected" : ""
                                     }>📋 Pendiente</option>
@@ -832,12 +1155,14 @@ async function cargarPedidos(estado = "todos") {
                                 </select>
                             </td>
                             <td>
-                                <button onclick="generarTicketPedido('${
-                                  p.id
-                                }')" class="btn btn-warning btn-sm">🧾</button>
-                                <button onclick="verDetallePedido('${
-                                  p.id
-                                }')" class="btn btn-outline-secondary btn-sm">📋</button>
+                                <div class="d-flex gap-1 flex-wrap">
+                                    <button onclick="generarTicketPedido('${
+                                      p.id
+                                    }')" class="btn btn-warning btn-sm" title="Generar Ticket">🧾</button>
+                                    <button onclick="verDetallePedido('${
+                                      p.id
+                                    }')" class="btn btn-outline-secondary btn-sm" title="Ver Detalle">📋</button>
+                                </div>
                             </td>
                         </tr>
                     `
@@ -880,7 +1205,7 @@ async function verDetallePedido(id) {
     const productos = data.productos
       .map(
         (p) =>
-          `• ${p.nombre} x${p.cantidad} = ${formatearMoneda(
+          `• ${p.nombre} × ${p.cantidad} = ${formatearMoneda(
             p.precio * p.cantidad
           )}`
       )
@@ -1116,7 +1441,7 @@ async function guardarFinanza(e) {
 }
 
 // ============================================
-// 6. TICKET - FUNCIONES COMPLETAS (CON DEVOLUCIÓN DE STOCK CORREGIDA)
+// 6. TICKET - FUNCIONES COMPLETAS
 // ============================================
 
 async function cargarProductosTicket() {
@@ -1203,7 +1528,6 @@ function agregarProductoTicket() {
     return;
   }
 
-  // Guardar el stock original antes de modificarlo
   const stockOriginal = producto.stock;
 
   const existente = ticketProductos.find((p) => p.id === productoId);
@@ -1221,13 +1545,12 @@ function agregarProductoTicket() {
       nombre: producto.nombre,
       precio: precio,
       cantidad: cantidad,
-      stockOriginal: stockOriginal, // 🔥 Guardar el stock original
+      stockOriginal: stockOriginal,
     };
     ticketProductos.push(nuevoProducto);
     console.log("✅ Producto agregado:", nuevoProducto);
   }
 
-  // Actualizar el stock en productosDisponibles
   producto.stock -= cantidad;
 
   actualizarListaTicket();
@@ -1263,7 +1586,7 @@ function actualizarListaTicket() {
         <div class="d-flex justify-content-between align-items-center bg-secondary bg-opacity-25 p-2 rounded-2 mb-1">
             <div>
                 <span class="text-white">${p.nombre}</span>
-                <span class="text-secondary small"> x${p.cantidad}</span>
+                <span class="text-secondary small"> × ${p.cantidad}</span>
                 <span class="text-warning small">$${(
                   p.precio * p.cantidad
                 ).toFixed(2)}</span>
@@ -1281,12 +1604,10 @@ function eliminarProductoTicket(index) {
 
   console.log("🗑️ Eliminando producto:", productoEliminado);
 
-  // 🔥 DEVOLVER EL STOCK AL PRODUCTO ORIGINAL
   const productoOriginal = productosDisponibles.find(
     (p) => p.id === productoEliminado.id
   );
   if (productoOriginal) {
-    // 🔥 Restaurar el stock original (no sumar sobre el stock actual)
     productoOriginal.stock = productoEliminado.stockOriginal;
     console.log(
       `✅ Stock restaurado a ${productoOriginal.nombre}: ${productoOriginal.stock}`
@@ -1332,7 +1653,7 @@ function actualizarTotalesTicket() {
     const cantidad = Number(p.cantidad) || 0;
     const totalItem = precio * cantidad;
     subtotal += totalItem;
-    console.log(`📦 ${p.nombre}: $${precio} x ${cantidad} = $${totalItem}`);
+    console.log(`📦 ${p.nombre}: $${precio} × ${cantidad} = $${totalItem}`);
   }
 
   const envioInput = document.getElementById("ticketEnvio");
@@ -1371,32 +1692,51 @@ async function generarTicketVenta(e) {
   }
 
   let subtotal = 0;
+  const productosValidados = [];
+
   for (const item of ticketProductos) {
-    const producto = productosDisponibles.find((p) => p.id === item.id);
-    if (!producto) {
+    const { data: productoBD, error: prodError } = await window.supabase
+      .from("productos")
+      .select("id, nombre, precio, stock")
+      .eq("nombre", item.nombre)
+      .maybeSingle();
+
+    if (prodError) {
+      console.error("Error buscando producto:", prodError);
       return mostrarMensaje(
         msg,
-        `❌ Producto "${item.nombre}" no encontrado`,
+        `❌ Error al verificar producto "${item.nombre}"`,
         "error"
       );
     }
-    if (item.cantidad > producto.stock) {
+
+    if (!productoBD) {
       return mostrarMensaje(
         msg,
-        `❌ Stock insuficiente para "${item.nombre}". Disponible: ${producto.stock}`,
+        `❌ Producto "${item.nombre}" no encontrado en la base de datos.`,
         "error"
       );
     }
-    const precio = Number(item.precio) || 0;
-    const cantidad = Number(item.cantidad) || 0;
-    subtotal += precio * cantidad;
-    console.log(
-      `📦 ${item.nombre}: $${precio} x ${cantidad} = $${precio * cantidad}`
-    );
+
+    if (item.cantidad > productoBD.stock) {
+      return mostrarMensaje(
+        msg,
+        `❌ Stock insuficiente para "${item.nombre}". Disponible: ${productoBD.stock}`,
+        "error"
+      );
+    }
+
+    productosValidados.push({
+      id: productoBD.id,
+      nombre: productoBD.nombre,
+      precio: productoBD.precio,
+      cantidad: item.cantidad,
+    });
+
+    subtotal += productoBD.precio * item.cantidad;
   }
 
   const total = subtotal + envio;
-  console.log("📊 Subtotal:", subtotal, "Envío:", envio, "Total:", total);
 
   try {
     btn.disabled = true;
@@ -1406,10 +1746,10 @@ async function generarTicketVenta(e) {
       cliente_nombre: cliente,
       cliente_telefono: telefono,
       direccion_entrega: direccion || null,
-      productos: ticketProductos.map((p) => ({
+      productos: productosValidados.map((p) => ({
         nombre: p.nombre,
-        precio: Number(p.precio) || 0,
-        cantidad: Number(p.cantidad) || 0,
+        precio: p.precio,
+        cantidad: p.cantidad,
       })),
       total: total,
       metodo_pago: "efectivo",
@@ -1424,7 +1764,7 @@ async function generarTicketVenta(e) {
 
     if (pedidoError) throw pedidoError;
 
-    for (const item of ticketProductos) {
+    for (const item of productosValidados) {
       const { error: invError } = await window.supabase
         .from("inventario")
         .insert([
@@ -1435,7 +1775,24 @@ async function generarTicketVenta(e) {
             descripcion: `Venta a ${cliente}`,
           },
         ]);
+
       if (invError) throw invError;
+    }
+
+    for (const item of productosValidados) {
+      const { data: prodActual } = await window.supabase
+        .from("productos")
+        .select("stock")
+        .eq("id", item.id)
+        .single();
+
+      if (prodActual) {
+        const nuevoStock = prodActual.stock - item.cantidad;
+        await window.supabase
+          .from("productos")
+          .update({ stock: nuevoStock })
+          .eq("id", item.id);
+      }
     }
 
     const { error: finError } = await window.supabase.from("finanzas").insert([
@@ -1446,6 +1803,7 @@ async function generarTicketVenta(e) {
         monto: total,
       },
     ]);
+
     if (finError) throw finError;
 
     const datosTicket = {
@@ -1453,10 +1811,10 @@ async function generarTicketVenta(e) {
       telefono: telefono,
       direccion: direccion || "",
       metodo_pago: "Efectivo",
-      items: ticketProductos.map((p) => ({
+      items: productosValidados.map((p) => ({
         nombre: p.nombre,
-        precio: Number(p.precio) || 0,
-        cantidad: Number(p.cantidad) || 0,
+        precio: p.precio,
+        cantidad: p.cantidad,
       })),
       subtotal: subtotal,
       envio: envio,
@@ -1473,12 +1831,10 @@ async function generarTicketVenta(e) {
 
     mostrarMensaje(msg, "✅ ¡Venta registrada! Ticket generado.", "exito");
 
-    // 🔥 LIMPIAR TODO CORRECTAMENTE
     ticketProductos = [];
     actualizarListaTicket();
     actualizarTotalesTicket();
 
-    // 🔥 FORZAR LIMPIEZA DE CAMPOS
     document.getElementById("ticketCliente").value = "";
     document.getElementById("ticketTelefono").value = "";
     document.getElementById("ticketDireccion").value = "";
@@ -1486,7 +1842,6 @@ async function generarTicketVenta(e) {
     document.getElementById("ticketSubtotal").value = "$0.00";
     document.getElementById("ticketTotal").value = "$0.00";
 
-    // 🔥 ACTUALIZAR TABLAS
     cargarProductos();
     cargarInventario();
     cargarPedidos();
@@ -1535,6 +1890,38 @@ async function confirmarEliminar() {
         .delete()
         .eq("id", eliminarId);
     } else if (eliminarTipo === "inventario") {
+      const { data: movimiento } = await window.supabase
+        .from("inventario")
+        .select("*")
+        .eq("id", eliminarId)
+        .single();
+
+      if (movimiento) {
+        let revertirStock = 0;
+        if (movimiento.tipo === "entrada") {
+          revertirStock = -movimiento.cantidad;
+        } else if (movimiento.tipo === "salida") {
+          revertirStock = movimiento.cantidad;
+        }
+
+        if (revertirStock !== 0) {
+          const { data: productoActual } = await window.supabase
+            .from("productos")
+            .select("stock")
+            .eq("id", movimiento.producto_id)
+            .single();
+
+          if (productoActual) {
+            let nuevoStock = productoActual.stock + revertirStock;
+            if (nuevoStock < 0) nuevoStock = 0;
+            await window.supabase
+              .from("productos")
+              .update({ stock: nuevoStock })
+              .eq("id", movimiento.producto_id);
+          }
+        }
+      }
+
       result = await window.supabase
         .from("inventario")
         .delete()
@@ -1587,6 +1974,7 @@ function cerrarModal() {
 window.eliminarProductoTicket = eliminarProductoTicket;
 window.agregarProductoTicket = agregarProductoTicket;
 window.cargarProductosTicket = cargarProductosTicket;
+window.verProductosSinStock = verProductosSinStock;
 
 // ============================================
 // 9. FUNCIONES DE UTILIDAD (FALLBACK)
