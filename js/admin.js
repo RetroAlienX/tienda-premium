@@ -1,5 +1,5 @@
 // ============================================
-// ADMIN - COMPLETO CON REFRESCAR Y TICKET CORREGIDO
+// ADMIN - COMPLETO CORREGIDO
 // ============================================
 
 let productoEditando = null;
@@ -13,12 +13,20 @@ let eliminarTipo = null;
 let ticketProductos = [];
 let productosDisponibles = [];
 
-// 🔥 CONFIGURACIÓN DE EMAILJS - CAMBIA ESTOS VALORES
+// 🔥 CONFIGURACIÓN DE EMAILJS - TUS DATOS CORRECTOS
 const EMAILJS_CONFIG = {
-  SERVICE_ID: "service_4utb13l", // De EmailJS → service_xxxxx
-  TEMPLATE_ID: "template_e454v8w", // De EmailJS → template_xxxxx
-  USER_ID: "u-BAOu3SbKHhBY2qk", // De EmailJS → user_xxxxx
+  SERVICE_ID: "service_5yxoyt5", // Outlook
+  TEMPLATE_ID: "template_1dcnw6v",
+  USER_ID: "Jx00-aXDn9h0eWxnY", // Public Key
 };
+
+// 🔥 INICIALIZAR EMAILJS (el SDK ya se carga vía <script> en admin.html)
+if (typeof emailjs !== "undefined") {
+  emailjs.init(EMAILJS_CONFIG.USER_ID);
+  console.log("✅ EmailJS inicializado");
+} else {
+  console.warn("⚠️ EmailJS SDK no disponible todavía en admin.js");
+}
 
 // ============================================
 // FUNCIONES PARA REFRESCAR PESTAÑAS
@@ -103,6 +111,39 @@ function setValue(id, value) {
 }
 
 // ============================================
+// FUNCIONES DE UTILIDAD
+// ============================================
+
+function mostrarMensaje(el, msg, tipo) {
+  if (!el) return;
+  el.textContent = msg;
+  el.className = "mensaje-" + tipo;
+  if (tipo === "exito") {
+    setTimeout(() => {
+      el.textContent = "";
+      el.className = "";
+    }, 5000);
+  }
+}
+
+function formatearMoneda(cantidad) {
+  return new Intl.NumberFormat("es-MX", {
+    style: "currency",
+    currency: "MXN",
+  }).format(cantidad);
+}
+
+function formatearFecha(fecha) {
+  return new Date(fecha).toLocaleString("es-MX", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+// ============================================
 // PRODUCTOS SIN STOCK
 // ============================================
 
@@ -139,41 +180,221 @@ async function verProductosSinStock() {
 }
 
 // ============================================
-// ENVÍO DE CORREO MANUAL DESDE EL PANEL ADMIN
+// CARGAR PEDIDOS PENDIENTES PARA ENVÍOS
 // ============================================
 
-async function enviarCorreoManual(e) {
-  e.preventDefault();
-  const msg = document.getElementById("mensajeCorreo");
-  const btn = e.target.querySelector('button[type="submit"]');
+async function cargarPedidosPendientes() {
+  const select = document.getElementById("selectPedidoEnvio");
+  if (!select) return;
 
-  const email = document.getElementById("correoCliente").value.trim();
-  const numeroPedido = document
-    .getElementById("numeroPedidoCorreo")
-    .value.trim();
-  const nombre = document.getElementById("nombreClienteCorreo").value.trim();
-  const productos = document.getElementById("productosCorreo").value.trim();
-  const total = document.getElementById("totalCorreo").value.trim();
-  const metodoPago = document.getElementById("metodoPagoCorreo").value.trim();
-  const envio = document.getElementById("envioCorreo").value.trim();
-  const direccion = document.getElementById("direccionCorreo").value.trim();
-  const mensajeAdicional = document
-    .getElementById("mensajeCorreo")
-    .value.trim();
+  try {
+    const { data, error } = await window.supabase
+      .from("pedidos")
+      .select(
+        "id, numero_pedido, cliente_nombre, cliente_telefono, cliente_email, productos, total, direccion_entrega"
+      )
+      .eq("estado", "pendiente")
+      .order("fecha_pedido", { ascending: false });
 
-  if (!email || !numeroPedido || !nombre || !productos || !total) {
-    return mostrarMensaje(
-      msg,
-      "❌ Completa los campos obligatorios (*)",
-      "error"
+    if (error) throw error;
+
+    select.innerHTML =
+      '<option value="">Selecciona un pedido pendiente...</option>';
+
+    if (!data || data.length === 0) {
+      select.innerHTML =
+        '<option value="">📋 No hay pedidos pendientes</option>';
+      return;
+    }
+
+    data.forEach((p) => {
+      const productosText = p.productos
+        .map((x) => `${x.nombre} x${x.cantidad}`)
+        .join(", ");
+      select.innerHTML += `
+                <option value="${p.id}" 
+                        data-cliente="${p.cliente_nombre}"
+                        data-telefono="${p.cliente_telefono || ""}"
+                        data-email="${p.cliente_email || ""}"
+                        data-numero="${p.numero_pedido || "N/A"}"
+                        data-productos='${JSON.stringify(p.productos)}'
+                        data-total="${p.total}"
+                        data-direccion="${p.direccion_entrega || ""}">
+                    ${p.numero_pedido} - ${p.cliente_nombre} (${productosText})
+                </option>
+            `;
+    });
+
+    select.addEventListener("change", function () {
+      const option = this.options[this.selectedIndex];
+      if (option && option.value) {
+        document.getElementById("correoCliente").value =
+          option.dataset.email || "";
+        document.getElementById("nombreClienteCorreo").value =
+          option.dataset.cliente || "";
+        document.getElementById("numeroPedidoCorreo").value =
+          option.dataset.numero || "";
+        document.getElementById("direccionCorreo").value =
+          option.dataset.direccion || "";
+        document.getElementById("telefonoCorreo").value =
+          option.dataset.telefono || "";
+
+        try {
+          const productos = JSON.parse(option.dataset.productos || "[]");
+          const productosText = productos
+            .map(
+              (p) =>
+                `${p.nombre} x${p.cantidad} = $${(
+                  p.precio * p.cantidad
+                ).toFixed(2)}`
+            )
+            .join("\n");
+          document.getElementById("productosCorreo").value = productosText;
+        } catch (e) {
+          document.getElementById("productosCorreo").value = "";
+        }
+
+        document.getElementById("totalCorreo").value = option.dataset.total
+          ? `$${parseFloat(option.dataset.total).toFixed(2)}`
+          : "";
+
+        const msg = document.getElementById("mensajeCorreo");
+        if (msg) {
+          msg.innerHTML = `<span class="text-success">✅ Pedido ${option.dataset.numero} seleccionado. Solo agrega el costo de envío.</span>`;
+          msg.className = "mensaje-exito";
+        }
+      }
+    });
+  } catch (error) {
+    console.error("Error cargando pedidos pendientes:", error);
+    select.innerHTML = '<option value="">❌ Error al cargar pedidos</option>';
+  }
+}
+
+// ============================================
+// ABRIR MODAL PARA ENVIAR CORREO DESDE PEDIDOS
+// ============================================
+
+function abrirModalCorreo(pedidoId) {
+  const row = document.querySelector(`tr[data-pedido-id="${pedidoId}"]`);
+  if (!row) {
+    alert("❌ No se encontraron datos del pedido");
+    return;
+  }
+
+  const cliente = row.dataset.cliente || "";
+  const telefono = row.dataset.telefono || "";
+  const email = row.dataset.email || "";
+  const numeroPedido = row.dataset.numero || "";
+  const direccion = row.dataset.direccion || "";
+  const productos = row.dataset.productos || "[]";
+  const total = row.dataset.total || "0";
+
+  const modalPedidoId = document.getElementById("modalCorreoPedidoId");
+  const modalCliente = document.getElementById("modalCorreoCliente");
+  const modalTelefono = document.getElementById("modalCorreoTelefono");
+  const modalEmail = document.getElementById("modalCorreoEmail");
+  const modalNumero = document.getElementById("modalCorreoNumero");
+  const modalDireccion = document.getElementById("modalCorreoDireccion");
+  const modalTotal = document.getElementById("modalCorreoTotal");
+  const modalEnvio = document.getElementById("modalCorreoEnvio");
+  const modalProductos = document.getElementById("modalCorreoProductos");
+  const modalMensaje = document.getElementById("modalCorreoMensaje");
+
+  if (
+    !modalPedidoId ||
+    !modalCliente ||
+    !modalTelefono ||
+    !modalEmail ||
+    !modalNumero ||
+    !modalDireccion ||
+    !modalTotal ||
+    !modalEnvio ||
+    !modalProductos
+  ) {
+    console.error("❌ Elementos del modal no encontrados");
+    alert(
+      "Error al abrir el modal. Verifica que el modal esté cargado correctamente."
     );
+    return;
+  }
+
+  modalPedidoId.value = pedidoId;
+  modalCliente.value = cliente;
+  modalTelefono.value = telefono;
+  modalEmail.value = email;
+  modalNumero.value = numeroPedido;
+  modalDireccion.value = direccion;
+  modalTotal.value = `$${parseFloat(total).toFixed(2)}`;
+  modalEnvio.value = "";
+  modalMensaje.value = "";
+
+  try {
+    const productosParsed = JSON.parse(productos);
+    const productosText = productosParsed
+      .map(
+        (p) =>
+          `${p.nombre} x${p.cantidad} = $${(p.precio * p.cantidad).toFixed(2)}`
+      )
+      .join("\n");
+    modalProductos.value = productosText;
+  } catch (e) {
+    modalProductos.value = "";
+  }
+
+  const mensaje = document.getElementById("mensajeModalCorreo");
+  if (mensaje) {
+    mensaje.innerHTML = "";
+    mensaje.className = "";
+  }
+
+  const modal = new bootstrap.Modal(
+    document.getElementById("modalEnvioCorreo")
+  );
+  modal.show();
+}
+
+// ============================================
+// ENVIAR CORREO DESDE MODAL - CORREGIDO
+// ============================================
+
+async function enviarCorreoDesdeModal() {
+  const btn = document.querySelector("#modalEnvioCorreo .btn-warning");
+  const mensaje = document.getElementById("mensajeModalCorreo");
+
+  const pedidoId = document.getElementById("modalCorreoPedidoId").value;
+  let email = document.getElementById("modalCorreoEmail").value.trim();
+  const numeroPedido = document
+    .getElementById("modalCorreoNumero")
+    .value.trim();
+  const nombre = document.getElementById("modalCorreoCliente").value.trim();
+  const productosText = document
+    .getElementById("modalCorreoProductos")
+    .value.trim();
+  let total = document.getElementById("modalCorreoTotal").value.trim();
+  const direccion = document
+    .getElementById("modalCorreoDireccion")
+    .value.trim();
+  const envio = document.getElementById("modalCorreoEnvio").value.trim();
+  const mensajeAdicional = document
+    .getElementById("modalCorreoMensaje")
+    .value.trim();
+
+  if (!email) {
+    email = "theroute66jvmarket@gmail.com";
+    console.warn("⚠️ El pedido no tiene correo, usando correo del admin");
+  }
+
+  if (!envio || parseFloat(envio) <= 0) {
+    mensaje.innerHTML =
+      '<span class="text-danger">❌ Ingresa un costo de envío válido</span>';
+    return;
   }
 
   try {
     btn.disabled = true;
     btn.textContent = "Enviando...";
 
-    // Cargar EmailJS
     if (typeof emailjs === "undefined") {
       await new Promise((resolve, reject) => {
         const script = document.createElement("script");
@@ -186,50 +407,315 @@ async function enviarCorreoManual(e) {
       emailjs.init(EMAILJS_CONFIG.USER_ID);
     }
 
-    // Parsear productos para el template
-    const lineas = productos.split("\n").filter((line) => line.trim());
+    // 🔥 PARSEAR PRODUCTOS - SIN SIGNO $
+    const lineas = productosText.split("\n").filter((line) => line.trim());
     const items = lineas.map((line) => {
       const match = line.match(/^(.+?)\s*(?:x|×)\s*(\d+)\s*=\s*\$?([\d.]+)/);
       if (match) {
         return {
           nombre: match[1].trim(),
           cantidad: parseInt(match[2]),
-          precio: "$" + match[3],
+          precio: match[3], // 🔥 SOLO EL NÚMERO
         };
       }
-      return { nombre: line, cantidad: 1, precio: "" };
+      return { nombre: line.trim(), cantidad: 1, precio: "0" };
     });
+
+    // 🔥 QUITAR SIGNO $ DE TOTAL Y ENVIO
+    total = total.replace(/[$,]/g, "");
+    const envioNum = envio.replace(/[$,]/g, "");
+
+    // 🔥 PREPARAR PARÁMETROS
+    const params = {
+      cliente: nombre,
+      numero_pedido: numeroPedido,
+      fecha: new Date().toLocaleString("es-MX", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+      productos: items, // ✅ Array de objetos con precio como número
+      total: total,
+      metodo_pago: "Transferencia / Efectivo",
+      direccion: direccion || "No especificada",
+      envio: envioNum,
+      mensaje_adicional:
+        mensajeAdicional ||
+        `El costo de envío es de $${parseFloat(envioNum).toFixed(
+          2
+        )}. Confirma tu pedido.`,
+      to_email: email,
+    };
+
+    console.log("📧 Enviando correo a:", email);
+    console.log("📋 Parámetros:", params);
+
+    // 🔥 ENVIAR CON SUBJECT CORRECTO
+    const response = await emailjs.send(
+      EMAILJS_CONFIG.SERVICE_ID,
+      EMAILJS_CONFIG.TEMPLATE_ID,
+      params,
+      {
+        subject: `Confirmación de Pedido #${numeroPedido}!`, // ✅ SUBJECT CORRECTO
+      }
+    );
+
+    console.log("✅ Correo enviado:", response);
+
+    if (pedidoId) {
+      await window.supabase
+        .from("pedidos")
+        .update({ estado: "confirmado" })
+        .eq("id", pedidoId);
+      console.log("✅ Pedido marcado como confirmado");
+    }
+
+    mensaje.innerHTML = `<span class="text-success">✅ Correo enviado a ${email}</span>`;
+    btn.textContent = "✅ Enviado";
+
+    setTimeout(() => {
+      const modal = bootstrap.Modal.getInstance(
+        document.getElementById("modalEnvioCorreo")
+      );
+      if (modal) modal.hide();
+      const activeFilter = document.querySelector(".filtro-pedido.active");
+      cargarPedidos(activeFilter?.dataset?.estado || "todos");
+      cargarPedidosPendientes();
+      // 🔥 REACTIVAR BOTÓN para el próximo envío
+      btn.disabled = false;
+      btn.textContent = "📧 Enviar Correo";
+    }, 1500);
+  } catch (error) {
+    console.error("❌ Error al enviar correo:", error);
+    mensaje.innerHTML = `<span class="text-danger">❌ Error: ${
+      error.message || "El correo no pudo ser enviado"
+    }</span>`;
+    btn.disabled = false;
+    btn.textContent = "📧 Enviar Correo";
+  }
+}
+
+// ============================================
+// ENVÍO DE CORREO MANUAL DESDE PESTAÑA ENVÍOS - CORREGIDO
+// ============================================
+
+async function enviarCorreoManual(e) {
+  e.preventDefault();
+  const msg = document.getElementById("mensajeCorreo");
+  const btn = e.target.querySelector('button[type="submit"]');
+
+  const email = document.getElementById("correoCliente").value.trim();
+  const numeroPedido = document
+    .getElementById("numeroPedidoCorreo")
+    .value.trim();
+  const nombre = document.getElementById("nombreClienteCorreo").value.trim();
+  const productosText = document.getElementById("productosCorreo").value.trim();
+  let total = document.getElementById("totalCorreo").value.trim();
+  const metodoPago = document.getElementById("metodoPagoCorreo").value.trim();
+  const envio = document.getElementById("envioCorreo").value.trim();
+  const direccion = document.getElementById("direccionCorreo").value.trim();
+  const mensajeAdicional = document
+    .getElementById("mensajeAdicionalCorreo")
+    .value.trim();
+  const pedidoId = document.getElementById("selectPedidoEnvio")?.value;
+
+  if (!email || !numeroPedido || !nombre || !productosText || !total) {
+    return mostrarMensaje(
+      msg,
+      "❌ Completa los campos obligatorios (*)",
+      "error"
+    );
+  }
+
+  if (!envio || parseFloat(envio) <= 0) {
+    return mostrarMensaje(
+      msg,
+      "❌ El costo de envío es obligatorio y debe ser mayor a 0",
+      "error"
+    );
+  }
+
+  try {
+    btn.disabled = true;
+    btn.textContent = "Enviando...";
+
+    if (typeof emailjs === "undefined") {
+      await new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        script.src =
+          "https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js";
+        script.onload = resolve;
+        script.onerror = reject;
+        document.head.appendChild(script);
+      });
+      emailjs.init(EMAILJS_CONFIG.USER_ID);
+    }
+
+    // 🔥 PARSEAR PRODUCTOS - SIN SIGNO $
+    const lineas = productosText.split("\n").filter((line) => line.trim());
+    const items = lineas.map((line) => {
+      const match = line.match(/^(.+?)\s*(?:x|×)\s*(\d+)\s*=\s*\$?([\d.]+)/);
+      if (match) {
+        return {
+          nombre: match[1].trim(),
+          cantidad: parseInt(match[2]),
+          precio: match[3],
+        };
+      }
+      return { nombre: line.trim(), cantidad: 1, precio: "0" };
+    });
+
+    // 🔥 QUITAR SIGNO $ DE TOTAL Y ENVIO
+    total = total.replace(/[$,]/g, "");
+    const envioNum = envio.replace(/[$,]/g, "");
 
     const params = {
       cliente: nombre,
       numero_pedido: numeroPedido,
-      fecha: new Date().toLocaleString("es-MX"),
+      fecha: new Date().toLocaleString("es-MX", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
       productos: items,
       total: total,
       metodo_pago: metodoPago || "No especificado",
-      direccion:
-        direccion || "No especificada (te contactaremos para coordinar envío)",
-      envio: envio || "El costo de envío se acordará al contactarnos",
+      direccion: direccion || "No especificada",
+      envio: envioNum,
       mensaje_adicional:
         mensajeAdicional ||
-        "Gracias por tu compra. Nos pondremos en contacto para coordinar la entrega.",
+        `El costo de envío es de $${parseFloat(envioNum).toFixed(2)}.`,
       to_email: email,
     };
 
-    const response = await emailjs.send(
+    console.log("📧 Enviando correo manual a:", email);
+
+    await emailjs.send(
       EMAILJS_CONFIG.SERVICE_ID,
       EMAILJS_CONFIG.TEMPLATE_ID,
-      params
+      params,
+      {
+        subject: `Confirmación de Pedido #${numeroPedido}!`,
+      }
     );
 
-    mostrarMensaje(msg, "✅ Correo enviado correctamente a " + email, "exito");
+    if (pedidoId) {
+      await window.supabase
+        .from("pedidos")
+        .update({ estado: "confirmado" })
+        .eq("id", pedidoId);
+    }
+
+    mostrarMensaje(
+      msg,
+      `✅ Correo enviado a ${email}${pedidoId ? " (Pedido confirmado)" : ""}`,
+      "exito"
+    );
     document.getElementById("formEnvioCorreo").reset();
+    document.getElementById("envioCorreo").value = "";
+    document.getElementById("mensajeAdicionalCorreo").value = "";
+    cargarPedidosPendientes();
   } catch (error) {
     console.error("Error:", error);
     mostrarMensaje(msg, "❌ Error al enviar correo: " + error.message, "error");
   } finally {
     btn.disabled = false;
-    btn.textContent = "📧 Enviar Correo";
+    btn.textContent = "📧 Enviar Correo y Confirmar Pedido";
+  }
+}
+
+// ============================================
+// PROCESAR / COMPLETAR PEDIDO
+// ============================================
+
+async function procesarPedido(pedidoId, accion) {
+  const estados = {
+    completar: "entregado",
+    procesar: "confirmado",
+  };
+
+  const nuevoEstado = estados[accion];
+  if (!nuevoEstado) return;
+
+  const mensajeAccion =
+    accion === "completar" ? "completar (descontar stock)" : "procesar";
+  if (!confirm(`¿Confirmar ${mensajeAccion} este pedido?`)) return;
+
+  try {
+    const { data: pedido, error: getError } = await window.supabase
+      .from("pedidos")
+      .select("*")
+      .eq("id", pedidoId)
+      .single();
+
+    if (getError) throw getError;
+
+    if (accion === "completar") {
+      console.log("📦 Descontando stock...");
+      for (const item of pedido.productos) {
+        const { data: producto, error: prodError } = await window.supabase
+          .from("productos")
+          .select("id, stock")
+          .eq("nombre", item.nombre)
+          .maybeSingle();
+
+        if (prodError) {
+          console.warn(
+            `⚠️ Error buscando producto "${item.nombre}":`,
+            prodError
+          );
+          continue;
+        }
+
+        if (producto) {
+          const nuevoStock = Math.max(0, producto.stock - item.cantidad);
+          await window.supabase
+            .from("productos")
+            .update({ stock: nuevoStock })
+            .eq("id", producto.id);
+          console.log(
+            `✅ Stock de "${item.nombre}" actualizado: ${producto.stock} → ${nuevoStock}`
+          );
+
+          await window.supabase.from("inventario").insert([
+            {
+              producto_id: producto.id,
+              tipo: "salida",
+              cantidad: item.cantidad,
+              descripcion: `Venta - Pedido ${pedido.numero_pedido || "N/A"}`,
+            },
+          ]);
+        } else {
+          console.warn(
+            `⚠️ Producto "${item.nombre}" no encontrado en la base de datos`
+          );
+        }
+      }
+    }
+
+    const { error: updateError } = await window.supabase
+      .from("pedidos")
+      .update({ estado: nuevoEstado })
+      .eq("id", pedidoId);
+
+    if (updateError) throw updateError;
+
+    alert(
+      `✅ Pedido ${
+        accion === "completar" ? "completado" : "procesado"
+      } correctamente`
+    );
+
+    const activeFilter = document.querySelector(".filtro-pedido.active");
+    cargarPedidos(activeFilter?.dataset?.estado || "todos");
+    cargarPedidosPendientes();
+  } catch (error) {
+    console.error("❌ Error al procesar pedido:", error);
+    alert("❌ Error al procesar el pedido: " + error.message);
   }
 }
 
@@ -263,6 +749,7 @@ document.addEventListener("DOMContentLoaded", function () {
     if (tabId === "inventario") cargarInventario();
     if (tabId === "pedidos") cargarPedidos();
     if (tabId === "finanzas") cargarFinanzas();
+    if (tabId === "envios") cargarPedidosPendientes();
   }
 
   document.querySelectorAll("[data-tab]").forEach((btn) => {
@@ -424,6 +911,18 @@ document.addEventListener("DOMContentLoaded", function () {
   if (formEnvioCorreo) {
     formEnvioCorreo.addEventListener("submit", enviarCorreoManual);
   }
+
+  // ============================================
+  // BOTÓN CERRAR MODAL
+  // ============================================
+  document
+    .getElementById("btnCerrarModalCorreo")
+    ?.addEventListener("click", function () {
+      const modal = bootstrap.Modal.getInstance(
+        document.getElementById("modalEnvioCorreo")
+      );
+      if (modal) modal.hide();
+    });
 
   cambiarTab("productos");
   console.log("✅ Panel admin inicializado");
@@ -747,7 +1246,7 @@ async function buscarPorCodigoBarras() {
 }
 
 // ============================================
-// 3. INVENTARIO - COMPLETO (SIN EDICIÓN)
+// 3. INVENTARIO
 // ============================================
 
 async function cargarSelectProductosInventario() {
@@ -994,7 +1493,7 @@ async function cargarInventario() {
 }
 
 // ============================================
-// 4. PEDIDOS - CON CONTADORES Y FORMATO MEJORADO
+// 4. PEDIDOS
 // ============================================
 
 async function cargarPedidos(estado = "todos") {
@@ -1011,14 +1510,12 @@ async function cargarPedidos(estado = "todos") {
     '<div class="text-center text-secondary py-3">Cargando...</div>';
 
   try {
-    // 🔥 OBTENER TODOS LOS PEDIDOS PARA CONTADORES
     const { data: todosPedidos, error: countError } = await window.supabase
       .from("pedidos")
       .select("estado");
 
     if (countError) throw countError;
 
-    // 🔥 CALCULAR CONTADORES
     const total = todosPedidos?.length || 0;
     const pendientes =
       todosPedidos?.filter((p) => p.estado === "pendiente").length || 0;
@@ -1029,7 +1526,6 @@ async function cargarPedidos(estado = "todos") {
     const cancelados =
       todosPedidos?.filter((p) => p.estado === "cancelado").length || 0;
 
-    // 🔥 ACTUALIZAR BADGES DE LOS BOTONES DE FILTRO
     document.querySelectorAll(".filtro-pedido").forEach((btn) => {
       const estadoBtn = btn.dataset.estado;
       let count = 0;
@@ -1048,7 +1544,6 @@ async function cargarPedidos(estado = "todos") {
       badge.textContent = count;
     });
 
-    // 🔥 OBTENER PEDIDOS SEGÚN FILTRO
     let query = window.supabase
       .from("pedidos")
       .select("*")
@@ -1075,69 +1570,73 @@ async function cargarPedidos(estado = "todos") {
             <table class="table table-dark table-hover table-sm">
                 <thead>
                     <tr>
-                        <th>N° Pedido</th>
-                        <th>Fecha</th>
-                        <th>Cliente</th>
+                        <th style="white-space:nowrap;">N° Pedido</th>
+                        <th style="white-space:nowrap;">Fecha</th>
+                        <th style="min-width:180px;">Cliente</th>
                         <th>Productos</th>
-                        <th>Total</th>
-                        <th>Estado</th>
-                        <th>Acciones</th>
+                        <th style="white-space:nowrap;">Total</th>
+                        <th style="white-space:nowrap;">Estado</th>
+                        <th style="white-space:nowrap; min-width:180px;">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
                     ${data
-                      .map(
-                        (p) => `
-                        <tr>
-                            <td><code style="background:#1a1a1a;padding:2px 8px;border-radius:4px;color:#c9a84c;font-size:12px;">${
+                      .map((p) => {
+                        const productosLinea = p.productos
+                          .map(
+                            (x) =>
+                              `<span class="item"><span class="nombre">${
+                                x.nombre
+                              }</span> <span class="cant">×${
+                                x.cantidad
+                              }</span> <span class="precio">${formatearMoneda(
+                                x.precio * x.cantidad
+                              )}</span></span>`
+                          )
+                          .join(" ");
+
+                        return `
+                        <tr data-pedido-id="${p.id}"
+                            data-cliente="${p.cliente_nombre}"
+                            data-telefono="${p.cliente_telefono || ""}"
+                            data-email="${p.cliente_email || ""}"
+                            data-numero="${p.numero_pedido || "N/A"}"
+                            data-productos='${JSON.stringify(
+                              p.productos
+                            ).replace(/'/g, "&#39;")}'
+                            data-total="${p.total}"
+                            data-direccion="${p.direccion_entrega || ""}">
+                            <td><span class="pedido-numero">${
                               p.numero_pedido || "N/A"
-                            }</code></td>
-                            <td><small>${formatearFecha(
+                            }</span></td>
+                            <td><small style="white-space:nowrap;">${formatearFecha(
                               p.fecha_pedido
                             )}</small></td>
                             <td>
-                                <div style="font-size:1.1rem; font-weight:600; color:#fff; margin-bottom:4px;">
-                                    ${p.cliente_nombre}
-                                </div>
-                                <div style="font-size:0.95rem; color: #a0a0a0; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-                                    <span style="font-size:1rem;">📱</span>
-                                    <span style="font-weight:500; color:#c9a84c; font-size:0.95rem;">${
-                                      p.cliente_telefono || "Sin teléfono"
-                                    }</span>
+                                <div style="display:flex; flex-direction:column; gap:2px;">
+                                    <div style="font-weight:600; color:#fff; font-size:1rem;">${
+                                      p.cliente_nombre
+                                    }</div>
+                                    ${
+                                      p.cliente_telefono
+                                        ? `<div style="color:#c9a84c; font-size:0.85rem;">📱 ${p.cliente_telefono}</div>`
+                                        : ""
+                                    }
                                     ${
                                       p.cliente_email
-                                        ? `<span style="color:#666; margin-left:4px;">|</span> <span style="font-size:1rem;">📧</span> <span style="color:#8ab4f8; font-size:0.95rem;">${p.cliente_email}</span>`
+                                        ? `<div style="color:#8ab4f8; font-size:0.85rem;">📧 ${p.cliente_email}</div>`
                                         : ""
                                     }
                                 </div>
                             </td>
-                            <td style="font-size:13px; line-height:1.6;">
-                                ${p.productos
-                                  .map(
-                                    (x) => `
-                                    <div style="display:flex; align-items:center; gap:6px; padding:2px 0; border-bottom:1px solid rgba(255,255,255,0.05);">
-                                        <span style="color:#c9a84c; font-weight:500;">${
-                                          x.nombre
-                                        }</span>
-                                        <span style="color:#666;">×</span>
-                                        <span style="color:#fff; font-weight:600;">${
-                                          x.cantidad
-                                        }</span>
-                                        <span style="color:#666; margin-left:auto;">${formatearMoneda(
-                                          x.precio * x.cantidad
-                                        )}</span>
-                                    </div>
-                                `
-                                  )
-                                  .join("")}
-                            </td>
-                            <td><strong style="color:#c9a84c; font-size:1.1rem;">${formatearMoneda(
+                            <td><div class="productos-lista">${productosLinea}</div></td>
+                            <td><strong style="color:#c9a84c; font-size:1.1rem; white-space:nowrap;">${formatearMoneda(
                               p.total
                             )}</strong></td>
                             <td>
                                 <select onchange="cambiarEstadoPedido('${
                                   p.id
-                                }', this.value)" class="form-select form-select-sm bg-black text-white border-secondary" style="width:auto; min-width:120px;">
+                                }', this.value)" class="form-select form-select-sm bg-black text-white border-secondary" style="width:auto; min-width:100px; display:inline-block;">
                                     <option value="pendiente" ${
                                       p.estado === "pendiente" ? "selected" : ""
                                     }>📋 Pendiente</option>
@@ -1154,19 +1653,34 @@ async function cargarPedidos(estado = "todos") {
                                     }>❌ Cancelado</option>
                                 </select>
                             </td>
-                            <td>
-                                <div class="d-flex gap-1 flex-wrap">
+                            <td style="white-space: nowrap;">
+                                <div class="d-flex gap-1" style="flex-wrap:nowrap;">
                                     <button onclick="generarTicketPedido('${
                                       p.id
                                     }')" class="btn btn-warning btn-sm" title="Generar Ticket">🧾</button>
                                     <button onclick="verDetallePedido('${
                                       p.id
                                     }')" class="btn btn-outline-secondary btn-sm" title="Ver Detalle">📋</button>
+                                    ${
+                                      p.estado === "pendiente"
+                                        ? `
+                                        <button onclick="procesarPedido('${p.id}', 'procesar')" class="btn btn-info btn-sm" title="Procesar Pedido" style="background:#17a2b8; color:white; border:none;">✅</button>
+                                        <button onclick="abrirModalCorreo('${p.id}')" class="btn btn-primary btn-sm" title="Enviar Correo" style="background:#007bff; color:white; border:none;">📧</button>
+                                    `
+                                        : ""
+                                    }
+                                    ${
+                                      p.estado === "confirmado"
+                                        ? `
+                                        <button onclick="procesarPedido('${p.id}', 'completar')" class="btn btn-success btn-sm" title="Completar Pedido" style="background:#28a745; color:white; border:none;">📦</button>
+                                    `
+                                        : ""
+                                    }
                                 </div>
                             </td>
                         </tr>
-                    `
-                      )
+                    `;
+                      })
                       .join("")}
                 </tbody>
             </table>
@@ -1187,6 +1701,7 @@ async function cambiarEstadoPedido(id, estado) {
     if (!error) {
       const activeFilter = document.querySelector(".filtro-pedido.active");
       cargarPedidos(activeFilter?.dataset?.estado || "todos");
+      cargarPedidosPendientes();
     }
   } catch (error) {
     console.error("Error:", error);
@@ -1975,42 +2490,25 @@ window.eliminarProductoTicket = eliminarProductoTicket;
 window.agregarProductoTicket = agregarProductoTicket;
 window.cargarProductosTicket = cargarProductosTicket;
 window.verProductosSinStock = verProductosSinStock;
-
-// ============================================
-// 9. FUNCIONES DE UTILIDAD (FALLBACK)
-// ============================================
-
-if (typeof mostrarMensaje === "undefined") {
-  window.mostrarMensaje = function (el, msg, tipo) {
-    if (!el) return;
-    el.textContent = msg;
-    el.className = "mensaje-" + tipo;
-    if (tipo === "exito") {
-      setTimeout(() => {
-        el.textContent = "";
-        el.className = "";
-      }, 5000);
-    }
-  };
-}
-
-if (typeof formatearMoneda === "undefined") {
-  window.formatearMoneda = function (cantidad) {
-    return new Intl.NumberFormat("es-MX", {
-      style: "currency",
-      currency: "MXN",
-    }).format(cantidad);
-  };
-}
-
-if (typeof formatearFecha === "undefined") {
-  window.formatearFecha = function (fecha) {
-    return new Date(fecha).toLocaleString("es-MX", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-}
+window.abrirModalCorreo = abrirModalCorreo;
+window.enviarCorreoDesdeModal = enviarCorreoDesdeModal;
+window.procesarPedido = procesarPedido;
+window.cargarPedidos = cargarPedidos;
+window.cargarPedidosPendientes = cargarPedidosPendientes;
+window.cargarProductos = cargarProductos;
+window.cargarInventario = cargarInventario;
+window.cargarFinanzas = cargarFinanzas;
+window.editarProducto = editarProducto;
+window.pedirEliminar = pedirEliminar;
+window.verDetallePedido = verDetallePedido;
+window.generarTicketPedido = generarTicketPedido;
+window.cambiarEstadoPedido = cambiarEstadoPedido;
+window.buscarPorCodigoBarras = buscarPorCodigoBarras;
+window.mostrarFormProducto = mostrarFormProducto;
+window.ocultarFormProducto = ocultarFormProducto;
+window.mostrarFormFinanza = mostrarFormFinanza;
+window.ocultarFormFinanza = ocultarFormFinanza;
+window.mostrarFormMovimiento = mostrarFormMovimiento;
+window.ocultarFormMovimiento = ocultarFormMovimiento;
+window.cerrarModal = cerrarModal;
+window.confirmarEliminar = confirmarEliminar;

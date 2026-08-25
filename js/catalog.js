@@ -4,15 +4,23 @@
 
 // 🔥 CONFIGURACIÓN - NÚMERO DE WHATSAPP
 const CONFIG = {
-  WHATSAPP: "5218126878080",
+  WHATSAPP: "528126878080", // Monterrey, MX
 };
 
 // 🔥 CONFIGURACIÓN DE EMAILJS - CAMBIA ESTOS VALORES
 const EMAILJS_CONFIG = {
-  SERVICE_ID: "service_4utb13l", // De EmailJS → service_xxxxx
-  TEMPLATE_ID: "template_e454v8w", // De EmailJS → template_xxxxx
-  USER_ID: "u-BAOu3SbKHhBY2qk", // De EmailJS → user_xxxxx
+  SERVICE_ID: "service_5yxoyt5", // Outlook
+  TEMPLATE_ID: "template_1dcnw6v",
+  USER_ID: "Jx00-aXDn9h0eWxnY", // Public Key
 };
+
+// 🔥 INICIALIZAR EMAILJS (el SDK ya se carga vía <script> en index.html)
+if (typeof emailjs !== "undefined") {
+  emailjs.init(EMAILJS_CONFIG.USER_ID);
+  console.log("✅ EmailJS inicializado");
+} else {
+  console.warn("⚠️ EmailJS SDK no disponible todavía en catalog.js");
+}
 
 let productos = [];
 let supabaseListo = false;
@@ -382,7 +390,7 @@ document.addEventListener("DOMContentLoaded", function () {
       if (!telefonoValidado.valido) {
         return mostrarMensaje(
           mensaje,
-          "❌ Teléfono inválido. Debe tener 10 dígitos (ej: 8126878080) o 11 con LADA (ej: 5218126878080)",
+          "❌ Teléfono inválido. Debe tener 10 dígitos (ej: 8126878080) o 11 con LADA (ej: 528126878080)",
           "error"
         );
       }
@@ -464,22 +472,9 @@ document.addEventListener("DOMContentLoaded", function () {
           );
         }
 
-        // ENVIAR NOTIFICACIÓN POR WHATSAPP AL ADMIN
-        const fecha = new Date().toLocaleString("es-MX");
-        const waMsg =
-          `🛍️ *NUEVO PEDIDO DIRECTO*%0A%0A` +
-          `📋 *Número: ${numeroPedido}*%0A` +
-          `📅 ${fecha}%0A` +
-          `👤 ${nombre}%0A` +
-          `📱 ${telefono}%0A` +
-          `${email ? `📧 ${email}%0A` : ""}` +
-          `%0A📦 *${producto.nombre}* x${cantidad}%0A` +
-          `💰 Total: ${formatearMoneda(total)}%0A` +
-          `💳 ${metodoPago === "transferencia" ? "Transferencia" : "Efectivo"}${
-            direccion ? `%0A📍 ${direccion}` : ""
-          }${notas ? `%0A📝 ${notas}` : ""}`;
-
-        window.open(`https://wa.me/${CONFIG.WHATSAPP}?text=${waMsg}`, "_blank");
+        // 🔥 NOTA: Ya NO se abre WhatsApp automáticamente en Pedido Directo.
+        // El pedido se registra y se envía el correo de confirmación normalmente.
+        // (Antes aquí se abría wa.me con window.open — se quitó a propósito.)
 
         // MENSAJE DE CONFIRMACIÓN PARA EL CLIENTE
         const mensajeCorreo = email
