@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ticket</title>
+    <title>Ticket · Route66 Market</title>
     <link rel="stylesheet" href="css/custom.css">
     <style>
         @media print {
@@ -43,7 +43,7 @@
             padding: 5mm;
             background: white;
             color: black;
-            font-family: monospace;
+            font-family: 'Courier New', Courier, monospace;
             font-size: 11px;
         }
 
@@ -55,18 +55,34 @@
         }
 
         .ticket-header h2 {
-            font-size: 16px;
+            font-size: 14px;
             margin: 0;
+            font-weight: 700;
+            letter-spacing: 1px;
+        }
+
+        .ticket-header .sub {
+            font-size: 9px;
+            color: #666;
+            letter-spacing: 2px;
+            margin: 2px 0;
+        }
+
+        .ticket-header .info {
+            font-size: 9px;
+            color: #444;
+            margin: 2px 0;
         }
 
         .ticket-item {
             display: flex;
             justify-content: space-between;
             padding: 3px 0;
+            font-size: 10px;
         }
 
         .ticket-total {
-            font-size: 15px;
+            font-size: 13px;
             font-weight: bold;
             text-align: right;
             border-top: 2px solid #000;
@@ -82,161 +98,92 @@
         }
 
         .ticket-footer .thanks {
-            font-size: 13px;
+            font-size: 11px;
             font-weight: bold;
+            letter-spacing: 1px;
+        }
+
+        .ticket-footer .slogan {
+            font-size: 9px;
+            color: #666;
+            font-style: italic;
+        }
+
+        .no-print .btn-print {
+            background: var(--accent);
+            color: var(--bg-black);
+            border: none;
+            padding: 10px 28px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .no-print .btn-print:hover {
+            background: var(--accent-hover);
+        }
+
+        .no-print .btn-close-ticket {
+            background: var(--bg-input);
+            color: var(--text-main);
+            border: 1px solid var(--border);
+            padding: 10px 28px;
+            font-weight: 300;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .no-print .btn-close-ticket:hover {
+            border-color: var(--text-silver);
         }
     </style>
 </head>
 
-<body class="bg-black">
-    <div class="no-print py-4">
-        <div class="container text-center">
-            <h5 class="text-white">🧾 Ticket</h5>
-            <div class="d-flex gap-2 justify-content-center flex-wrap">
-                <button onclick="window.print()" class="btn btn-warning">🖨️ Imprimir</button>
-                <button onclick="window.close()" class="btn btn-secondary">✕ Cerrar</button>
+<body style="background:var(--bg-black);min-height:100vh;">
+
+    <div class="no-print" style="padding:30px 0;text-align:center;">
+        <div class="container-premium">
+            <h5 style="font-weight:300;color:var(--text-main);margin-bottom:16px;">🧾 Ticket</h5>
+            <div class="d-flex gap-3 justify-content-center flex-wrap">
+                <button onclick="window.print()" class="btn-print">🖨️ Imprimir</button>
+                <button onclick="window.close()" class="btn-close-ticket">✕ Cerrar</button>
             </div>
-            <button onclick="cargarEjemplo()" class="btn btn-outline-secondary btn-sm mt-2">📋 Cargar ejemplo</button>
+            <button onclick="cargarEjemplo()" class="btn-close-ticket"
+                style="margin-top:12px;padding:6px 20px;font-size:0.7rem;">📋 Cargar ejemplo</button>
         </div>
     </div>
 
     <div id="ticket-content" class="ticket-preview">
-        <div id="ticketBody" class="text-center text-secondary py-5">Esperando datos...</div>
+        <div id="ticketBody" style="text-align:center;color:#666;padding:40px 0;">Esperando datos...</div>
     </div>
 
+    <script src="js/utils.js"></script>
+    <script src="js/ticket.js"></script>
     <script>
-        // ============================================
-        // GENERADOR DE TICKETS - CORREGIDO
-        // ============================================
-
-        const TIENDA = {
-            nombre: '✨ Tienda Premium',
-            direccion: 'McAllen, TX - México',
-            telefono: '📱 555-123-4567',
-            email: '✉️ tienda@premium.com',
-            website: '🌐 www.tiendapremium.com'
-        };
-
-        function generarTicket(datos) {
-            console.log('📋 Datos recibidos:', datos);
-
-            const container = document.getElementById('ticketBody');
-            if (!container) return;
-
-            // 🔥 CALCULAR SUBTOTAL CORRECTAMENTE
-            let subtotalCalculado = 0;
-            if (datos.items && datos.items.length > 0) {
-                for (const item of datos.items) {
-                    const precio = Number(item.precio) || 0;
-                    const cantidad = Number(item.cantidad) || 0;
-                    subtotalCalculado += precio * cantidad;
-                }
-            }
-
-            // Usar el subtotal calculado o el que vino en los datos
-            const subtotal = subtotalCalculado > 0 ? subtotalCalculado : (Number(datos.subtotal) || 0);
-            const envio = Number(datos.envio) || 0;
-            const total = subtotal + envio;
-
-            console.log('📊 Subtotal calculado:', subtotal, 'Envío:', envio, 'Total:', total);
-
-            const fecha = new Date(datos.fecha || Date.now());
-            const f = fecha.toLocaleString('es-MX', {
-                day: '2-digit', month: '2-digit', year: 'numeric',
-                hour: '2-digit', minute: '2-digit'
-            });
-            const num = datos.ticket_numero || `T-${fecha.getFullYear()}${String(fecha.getMonth() + 1).padStart(2, '0')}${String(fecha.getDate()).padStart(2, '0')}-${String(Math.floor(Math.random() * 10000)).padStart(4, '0')}`;
-
-            let html = `
-                <div class="ticket-header">
-                    <h2>${TIENDA.nombre}</h2>
-                    <div>${TIENDA.direccion}</div>
-                    <div>${TIENDA.telefono}</div>
-                    <div>${TIENDA.email}</div>
-                    <hr>
-                    <div><strong>TICKET: ${num}</strong></div>
-                    <div>FECHA: ${f}</div>
-                </div>
-                <div style="margin:8px 0;">
-                    <strong>DATOS DEL CLIENTE</strong>
-                    <div>${datos.cliente || 'No especificado'}</div>
-                    <div>📱 ${datos.telefono || 'No especificado'}</div>
-                    ${datos.direccion ? `<div>📍 ${datos.direccion}</div>` : ''}
-                </div>
-                <hr>
-                <div><strong>PRODUCTOS</strong></div>
-            `;
-
-            if (datos.items && datos.items.length > 0) {
-                datos.items.forEach(item => {
-                    const cant = Number(item.cantidad) || 1;
-                    const precio = Number(item.precio) || 0;
-                    const totalItem = precio * cant;
-                    html += `
-                        <div class="ticket-item">
-                            <span>${item.nombre}</span>
-                            <span>×${cant}</span>
-                            <span>$${totalItem.toFixed(2)}</span>
-                        </div>
-                    `;
-                });
-            } else {
-                html += `<div class="ticket-item"><span>No hay productos</span></div>`;
-            }
-
-            html += `
-                <hr>
-                <div class="ticket-total">
-                    <div style="display:flex;justify-content:space-between;font-weight:normal;font-size:13px;">
-                        <span>SUBTOTAL</span>
-                        <span>$${subtotal.toFixed(2)}</span>
-                    </div>
-                    ${envio > 0 ? `
-                    <div style="display:flex;justify-content:space-between;font-weight:normal;font-size:13px;">
-                        <span>ENVÍO</span>
-                        <span>$${envio.toFixed(2)}</span>
-                    </div>
-                    ` : ''}
-                    <div style="display:flex;justify-content:space-between;font-size:16px;border-top:2px solid #000;padding-top:5px;margin-top:5px;">
-                        <span>TOTAL</span>
-                        <span>$${total.toFixed(2)}</span>
-                    </div>
-                </div>
-                <hr>
-                <div style="margin:8px 0;">
-                    <strong>MÉTODO DE PAGO:</strong> ${datos.metodo_pago || 'Transferencia/Efectivo'}
-                </div>
-                <hr>
-                <div class="ticket-footer">
-                    <div class="thanks">¡GRACIAS POR TU COMPRA!</div>
-                    <div>${TIENDA.website}</div>
-                    <div style="font-size:10px;margin-top:8px;">* Comprobante de compra *</div>
-                    <div style="font-size:14px;letter-spacing:2px;margin-top:5px;">${Array(20).fill('█').join('')}</div>
-                </div>
-            `;
-
-            container.innerHTML = html;
-        }
-
-        // Cargar ejemplo
         function cargarEjemplo() {
             generarTicket({
                 cliente: 'María García',
-                telefono: '555-123-4567',
-                direccion: 'Calle #123',
+                telefono: '81 2687 8080',
+                direccion: 'Calle #123, Colonia Centro',
                 metodo_pago: 'Efectivo',
                 items: [
-                    { nombre: 'Test', precio: 1000, cantidad: 1 }
+                    { nombre: 'Perfume Test', precio: 1000, cantidad: 1 },
+                    { nombre: 'Crema Hidratante', precio: 530, cantidad: 2 }
                 ],
-                subtotal: 1000,
+                subtotal: 2060,
                 envio: 300,
-                total: 1300,
+                total: 2360,
                 fecha: new Date().toISOString(),
                 ticket_numero: 'T-20260819-0001'
             });
         }
 
-        // Cargar datos desde la URL
         document.addEventListener('DOMContentLoaded', function () {
             const urlParams = new URLSearchParams(window.location.search);
             const pedidoData = urlParams.get('pedido');
@@ -244,17 +191,14 @@
             if (pedidoData) {
                 try {
                     const datos = JSON.parse(decodeURIComponent(pedidoData));
-                    console.log('📋 Datos del ticket:', datos);
                     generarTicket(datos);
                 } catch (e) {
-                    console.error('Error al cargar datos:', e);
-                    document.getElementById('ticketBody').innerHTML = '<p class="text-danger">❌ Error al cargar el ticket</p>';
+                    document.getElementById('ticketBody').innerHTML = '<p style="color:var(--regio-red);">❌ Error al cargar el ticket</p>';
                 }
             }
         });
-
-        console.log('✅ Ticket generator listo');
     </script>
+
 </body>
 
 </html>

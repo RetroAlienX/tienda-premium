@@ -4,51 +4,176 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Recuperar Contraseña</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <title>Recuperar · Route66 Market</title>
+
+    <meta name="supabase-url" id="supabase-url" content="https://xsactvcmsaxrjwyeaimf.supabase.co">
+    <meta name="supabase-key" id="supabase-key"
+        content="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhzYWN0dmNtc2F4cmp3eWVhaW1mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcxMDg3MzUsImV4cCI6MjEwMjY4NDczNX0.hqCzaGI21WOh5BYw-MWi0-vwbLoH4_E7eXsr3Sa73Ww">
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800;900&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="css/custom.css">
+    <style>
+        body {
+            background: var(--bg-black);
+            color: var(--text-main);
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+        }
+
+        .recover-box {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            padding: 40px 36px;
+            max-width: 380px;
+            width: 100%;
+        }
+
+        .recover-box .brand {
+            text-align: center;
+        }
+
+        .recover-box .brand .logo {
+            font-weight: 800;
+            font-size: 0.95rem;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            display: block;
+        }
+
+        .recover-box .brand .tagline {
+            font-size: 0.45rem;
+            color: var(--text-silver);
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            display: block;
+        }
+
+        .recover-box .sub {
+            color: var(--text-silver);
+            font-size: 0.75rem;
+            font-weight: 300;
+            text-align: center;
+            margin: 2px 0 20px;
+        }
+
+        .recover-box .form-control {
+            background: var(--bg-input) !important;
+            color: var(--text-main) !important;
+            border: 1px solid var(--border) !important;
+            border-radius: 0 !important;
+            padding: 12px 16px;
+            font-weight: 300;
+            font-size: 0.85rem;
+            width: 100%;
+        }
+
+        .recover-box .form-control:focus {
+            border-color: var(--text-silver) !important;
+            box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.04) !important;
+        }
+
+        .recover-box .btn-recover {
+            background: var(--accent);
+            color: var(--bg-black);
+            border: none;
+            padding: 12px;
+            font-weight: 700;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            width: 100%;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 4px;
+        }
+
+        .recover-box .btn-recover:hover {
+            background: var(--accent-hover);
+        }
+
+        .recover-box .mensaje {
+            text-align: center;
+            font-size: 0.75rem;
+            margin-top: 12px;
+            min-height: 20px;
+            font-weight: 300;
+        }
+
+        .recover-box .mensaje.success {
+            color: var(--regio-green);
+        }
+
+        .recover-box .mensaje.error {
+            color: var(--regio-red);
+        }
+
+        .recover-box .links {
+            text-align: center;
+            margin-top: 14px;
+        }
+
+        .recover-box .links a {
+            color: var(--text-silver);
+            text-decoration: none;
+            font-weight: 300;
+            font-size: 0.7rem;
+            transition: color 0.3s ease;
+        }
+
+        .recover-box .links a:hover {
+            color: var(--text-main);
+        }
+    </style>
 </head>
 
-<body class="bg-black d-flex align-items-center min-vh-100">
-    <div class="container">
-        <div class="row justify-content-center">
-            <div class="col-md-6 col-lg-4">
-                <div class="card bg-dark border-secondary">
-                    <div class="card-body p-4">
-                        <h4 class="text-center text-warning">✨ Recuperar Contraseña</h4>
-                        <p class="text-center text-secondary small">Ingresa tu correo para recibir un enlace</p>
-                        <form id="recuperarForm">
-                            <div class="mb-3">
-                                <label class="text-secondary">Correo</label>
-                                <input type="email" id="emailRecuperar"
-                                    class="form-control bg-black text-white border-secondary" required>
-                            </div>
-                            <button type="submit" class="btn btn-warning w-100">📧 Enviar</button>
-                            <div id="mensajeRecuperar" class="mt-3 text-center"></div>
-                        </form>
-                        <div class="text-center mt-3">
-                            <a href="login.html" class="text-secondary">← Volver al login</a>
-                        </div>
-                    </div>
-                </div>
+<body>
+    <div class="recover-box">
+        <div class="brand">
+            <span class="logo">THE ROUTE66 MARKET</span>
+            <span class="tagline">RECUPERAR CONTRASEÑA</span>
+        </div>
+        <p class="sub">Ingresa tu correo para recibir un enlace</p>
+
+        <form id="recuperarForm">
+            <div class="mb-3">
+                <input type="email" id="emailRecuperar" class="form-control" placeholder="Correo electrónico" required>
             </div>
+            <button type="submit" class="btn-recover">📧 Enviar enlace</button>
+            <div id="mensajeRecuperar" class="mensaje"></div>
+        </form>
+
+        <div class="links">
+            <a href="login.html">← Volver al login</a>
         </div>
     </div>
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/config.netlify.js"></script>
+    <script src="js/config.local.js" onerror="console.log('ℹ️ config.local.js no encontrado')"></script>
+    <script src="js/config.js"></script>
     <script src="js/supabase.js"></script>
     <script>
         document.getElementById('recuperarForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const email = document.getElementById('emailRecuperar').value;
             const mensaje = document.getElementById('mensajeRecuperar');
+
             try {
                 const { error } = await supabase.auth.resetPasswordForEmail(email, {
                     redirectTo: window.location.origin + '/login.html'
                 });
+
                 if (error) throw error;
-                mensaje.innerHTML = '<span class="text-success">✅ Revisa tu correo</span>';
+                mensaje.textContent = '✅ Revisa tu correo para continuar';
+                mensaje.className = 'mensaje success';
             } catch (error) {
-                mensaje.innerHTML = '<span class="text-danger">❌ ' + error.message + '</span>';
+                mensaje.textContent = '❌ ' + error.message;
+                mensaje.className = 'mensaje error';
             }
         });
     </script>

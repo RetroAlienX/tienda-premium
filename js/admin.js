@@ -1,5 +1,5 @@
 // ============================================
-// ADMIN - COMPLETO CORREGIDO
+// ADMIN - COMPLETO CORREGIDO - ROUTE66 MARKET
 // ============================================
 
 let productoEditando = null;
@@ -13,14 +13,13 @@ let eliminarTipo = null;
 let ticketProductos = [];
 let productosDisponibles = [];
 
-// 🔥 CONFIGURACIÓN DE EMAILJS - TUS DATOS CORRECTOS
+// 🔥 CONFIGURACIÓN DE EMAILJS (GMAIL CONECTADO)
 const EMAILJS_CONFIG = {
-  SERVICE_ID: "service_5yxoyt5", // Outlook
-  TEMPLATE_ID: "template_1dcnw6v",
-  USER_ID: "Jx00-aXDn9h0eWxnY", // Public Key
+  SERVICE_ID: "service_zyekllp", // Nuevo Service ID
+  TEMPLATE_ID: "template_1dcnw6v", // Mismo Template ID
+  USER_ID: "Jx00-aXDn9h0eWxnY", // Misma Public Key
 };
 
-// 🔥 INICIALIZAR EMAILJS (el SDK ya se carga vía <script> en admin.html)
 if (typeof emailjs !== "undefined") {
   emailjs.init(EMAILJS_CONFIG.USER_ID);
   console.log("✅ EmailJS inicializado");
@@ -355,7 +354,7 @@ function abrirModalCorreo(pedidoId) {
 }
 
 // ============================================
-// ENVIAR CORREO DESDE MODAL - CORREGIDO
+// ENVIAR CORREO DESDE MODAL
 // ============================================
 
 async function enviarCorreoDesdeModal() {
@@ -407,7 +406,6 @@ async function enviarCorreoDesdeModal() {
       emailjs.init(EMAILJS_CONFIG.USER_ID);
     }
 
-    // 🔥 PARSEAR PRODUCTOS - SIN SIGNO $
     const lineas = productosText.split("\n").filter((line) => line.trim());
     const items = lineas.map((line) => {
       const match = line.match(/^(.+?)\s*(?:x|×)\s*(\d+)\s*=\s*\$?([\d.]+)/);
@@ -415,17 +413,15 @@ async function enviarCorreoDesdeModal() {
         return {
           nombre: match[1].trim(),
           cantidad: parseInt(match[2]),
-          precio: match[3], // 🔥 SOLO EL NÚMERO
+          precio: match[3],
         };
       }
       return { nombre: line.trim(), cantidad: 1, precio: "0" };
     });
 
-    // 🔥 QUITAR SIGNO $ DE TOTAL Y ENVIO
     total = total.replace(/[$,]/g, "");
     const envioNum = envio.replace(/[$,]/g, "");
 
-    // 🔥 PREPARAR PARÁMETROS
     const params = {
       cliente: nombre,
       numero_pedido: numeroPedido,
@@ -436,7 +432,7 @@ async function enviarCorreoDesdeModal() {
         hour: "2-digit",
         minute: "2-digit",
       }),
-      productos: items, // ✅ Array de objetos con precio como número
+      productos: items,
       total: total,
       metodo_pago: "Transferencia / Efectivo",
       direccion: direccion || "No especificada",
@@ -450,15 +446,13 @@ async function enviarCorreoDesdeModal() {
     };
 
     console.log("📧 Enviando correo a:", email);
-    console.log("📋 Parámetros:", params);
 
-    // 🔥 ENVIAR CON SUBJECT CORRECTO
     const response = await emailjs.send(
       EMAILJS_CONFIG.SERVICE_ID,
       EMAILJS_CONFIG.TEMPLATE_ID,
       params,
       {
-        subject: `Confirmación de Pedido #${numeroPedido}!`, // ✅ SUBJECT CORRECTO
+        subject: `Confirmación de Pedido #${numeroPedido}!`,
       }
     );
 
@@ -483,7 +477,6 @@ async function enviarCorreoDesdeModal() {
       const activeFilter = document.querySelector(".filtro-pedido.active");
       cargarPedidos(activeFilter?.dataset?.estado || "todos");
       cargarPedidosPendientes();
-      // 🔥 REACTIVAR BOTÓN para el próximo envío
       btn.disabled = false;
       btn.textContent = "📧 Enviar Correo";
     }, 1500);
@@ -498,7 +491,7 @@ async function enviarCorreoDesdeModal() {
 }
 
 // ============================================
-// ENVÍO DE CORREO MANUAL DESDE PESTAÑA ENVÍOS - CORREGIDO
+// ENVÍO DE CORREO MANUAL DESDE PESTAÑA ENVÍOS
 // ============================================
 
 async function enviarCorreoManual(e) {
@@ -553,7 +546,6 @@ async function enviarCorreoManual(e) {
       emailjs.init(EMAILJS_CONFIG.USER_ID);
     }
 
-    // 🔥 PARSEAR PRODUCTOS - SIN SIGNO $
     const lineas = productosText.split("\n").filter((line) => line.trim());
     const items = lineas.map((line) => {
       const match = line.match(/^(.+?)\s*(?:x|×)\s*(\d+)\s*=\s*\$?([\d.]+)/);
@@ -567,7 +559,6 @@ async function enviarCorreoManual(e) {
       return { nombre: line.trim(), cantidad: 1, precio: "0" };
     });
 
-    // 🔥 QUITAR SIGNO $ DE TOTAL Y ENVIO
     total = total.replace(/[$,]/g, "");
     const envioNum = envio.replace(/[$,]/g, "");
 
@@ -787,7 +778,9 @@ document.addEventListener("DOMContentLoaded", function () {
     verificarSesion().then((user) => {
       if (user) {
         const emailEl = document.getElementById("adminEmail");
-        if (emailEl) emailEl.textContent = "👤 " + user.email;
+        if (emailEl)
+          emailEl.innerHTML =
+            '<i class="fas fa-user-circle"></i> ' + user.email;
       }
     });
   }
@@ -943,7 +936,7 @@ async function cargarProductos() {
   }
 
   container.innerHTML =
-    '<div class="text-center text-secondary py-3">Cargando...</div>';
+    '<div class="text-center text-dim py-3">Cargando...</div>';
 
   try {
     if (!window.supabase || typeof window.supabase.from !== "function") {
@@ -960,7 +953,7 @@ async function cargarProductos() {
 
     if (!data || !data.length) {
       container.innerHTML =
-        '<p class="text-center text-secondary py-3">📦 No hay productos</p>';
+        '<p class="text-center text-dim py-3">📦 No hay productos</p>';
       cargarSelectProductosInventario();
       return;
     }
@@ -977,15 +970,15 @@ async function cargarProductos() {
                                 ${
                                   p.imagen_url
                                     ? `<img src="${p.imagen_url}" style="width:40px;height:40px;object-fit:cover;border-radius:4px;" onerror="this.style.display='none'">`
-                                    : `<span style="font-size:20px;color:#666;">📦</span>`
+                                    : `<span style="font-size:20px;color:var(--text-dim);">📦</span>`
                                 }
                             </td>
                             <td><strong>${
                               p.nombre
-                            }</strong><br><small class="text-secondary">${
+                            }</strong><br><small class="text-dim">${
                           p.descripcion || ""
                         }</small></td>
-                            <td><code style="background:#1a1a1a;padding:2px 8px;border-radius:4px;color:#c9a84c;font-size:12px;">${
+                            <td><code style="background:var(--bg-input);padding:2px 8px;border-radius:4px;color:var(--accent);font-size:12px;">${
                               p.codigo_barras || "Sin código"
                             }</code></td>
                             <td>${formatearMoneda(p.precio)}</td>
@@ -1207,11 +1200,11 @@ async function buscarPorCodigoBarras() {
   const codigo = input.value.trim();
   if (!codigo) {
     resultado.innerHTML =
-      '<span class="text-secondary">📷 Escanea un código de barras</span>';
+      '<span class="text-dim">📷 Escanea un código de barras</span>';
     return;
   }
 
-  resultado.innerHTML = '<span class="text-secondary">Buscando...</span>';
+  resultado.innerHTML = '<span class="text-dim">Buscando...</span>';
 
   try {
     const { data, error } = await window.supabase
@@ -1229,7 +1222,7 @@ async function buscarPorCodigoBarras() {
                 <div class="d-flex justify-content-between align-items-center">
                     <div><strong>✅ Encontrado:</strong> ${
                       data.nombre
-                    }<br><small class="text-secondary">Precio: ${formatearMoneda(
+                    }<br><small class="text-dim">Precio: ${formatearMoneda(
       data.precio
     )} | Stock: ${data.stock}</small></div>
                     <button onclick="editarProducto('${
@@ -1373,7 +1366,7 @@ async function cargarInventario() {
   }
 
   container.innerHTML =
-    '<div class="text-center text-secondary py-3">Cargando...</div>';
+    '<div class="text-center text-dim py-3">Cargando...</div>';
 
   try {
     const { data, error } = await window.supabase
@@ -1411,7 +1404,7 @@ async function cargarInventario() {
 
     if (!data || !data.length) {
       container.innerHTML =
-        '<p class="text-center text-secondary py-3">📊 No hay movimientos</p>';
+        '<p class="text-center text-dim py-3">📊 No hay movimientos</p>';
       return;
     }
 
@@ -1444,7 +1437,7 @@ async function cargarInventario() {
                                 ? formatearMoneda(m.productos.precio)
                                 : "-"
                             }</td>
-                            <td><code style="background:#1a1a1a;padding:2px 6px;border-radius:4px;font-size:11px;color:#c9a84c;">${
+                            <td><code style="background:var(--bg-input);padding:2px 6px;border-radius:4px;font-size:11px;color:var(--accent);">${
                               m.productos?.codigo_barras || "-"
                             }</code></td>
                             <td>
@@ -1507,7 +1500,7 @@ async function cargarPedidos(estado = "todos") {
   }
 
   container.innerHTML =
-    '<div class="text-center text-secondary py-3">Cargando...</div>';
+    '<div class="text-center text-dim py-3">Cargando...</div>';
 
   try {
     const { data: todosPedidos, error: countError } = await window.supabase
@@ -1562,7 +1555,7 @@ async function cargarPedidos(estado = "todos") {
 
     if (!data || !data.length) {
       container.innerHTML =
-        '<p class="text-center text-secondary py-3">📋 No hay pedidos</p>';
+        '<p class="text-center text-dim py-3">📋 No hay pedidos</p>';
       return;
     }
 
@@ -1613,24 +1606,23 @@ async function cargarPedidos(estado = "todos") {
                               p.fecha_pedido
                             )}</small></td>
                             <td>
-                                <div style="display:flex; flex-direction:column; gap:2px;">
-                                    <div style="font-weight:600; color:#fff; font-size:1rem;">${
-                                      p.cliente_nombre
-                                    }</div>
-                                    ${
-                                      p.cliente_telefono
-                                        ? `<div style="color:#c9a84c; font-size:0.85rem;">📱 ${p.cliente_telefono}</div>`
-                                        : ""
-                                    }
-                                    ${
-                                      p.cliente_email
-                                        ? `<div style="color:#8ab4f8; font-size:0.85rem;">📧 ${p.cliente_email}</div>`
-                                        : ""
-                                    }
-                                </div>
+                                <!-- 🔥 CAMBIO APLICADO AQUÍ PARA APILAR CORRECTAMENTE -->
+                                <div style="display:block; margin-bottom:4px; font-weight:600; color:var(--text-main); font-size:0.95rem;">${
+                                  p.cliente_nombre
+                                }</div>
+                                ${
+                                  p.cliente_telefono
+                                    ? `<div style="display:block; color:var(--text-silver); font-size:0.85rem; margin-bottom:3px;">📱 ${p.cliente_telefono}</div>`
+                                    : ""
+                                }
+                                ${
+                                  p.cliente_email
+                                    ? `<div style="display:block; color:#8ab4f8; font-size:0.85rem;">📧 ${p.cliente_email}</div>`
+                                    : ""
+                                }
                             </td>
                             <td><div class="productos-lista">${productosLinea}</div></td>
-                            <td><strong style="color:#c9a84c; font-size:1.1rem; white-space:nowrap;">${formatearMoneda(
+                            <td><strong style="color:var(--accent); font-size:1.1rem; white-space:nowrap;">${formatearMoneda(
                               p.total
                             )}</strong></td>
                             <td>
@@ -1664,15 +1656,15 @@ async function cargarPedidos(estado = "todos") {
                                     ${
                                       p.estado === "pendiente"
                                         ? `
-                                        <button onclick="procesarPedido('${p.id}', 'procesar')" class="btn btn-info btn-sm" title="Procesar Pedido" style="background:#17a2b8; color:white; border:none;">✅</button>
-                                        <button onclick="abrirModalCorreo('${p.id}')" class="btn btn-primary btn-sm" title="Enviar Correo" style="background:#007bff; color:white; border:none;">📧</button>
+                                        <button onclick="procesarPedido('${p.id}', 'procesar')" class="btn btn-info-custom btn-sm" title="Procesar Pedido">✅</button>
+                                        <button onclick="abrirModalCorreo('${p.id}')" class="btn btn-primary-custom btn-sm" title="Enviar Correo">📧</button>
                                     `
                                         : ""
                                     }
                                     ${
                                       p.estado === "confirmado"
                                         ? `
-                                        <button onclick="procesarPedido('${p.id}', 'completar')" class="btn btn-success btn-sm" title="Completar Pedido" style="background:#28a745; color:white; border:none;">📦</button>
+                                        <button onclick="procesarPedido('${p.id}', 'completar')" class="btn btn-success btn-sm" title="Completar Pedido">📦</button>
                                     `
                                         : ""
                                     }
@@ -1786,7 +1778,7 @@ async function cargarFinanzas() {
   }
 
   container.innerHTML =
-    '<div class="text-center text-secondary py-3">Cargando...</div>';
+    '<div class="text-center text-dim py-3">Cargando...</div>';
 
   try {
     const { data, error } = await window.supabase
@@ -1801,7 +1793,7 @@ async function cargarFinanzas() {
 
     if (!data || !data.length) {
       container.innerHTML =
-        '<p class="text-center text-secondary py-3">💰 No hay movimientos</p>';
+        '<p class="text-center text-dim py-3">💰 No hay movimientos</p>';
       return;
     }
 
@@ -1821,7 +1813,8 @@ async function cargarFinanzas() {
     if (totalGastos) totalGastos.textContent = formatearMoneda(gastos);
     if (gananciaNeta) {
       gananciaNeta.textContent = formatearMoneda(ganancia);
-      gananciaNeta.style.color = ganancia >= 0 ? "#28a745" : "#dc3545";
+      gananciaNeta.style.color =
+        ganancia >= 0 ? "var(--regio-green)" : "var(--regio-red)";
     }
 
     container.innerHTML = `
@@ -2089,7 +2082,7 @@ function actualizarListaTicket() {
 
   if (ticketProductos.length === 0) {
     container.innerHTML =
-      '<p class="text-secondary text-center small">No hay productos agregados</p>';
+      '<p class="text-dim text-center small">No hay productos agregados</p>';
     document.getElementById("ticketSubtotal").value = "$0.00";
     document.getElementById("ticketTotal").value = "$0.00";
     return;
@@ -2101,7 +2094,7 @@ function actualizarListaTicket() {
         <div class="d-flex justify-content-between align-items-center bg-secondary bg-opacity-25 p-2 rounded-2 mb-1">
             <div>
                 <span class="text-white">${p.nombre}</span>
-                <span class="text-secondary small"> × ${p.cantidad}</span>
+                <span class="text-dim small"> × ${p.cantidad}</span>
                 <span class="text-warning small">$${(
                   p.precio * p.cantidad
                 ).toFixed(2)}</span>

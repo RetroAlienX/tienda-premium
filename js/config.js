@@ -1,9 +1,9 @@
 // ============================================
-// CONFIGURACIÓN - VERSIÓN SIMPLIFICADA
+// CONFIGURACIÓN - ROUTE66 MARKET
 // ============================================
 
 (function () {
-  console.log("🔧 Iniciando configuración...");
+  console.log("✦ Route66 Market - Iniciando configuración...");
 
   // 1. Intentar desde window (inyectado por Netlify)
   if (window.SUPABASE_URL && window.SUPABASE_ANON_KEY) {
@@ -16,7 +16,6 @@
         SUPABASE_ANON_KEY: key,
       };
       console.log("✅ Configuración cargada desde window");
-      console.log("📋 URL:", url.substring(0, 30) + "...");
       return;
     }
   }
@@ -28,10 +27,24 @@
     window.CONFIG.SUPABASE_ANON_KEY
   ) {
     console.log("✅ Configuración cargada desde window.CONFIG");
-    console.log("📋 URL:", window.CONFIG.SUPABASE_URL.substring(0, 30) + "...");
     return;
   }
 
-  // 3. Si nada funciona, esperar a que se cargue
   console.warn("⚠️ No se encontró configuración, esperando...");
 })();
+
+// ============================================
+// CONFIGURACIÓN DE LA TIENDA
+// ============================================
+
+window.TIENDA_CONFIG = {
+  WHATSAPP: "528126878080",
+  NOMBRE: "The Route66 Market",
+  TAGLINE: "Premium USA Imports",
+  DESCRIPCION:
+    "Directo de Estados Unidos a Monterrey. Exclusividad sin fronteras.",
+  EMAIL: "theroute66jvmarket@outlook.com",
+  HORARIO: "Lunes a Viernes: 9:00 AM - 8:00 PM | Sábado: 10:00 AM - 6:00 PM",
+};
+
+console.log("✅ Configuración de tienda cargada");

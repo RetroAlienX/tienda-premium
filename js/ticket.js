@@ -1,13 +1,13 @@
 // ============================================
-// GENERADOR DE TICKETS
+// GENERADOR DE TICKETS - ROUTE66 MARKET
 // ============================================
 
 const TIENDA = {
-  nombre: "✨ Tienda Premium",
-  direccion: "McAllen, TX - México",
-  telefono: "📱 555-123-4567",
-  email: "✉️ tienda@premium.com",
-  website: "🌐 www.tiendapremium.com",
+  nombre: "✦ Route66 Market",
+  direccion: "McAllen, TX - Monterrey, MX",
+  telefono: "📱 81 2687 8080",
+  email: "✉️ contacto@ejemplo.com", // ⚠️ CORREO GENÉRICO - NO PONGAS EL REAL AQUÍ
+  website: "🌐 www.route66market.com",
 };
 
 function generarTicket(datos) {
@@ -102,14 +102,4 @@ function generarTicket(datos) {
     `;
 
   container.innerHTML = html;
-}
-
-function formatearFecha(fecha) {
-  return fecha.toLocaleString("es-MX", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
 }

@@ -3,19 +3,16 @@
 // ============================================
 
 function esperarSupabase(callback) {
-  // Si supabase ya está listo, ejecutar inmediatamente
   if (window.supabase && typeof window.supabase.auth !== "undefined") {
     callback();
     return;
   }
 
-  // Escuchar evento personalizado
   document.addEventListener("supabaseReady", function handler() {
     document.removeEventListener("supabaseReady", handler);
     callback();
   });
 
-  // También verificar cada 200ms
   const intervalo = setInterval(function () {
     if (window.supabase && typeof window.supabase.auth !== "undefined") {
       clearInterval(intervalo);
@@ -53,7 +50,7 @@ async function cerrarSesion() {
   try {
     await window.supabase.auth.signOut();
     localStorage.removeItem("adminEmail");
-    window.location.href = "login.html";
+    window.location.href = "index.html";
   } catch (error) {
     console.error("❌ Error:", error);
     alert("Error al cerrar sesión");
@@ -62,55 +59,92 @@ async function cerrarSesion() {
 
 async function iniciarSesion(email, password) {
   return new Promise((resolve) => {
-    console.log("🔐 Esperando Supabase para login...");
     esperarSupabase(async function () {
       try {
-        console.log("🔐 Intentando login con:", email);
         const { data, error } = await window.supabase.auth.signInWithPassword({
           email: email,
           password: password,
         });
         if (error) {
-          console.log("❌ Error login:", error.message);
           resolve({ success: false, error: error.message });
           return;
         }
-        console.log("✅ Login exitoso:", data.user.email);
         localStorage.setItem("adminEmail", email);
         resolve({ success: true });
       } catch (error) {
-        console.error("❌ Error inesperado:", error);
         resolve({ success: false, error: error.message });
       }
     });
   });
 }
 
+// ============================================
+// MOSTRAR CORREO DEL ADMIN (SIN ESTRELLA)
+// ============================================
+
 function mostrarAdminEmail() {
   const email = localStorage.getItem("adminEmail");
   if (email) {
-    const elemento = document.getElementById("adminEmail");
-    if (elemento) elemento.textContent = "👤 " + email;
+    const el = document.getElementById("adminEmail");
+    // Eliminado el símbolo "✦ " que causaba la estrella
+    if (el) el.textContent = email;
   }
 }
 
-document.addEventListener("DOMContentLoaded", function () {
-  console.log("🔐 auth.js cargado");
+// ============================================
+// EASTER EGG - ACCESO ADMIN OCULTO (5 CLICS)
+// ============================================
 
-  // Verificar sesión en admin.html
+let clickCount = 0;
+let clickTimer = null;
+
+function initEasterEgg() {
+  const header = document.querySelector(
+    ".logo-area, #secretLogo, #adminAccess, .logo"
+  );
+  if (!header) {
+    console.warn("⚠️ No se encontró el elemento para el easter egg");
+    return;
+  }
+
+  header.style.cursor = "pointer";
+
+  header.addEventListener("click", function (e) {
+    clickCount++;
+
+    if (clickTimer) clearTimeout(clickTimer);
+
+    clickTimer = setTimeout(() => {
+      clickCount = 0;
+    }, 2000);
+
+    if (clickCount >= 5) {
+      clickCount = 0;
+      if (localStorage.getItem("adminEmail")) {
+        window.location.href = "admin.html";
+      } else {
+        window.location.href = "login.html";
+      }
+    }
+  });
+
+  console.log("✦ Easter egg activado: 5 clics en el logo → Admin");
+}
+
+document.addEventListener("DOMContentLoaded", function () {
+  initEasterEgg();
+
   if (window.location.pathname.includes("admin.html")) {
     verificarSesion().then((user) => {
       if (user) mostrarAdminEmail();
     });
   }
 
-  // Botón de logout
   const btnLogout = document.getElementById("btnLogout");
   if (btnLogout) {
     btnLogout.addEventListener("click", cerrarSesion);
   }
 
-  // Formulario de login
   const loginForm = document.getElementById("loginForm");
   if (loginForm) {
     loginForm.addEventListener("submit", async (e) => {
@@ -122,22 +156,22 @@ document.addEventListener("DOMContentLoaded", function () {
 
       if (!email || !password) {
         mensaje.textContent = "❌ Completa todos los campos";
-        mensaje.style.color = "#dc3545";
+        mensaje.style.color = "#ff3333";
         return;
       }
 
       mensaje.textContent = "⏳ Iniciando sesión...";
-      mensaje.style.color = "#a0a0a0";
+      mensaje.style.color = "#777777";
 
       const result = await iniciarSesion(email, password);
 
       if (result.success) {
         mensaje.textContent = "✅ Redirigiendo...";
-        mensaje.style.color = "#28a745";
+        mensaje.style.color = "#00ff88";
         window.location.href = "admin.html";
       } else {
         mensaje.textContent = "❌ " + result.error;
-        mensaje.style.color = "#dc3545";
+        mensaje.style.color = "#ff3333";
       }
     });
   }

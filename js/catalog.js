@@ -1,20 +1,30 @@
 // ============================================
-// CATÁLOGO + WHATSAPP (SOLO CLIENTES)
+// CATÁLOGO THE ROUTE66 MARKET - COMPLETO
 // ============================================
 
-// 🔥 CONFIGURACIÓN - NÚMERO DE WHATSAPP
+// CONFIGURACIÓN DE CONTACTO
 const CONFIG = {
-  WHATSAPP: "528126878080", // Monterrey, MX
+  WHATSAPP: "528126878080",
+  TELEFONO: "+52 8126878080",
 };
 
-// 🔥 CONFIGURACIÓN DE EMAILJS - CAMBIA ESTOS VALORES
+// CONFIGURACIÓN DE EMAILJS (GMAIL CONECTADO)
 const EMAILJS_CONFIG = {
-  SERVICE_ID: "service_5yxoyt5", // Outlook
-  TEMPLATE_ID: "template_1dcnw6v",
-  USER_ID: "Jx00-aXDn9h0eWxnY", // Public Key
+  SERVICE_ID: "service_zyekllp", // Nuevo Service ID
+  TEMPLATE_ID: "template_1dcnw6v", // Mismo Template ID
+  USER_ID: "Jx00-aXDn9h0eWxnY", // Misma Public Key
 };
 
-// 🔥 INICIALIZAR EMAILJS (el SDK ya se carga vía <script> en index.html)
+// IMAGEN POR DEFECTO - ICONO DE CAJA
+const IMG_FALLBACK =
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23080808'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%23333' font-family='sans-serif' font-size='40'%3E📦%3C/text%3E%3C/svg%3E";
+
+let productos = [];
+
+// ============================================
+// INICIALIZAR EMAILJS
+// ============================================
+
 if (typeof emailjs !== "undefined") {
   emailjs.init(EMAILJS_CONFIG.USER_ID);
   console.log("✅ EmailJS inicializado");
@@ -22,8 +32,50 @@ if (typeof emailjs !== "undefined") {
   console.warn("⚠️ EmailJS SDK no disponible todavía en catalog.js");
 }
 
-let productos = [];
-let supabaseListo = false;
+// ============================================
+// FUNCIONES DE UTILIDAD
+// ============================================
+
+function formatearMoneda(cantidad) {
+  return new Intl.NumberFormat("es-MX", {
+    style: "currency",
+    currency: "MXN",
+    minimumFractionDigits: 2,
+  }).format(cantidad);
+}
+
+function generarNumeroPedido() {
+  const fecha = new Date();
+  const año = fecha.getFullYear().toString().slice(-2);
+  const mes = String(fecha.getMonth() + 1).padStart(2, "0");
+  const dia = String(fecha.getDate()).padStart(2, "0");
+  const aleatorio = String(Math.floor(Math.random() * 10000)).padStart(4, "0");
+  return `P-${año}${mes}${dia}-${aleatorio}`;
+}
+
+function validarTelefono(telefono) {
+  const limpio = telefono.replace(/[\s\-\(\)]/g, "");
+  if (limpio.length === 10) {
+    return { valido: true, telefono: limpio };
+  } else if (limpio.length === 11 && limpio.startsWith("52")) {
+    return { valido: true, telefono: limpio };
+  } else if (limpio.length === 11 && limpio.startsWith("1")) {
+    return { valido: true, telefono: limpio };
+  }
+  return { valido: false, telefono: limpio };
+}
+
+function mostrarMensaje(el, msg, tipo) {
+  if (!el) return;
+  el.textContent = msg;
+  el.className = "mensaje-" + tipo;
+  if (tipo === "exito") {
+    setTimeout(() => {
+      el.textContent = "";
+      el.className = "";
+    }, 5000);
+  }
+}
 
 // ============================================
 // ESPERAR A QUE SUPABASE ESTÉ LISTO
@@ -53,19 +105,6 @@ function esperarSupabase(callback) {
 }
 
 // ============================================
-// GENERAR NÚMERO DE PEDIDO
-// ============================================
-
-function generarNumeroPedido() {
-  const fecha = new Date();
-  const año = fecha.getFullYear().toString().slice(-2);
-  const mes = String(fecha.getMonth() + 1).padStart(2, "0");
-  const dia = String(fecha.getDate()).padStart(2, "0");
-  const aleatorio = String(Math.floor(Math.random() * 10000)).padStart(4, "0");
-  return `P-${año}${mes}${dia}-${aleatorio}`;
-}
-
-// ============================================
 // CARGAR PRODUCTOS
 // ============================================
 
@@ -74,10 +113,15 @@ async function cargarProductos() {
   if (!grid) return;
 
   grid.innerHTML = `
-        <div class="text-center text-secondary py-4">
-            <div class="spinner-border text-warning" role="status"></div>
-            <p>Cargando productos...</p>
+        <div class="text-center py-5" style="color:var(--text-silver);">
+            <div style="display:inline-block;width:28px;height:28px;border:2px solid var(--text-silver);border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;"></div>
+            <p style="margin-top:12px;font-weight:300;">Cargando colección...</p>
         </div>
+        <style>
+            @keyframes spin {
+                to { transform: rotate(360deg); }
+            }
+        </style>
     `;
 
   esperarSupabase(async function () {
@@ -96,9 +140,9 @@ async function cargarProductos() {
     } catch (error) {
       console.error("Error cargando productos:", error);
       grid.innerHTML = `
-                <div class="text-center text-danger py-4">
+                <div class="text-center py-5" style="color:var(--regio-red);">
                     <p>❌ Error al cargar productos: ${error.message}</p>
-                    <button onclick="cargarProductos()" class="btn btn-warning mt-2">Reintentar</button>
+                    <button onclick="cargarProductos()" style="background:var(--accent);color:var(--bg-black);border:none;padding:8px 24px;font-weight:600;cursor:pointer;margin-top:12px;font-size:0.8rem;">Reintentar</button>
                 </div>
             `;
     }
@@ -106,7 +150,7 @@ async function cargarProductos() {
 }
 
 // ============================================
-// MOSTRAR PRODUCTOS (CON DESCRIPCIÓN DEFAULT)
+// RENDERIZADO DE CARDS CON NEON Y PLACEHOLDER
 // ============================================
 
 function mostrarProductos(lista) {
@@ -114,37 +158,53 @@ function mostrarProductos(lista) {
   if (!grid) return;
 
   if (!lista || lista.length === 0) {
-    grid.innerHTML = `<p class="text-center text-secondary py-4">📦 No hay productos disponibles</p>`;
+    grid.innerHTML = `<p class="text-center py-5" style="color:var(--text-silver);font-weight:300;">No hay productos disponibles</p>`;
     return;
   }
 
   grid.innerHTML = lista
-    .map(
-      (p) => `
-        <div class="col-lg-3 col-md-4 col-sm-6">
-            <div class="producto-card">
-                ${
-                  p.imagen_url
-                    ? `<img src="${p.imagen_url}" alt="${p.nombre}" loading="lazy" onerror="this.style.display='none'" style="width:100%;height:200px;object-fit:cover;">`
-                    : `<div style="height:200px;display:flex;align-items:center;justify-content:center;background:#1a1a1a;color:#666;font-size:48px;">📦</div>`
-                }
-                <div class="card-body">
-                    <h6 class="text-white">${p.nombre}</h6>
-                    <p class="text-secondary small" style="min-height: 40px;">${
-                      p.descripcion || "📝 Sin descripción disponible"
-                    }</p>
-                    <p class="precio">${formatearMoneda(p.precio)}</p>
-                    <p class="text-secondary small">📦 ${
-                      p.stock > 0 ? `${p.stock} disponibles` : "Bajo pedido"
-                    }</p>
-                    <button onclick="hacerPedido('${
-                      p.id
-                    }')" class="btn btn-warning btn-sm w-100">💬 Pedir</button>
+    .map((p) => {
+      const agotado = p.stock <= 0;
+      const stockText = agotado
+        ? "MERCANCÍA AGOTADA"
+        : `${p.stock} disponibles`;
+      const stockClass = agotado ? "out" : "available";
+
+      const tieneImagen = p.imagen_url && p.imagen_url.trim() !== "";
+      const imagenHtml = tieneImagen
+        ? `<img src="${p.imagen_url}" alt="${p.nombre}" loading="lazy" onerror="this.parentElement.innerHTML='<div class=\\'placeholder-icon\\'>📦</div>'">`
+        : `<div class="placeholder-icon">📦</div>`;
+
+      return `
+                <div class="col-lg-3 col-md-4 col-sm-6">
+                    <div class="card-premium" style="${
+                      agotado ? "opacity:0.5;" : ""
+                    }">
+                        <div class="img-container">
+                            ${
+                              agotado
+                                ? '<div class="sold-out-overlay">AGOTADO</div>'
+                                : ""
+                            }
+                            ${imagenHtml}
+                        </div>
+                        <div class="card-info">
+                            <span class="usa-tag"><span class="flag-icon">🇺🇸</span> <span class="highlight-text">Importado de USA</span></span>
+                            <h3>${p.nombre}</h3>
+                            <span class="price">${formatearMoneda(
+                              p.precio
+                            )}</span>
+                            <span class="stock-status ${stockClass}">${stockText}</span>
+                            <button onclick="hacerPedido('${
+                              p.id
+                            }')" class="btn-card" ${agotado ? "disabled" : ""}>
+                                ${agotado ? "SIN STOCK" : "PEDIR AHORA"}
+                            </button>
+                        </div>
+                    </div>
                 </div>
-            </div>
-        </div>
-    `
-    )
+            `;
+    })
     .join("");
 }
 
@@ -159,6 +219,11 @@ function hacerPedido(id) {
     return;
   }
 
+  if (p.stock <= 0) {
+    alert("❌ Este producto está agotado");
+    return;
+  }
+
   const mensaje = `Hola, quiero pedir:%0A%0A📦 *${
     p.nombre
   }*%0A💰 ${formatearMoneda(
@@ -169,19 +234,25 @@ function hacerPedido(id) {
 }
 
 // ============================================
-// CARGAR SELECT DE PRODUCTOS (CON STOCK)
+// CARGAR SELECT DE PRODUCTOS
 // ============================================
 
 function cargarSelectProductos(lista) {
   const sel = document.getElementById("productoSelect");
   if (!sel) return;
 
+  const disponibles = lista.filter((p) => p.stock > 0);
+
+  if (disponibles.length === 0) {
+    sel.innerHTML = '<option value="">⚠️ No hay productos disponibles</option>';
+    return;
+  }
+
   sel.innerHTML = '<option value="">Selecciona un producto...</option>';
-  lista.forEach((p) => {
-    const stockText = p.stock > 0 ? ` (Stock: ${p.stock})` : " ⚠️ Sin stock";
+  disponibles.forEach((p) => {
     sel.innerHTML += `<option value="${p.id}">${p.nombre} - ${formatearMoneda(
       p.precio
-    )}${stockText}</option>`;
+    )} (${p.stock} disponibles)</option>`;
   });
 }
 
@@ -202,36 +273,26 @@ function filtrarProductos(categoria) {
 }
 
 // ============================================
-// VALIDAR TELÉFONO
+// FUNCIONES PARA EL FORMULARIO DE PEDIDO
 // ============================================
 
-function validarTelefono(telefono) {
-  const limpio = telefono.replace(/[\s\-\(\)]/g, "");
-  if (limpio.length === 10) {
-    return { valido: true, telefono: limpio };
-  } else if (limpio.length === 11 && limpio.startsWith("52")) {
-    return { valido: true, telefono: limpio };
-  } else if (limpio.length === 11 && limpio.startsWith("1")) {
-    return { valido: true, telefono: limpio };
-  } else {
-    return { valido: false, telefono: limpio };
-  }
+function seleccionarProducto(id) {
+  const select = document.getElementById("productoSelect");
+  if (select) select.value = id;
 }
 
 // ============================================
-// ENVIAR CORREO DE CONFIRMACIÓN (EMAILJS)
+// ENVIAR CORREO DE CONFIRMACIÓN (A CLIENTE Y ADMIN)
 // ============================================
 
 async function enviarCorreoConfirmacion(
   pedido,
-  producto,
   numeroPedido,
   total,
   metodoPago,
   direccion
 ) {
   try {
-    // Cargar EmailJS
     if (typeof emailjs === "undefined") {
       await new Promise((resolve, reject) => {
         const script = document.createElement("script");
@@ -260,8 +321,10 @@ async function enviarCorreoConfirmacion(
           : "Efectivo contra entrega",
       direccion:
         direccion || "No especificada (te contactaremos para coordinar envío)",
-      to_email: pedido.cliente_email || "cliente@email.com",
+      to_email: pedido.cliente_email, // Se envía al correo del CLIENTE
     };
+
+    console.log("📧 Enviando correo a:", params.to_email);
 
     const response = await emailjs.send(
       EMAILJS_CONFIG.SERVICE_ID,
@@ -272,7 +335,7 @@ async function enviarCorreoConfirmacion(
     console.log("✅ Correo enviado:", response);
     return true;
   } catch (error) {
-    console.error("❌ Error al enviar correo:", error);
+    console.error("❌ Error al enviar correo (no crítico):", error);
     return false;
   }
 }
@@ -289,7 +352,7 @@ async function cancelarPedidoCliente() {
 
   if (!numeroPedido) {
     mensaje.innerHTML =
-      '<span class="text-danger">❌ Ingresa el número de pedido</span>';
+      '<span style="color:var(--regio-red);">❌ Ingresa el número de pedido</span>';
     return;
   }
 
@@ -302,19 +365,19 @@ async function cancelarPedidoCliente() {
 
     if (error || !data) {
       mensaje.innerHTML =
-        '<span class="text-danger">❌ Pedido no encontrado. Verifica el número.</span>';
+        '<span style="color:var(--regio-red);">❌ Pedido no encontrado. Verifica el número.</span>';
       return;
     }
 
     if (data.estado === "cancelado") {
       mensaje.innerHTML =
-        '<span class="text-warning">⚠️ Este pedido ya fue cancelado.</span>';
+        '<span style="color:#ff9500;">⚠️ Este pedido ya fue cancelado.</span>';
       return;
     }
 
     if (data.estado === "entregado") {
       mensaje.innerHTML =
-        '<span class="text-warning">⚠️ Este pedido ya fue entregado, no se puede cancelar.</span>';
+        '<span style="color:#ff9500;">⚠️ Este pedido ya fue entregado, no se puede cancelar.</span>';
       return;
     }
 
@@ -331,11 +394,11 @@ async function cancelarPedidoCliente() {
 
     if (updateError) throw updateError;
 
-    mensaje.innerHTML = `<span class="text-success">✅ Pedido ${numeroPedido} cancelado correctamente.</span>`;
+    mensaje.innerHTML = `<span style="color:var(--regio-green);">✅ Pedido ${numeroPedido} cancelado correctamente.</span>`;
     document.getElementById("numeroPedidoCancelar").value = "";
   } catch (error) {
     console.error("Error:", error);
-    mensaje.innerHTML = `<span class="text-danger">❌ Error al cancelar: ${error.message}</span>`;
+    mensaje.innerHTML = `<span style="color:var(--regio-red);">❌ Error al cancelar: ${error.message}</span>`;
   }
 }
 
@@ -388,43 +451,62 @@ document.addEventListener("DOMContentLoaded", function () {
 
       const telefonoValidado = validarTelefono(telefonoRaw);
       if (!telefonoValidado.valido) {
-        return mostrarMensaje(
+        mostrarMensaje(
           mensaje,
-          "❌ Teléfono inválido. Debe tener 10 dígitos (ej: 8126878080) o 11 con LADA (ej: 528126878080)",
+          "❌ Teléfono inválido. Debe tener 10 dígitos (ej: 8126878080)",
           "error"
         );
+        return;
       }
       const telefono = telefonoValidado.telefono;
 
+      // Correo es obligatorio
+      if (!email) {
+        mostrarMensaje(
+          mensaje,
+          "❌ El correo electrónico es obligatorio para confirmar tu pedido.",
+          "error"
+        );
+        return;
+      }
+
+      // Validar campos obligatorios
       if (!nombre || !telefono || !productoId || !metodoPago) {
-        return mostrarMensaje(
+        mostrarMensaje(
           mensaje,
           "❌ Completa todos los campos obligatorios",
           "error"
         );
+        return;
       }
 
+      // Buscar producto
       const producto = productos.find((p) => p.id === productoId);
       if (!producto) {
-        return mostrarMensaje(mensaje, "❌ Producto no encontrado", "error");
+        mostrarMensaje(mensaje, "❌ Producto no encontrado", "error");
+        return;
       }
 
+      // Validar stock
       if (cantidad > producto.stock) {
-        return mostrarMensaje(
+        mostrarMensaje(
           mensaje,
-          `❌ No hay suficiente stock. Solo tenemos ${producto.stock} unidades disponibles de "${producto.nombre}".`,
+          `❌ No hay suficiente stock. Solo tenemos ${producto.stock} unidades disponibles.`,
           "error"
         );
+        return;
       }
 
       if (producto.stock === 0) {
-        return mostrarMensaje(
+        mostrarMensaje(
           mensaje,
           `❌ El producto "${producto.nombre}" no tiene stock disponible.`,
           "error"
         );
+        return;
       }
 
+      // Calcular total y generar número de pedido
       const total = producto.precio * cantidad;
       const numeroPedido = generarNumeroPedido();
 
@@ -432,7 +514,7 @@ document.addEventListener("DOMContentLoaded", function () {
         numero_pedido: numeroPedido,
         cliente_nombre: nombre,
         cliente_telefono: telefono,
-        cliente_email: email || null,
+        cliente_email: email,
         productos: [
           {
             nombre: producto.nombre,
@@ -455,58 +537,47 @@ document.addEventListener("DOMContentLoaded", function () {
           throw new Error("Supabase no está listo. Intenta de nuevo.");
         }
 
+        // Guardar pedido en Supabase
         const { error } = await window.supabase
           .from("pedidos")
           .insert([pedido]);
         if (error) throw error;
 
-        // 🔥 ENVIAR CORREO DE CONFIRMACIÓN AL CLIENTE
-        if (email) {
-          await enviarCorreoConfirmacion(
-            pedido,
-            producto,
-            numeroPedido,
-            total,
-            metodoPago,
-            direccion
-          );
-        }
-
-        // 🔥 NOTA: Ya NO se abre WhatsApp automáticamente en Pedido Directo.
-        // El pedido se registra y se envía el correo de confirmación normalmente.
-        // (Antes aquí se abría wa.me con window.open — se quitó a propósito.)
-
-        // MENSAJE DE CONFIRMACIÓN PARA EL CLIENTE
-        const mensajeCorreo = email
-          ? `\n\n📧 Se ha enviado un correo de confirmación a ${email}.`
-          : "\n\n⚠️ No proporcionaste correo, no podremos enviarte confirmación por email.";
-
-        mostrarMensaje(
-          mensaje,
-          `✅ ¡Pedido confirmado ${nombre}!%0A%0A` +
-            `📋 *Número de pedido:* ${numeroPedido}%0A` +
-            `📦 *Producto:* ${producto.nombre}%0A` +
-            `🔢 *Cantidad:* ${cantidad}%0A` +
-            `💰 *Total:* ${formatearMoneda(total)}%0A` +
-            `💳 *Pago:* ${
-              metodoPago === "transferencia" ? "Transferencia" : "Efectivo"
-            }%0A` +
-            `${direccion ? `📍 *Dirección:* ${direccion}\n` : ""}` +
-            `%0A📦 *Información de envío:*%0A` +
-            `El costo de envío puede variar según la distancia.%0A` +
-            `Nos pondremos en contacto para coordinar el envío y el costo.%0A` +
-            `${mensajeCorreo}%0A%0A` +
-            `⚠️ *¡IMPORTANTE! Guarda tu número de pedido.*%0A` +
-            `Con él podrás:%0A` +
-            `• ❌ Cancelar tu pedido si lo necesitas%0A` +
-            `• 📞 Contactarnos para modificaciones%0A` +
-            `• 📦 Dar seguimiento a tu pedido`,
-          "exito"
+        // Enviar correo de confirmación al CLIENTE
+        await enviarCorreoConfirmacion(
+          pedido,
+          numeroPedido,
+          total,
+          metodoPago,
+          direccion
         );
 
-        formPedido.reset();
+        // Mostrar modal
+        const modal = document.getElementById("modalConfirmacionPedido");
+        if (modal) {
+          document.getElementById("modalNumeroPedido").textContent =
+            numeroPedido;
+          document.getElementById("modalNombreCliente").textContent = nombre;
+          document.getElementById("modalTelefonoCliente").textContent =
+            telefono;
+          document.getElementById("modalEmailCliente").textContent = email;
+          document.getElementById("modalDireccionCliente").textContent =
+            direccion || "No especificada";
+          document.getElementById(
+            "modalProductoInfo"
+          ).textContent = `${producto.nombre} × ${cantidad}`;
+          document.getElementById("modalTotalInfo").textContent =
+            formatearMoneda(total);
+          document.getElementById("modalMetodoPagoInfo").textContent =
+            metodoPago === "transferencia" ? "Transferencia" : "Efectivo";
+          modal.style.display = "flex";
+        }
+
+        // Limpiar formulario
+        e.target.reset();
+        const selectProductos = document.getElementById("productoSelect");
+        if (selectProductos) selectProductos.value = "";
         cargarSelectProductos(productos);
-        mensaje.scrollIntoView({ behavior: "smooth", block: "center" });
       } catch (error) {
         console.error("Error:", error);
         mostrarMensaje(
@@ -518,6 +589,14 @@ document.addEventListener("DOMContentLoaded", function () {
         btn.disabled = false;
         btn.textContent = "📤 Enviar Pedido";
       }
+    });
+  }
+
+  const cerrarModalBtn = document.getElementById("cerrarModalConfirmacion");
+  if (cerrarModalBtn) {
+    cerrarModalBtn.addEventListener("click", function () {
+      const modal = document.getElementById("modalConfirmacionPedido");
+      if (modal) modal.style.display = "none";
     });
   }
 });

@@ -4,74 +4,415 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panel Admin</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <title>Panel Admin · Route66 Market</title>
+
+    <meta name="supabase-url" id="supabase-url" content="https://xsactvcmsaxrjwyeaimf.supabase.co">
+    <meta name="supabase-key" id="supabase-key"
+        content="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhzYWN0dmNtc2F4cmp3eWVhaW1mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcxMDg3MzUsImV4cCI6MjEwMjY4NDczNX0.hqCzaGI21WOh5BYw-MWi0-vwbLoH4_E7eXsr3Sa73Ww">
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <link rel="stylesheet" href="css/custom.css">
+
     <style>
         body {
-            background: #0a0a0a;
-            color: #ffffff;
-            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg-black);
+            color: var(--text-main);
+            font-family: 'Inter', sans-serif;
         }
 
-        .card {
-            background: #1a1a1a;
-            border-color: #2a2a2a;
+        .container-admin {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
         }
 
-        .btn-warning {
-            background: #c9a84c;
+        .admin-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid var(--border);
+            padding: 15px 0;
+            margin-bottom: 20px;
+        }
+
+        .admin-header h1 {
+            font-size: 1.5rem;
+            font-weight: 800;
+            letter-spacing: 2px;
+            margin: 0;
+        }
+
+        .admin-user {
+            font-size: 0.9rem;
+            color: var(--text-silver);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 500;
+        }
+
+        #adminEmail i {
+            font-size: 1.4rem;
+            color: var(--text-main);
+            margin-right: 5px;
+        }
+
+        .btn-header {
+            padding: 10px 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 1px;
+            cursor: pointer;
             border: none;
-            color: #0a0a0a;
+            transition: all 0.3s ease;
+            border-radius: 4px;
+            text-transform: uppercase;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: auto;
         }
 
-        .btn-warning:hover {
-            background: #dbb95c;
+        .btn-header.primary {
+            background: transparent;
+            color: var(--text-main);
+            border: 1px solid var(--text-silver);
         }
 
-        .btn-outline-warning {
-            color: #c9a84c;
-            border-color: #c9a84c;
+        .btn-header.primary:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: var(--text-main);
         }
 
-        .btn-outline-warning:hover {
-            background: #c9a84c;
-            color: #0a0a0a;
+        .btn-header.danger {
+            background: transparent;
+            color: var(--regio-red);
+            border: 1px solid var(--regio-red);
         }
 
-        .text-warning {
-            color: #c9a84c !important;
+        .btn-header.danger:hover {
+            background: rgba(255, 51, 51, 0.1);
+            border-color: var(--regio-red);
         }
 
-        .text-secondary {
-            color: #a0a0a0 !important;
+        .admin-nav {
+            display: flex;
+            gap: 10px;
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 10px;
+            margin-bottom: 25px;
+            overflow-x: auto;
         }
 
-        .form-control,
-        .form-select {
-            background: #0a0a0a !important;
-            color: #ffffff !important;
-            border-color: #2a2a2a !important;
+        .tab-btn {
+            background: var(--bg-input);
+            color: var(--text-silver);
+            border: 1px solid var(--border);
+            padding: 12px 25px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: 0.3s;
+            white-space: nowrap;
+            border-radius: 6px;
         }
 
-        .form-control:focus,
-        .form-select:focus {
-            border-color: #c9a84c !important;
-            box-shadow: 0 0 0 0.25rem rgba(201, 168, 76, 0.25) !important;
+        .tab-btn:hover {
+            background: var(--bg-card);
+            color: var(--text-main);
+            border-color: var(--text-silver);
+        }
+
+        .tab-btn.active {
+            background: var(--bg-input);
+            color: var(--text-main);
+            border-color: var(--text-main);
+        }
+
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            padding: 20px;
+            text-align: left;
+            border-radius: 6px;
+        }
+
+        .stat-card .label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            color: var(--text-silver);
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            letter-spacing: 1px;
+        }
+
+        .stat-card .number {
+            font-size: 2.2rem;
+            font-weight: 300;
+            line-height: 1;
+        }
+
+        .admin-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+        }
+
+        .admin-card h5 {
+            font-size: 1.1rem;
+            font-weight: 500;
+            margin: 0 0 15px 0;
+            color: var(--text-main);
+            letter-spacing: 0.5px;
+        }
+
+        .table-responsive {
+            overflow-x: auto;
+            margin-top: 15px;
+            width: 100%;
         }
 
         .table {
-            color: #ffffff;
-            border-color: #2a2a2a;
+            width: 100% !important;
+            border-collapse: collapse !important;
+            background: transparent !important;
+            color: var(--text-main) !important;
+            font-size: 0.85rem !important;
         }
 
         .table thead th {
-            color: #a0a0a0;
-            border-bottom-color: #2a2a2a;
+            background: var(--bg-input) !important;
+            color: var(--text-silver) !important;
+            padding: 12px 10px !important;
+            border-bottom: 1px solid var(--border) !important;
+            font-size: 0.7rem !important;
+            text-transform: uppercase !important;
+            letter-spacing: 1px !important;
+            font-weight: 700 !important;
         }
 
-        .table tbody tr:hover {
-            background: #1a1a1a;
+        .table tbody td {
+            padding: 12px 10px !important;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+            color: var(--text-main) !important;
+            vertical-align: middle !important;
+            background: transparent !important;
+            font-size: 0.8rem !important;
+        }
+
+        .table tbody tr:hover td {
+            background: rgba(255, 255, 255, 0.02) !important;
+        }
+
+        /* FORZAR LINEAS SEPARADAS EN CLIENTE */
+        .table tbody td div {
+            display: block !important;
+            line-height: 1.5 !important;
+            margin-bottom: 3px !important;
+        }
+
+        .table .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            padding: 0 !important;
+            font-size: 0.85rem !important;
+            font-weight: 600 !important;
+            border-radius: 6px !important;
+            margin: 2px !important;
+            cursor: pointer;
+            transition: all 0.3s ease !important;
+            border: 1px solid var(--border) !important;
+            background: var(--bg-input) !important;
+            color: var(--text-main) !important;
+        }
+
+        .table .btn-warning,
+        .table .btn-outline-warning,
+        .table .btn-secondary,
+        .table .btn-outline-secondary {
+            color: var(--text-silver) !important;
+        }
+
+        .table .btn-warning:hover,
+        .table .btn-outline-warning:hover,
+        .table .btn-secondary:hover,
+        .table .btn-outline-secondary:hover {
+            background: rgba(255, 255, 255, 0.1) !important;
+            color: var(--text-main) !important;
+            border-color: var(--text-main) !important;
+        }
+
+        .table .btn-danger,
+        .table .btn-outline-danger {
+            color: var(--regio-red) !important;
+            border-color: rgba(255, 51, 51, 0.3) !important;
+        }
+
+        .table .btn-danger:hover,
+        .table .btn-outline-danger:hover {
+            background: rgba(255, 51, 51, 0.1) !important;
+            color: var(--regio-red) !important;
+        }
+
+        .table .btn-success,
+        .table .btn-outline-success {
+            color: var(--regio-green) !important;
+            border-color: rgba(0, 255, 136, 0.3) !important;
+        }
+
+        .table .btn-success:hover,
+        .table .btn-outline-success:hover {
+            background: rgba(0, 255, 136, 0.1) !important;
+            color: var(--regio-green) !important;
+        }
+
+        .table .btn-info-custom,
+        .table .btn-primary-custom {
+            color: var(--text-silver) !important;
+        }
+
+        .table .btn-info-custom:hover,
+        .table .btn-primary-custom:hover {
+            background: rgba(255, 255, 255, 0.1) !important;
+            color: var(--text-main) !important;
+        }
+
+        .table select.form-select {
+            background: var(--bg-input) !important;
+            color: var(--text-main) !important;
+            border: 1px solid var(--border) !important;
+            padding: 8px 10px !important;
+            border-radius: 6px !important;
+            font-size: 0.75rem !important;
+            font-weight: 500 !important;
+            appearance: none !important;
+            -webkit-appearance: none !important;
+            text-align: center;
+            min-width: 110px;
+            cursor: pointer;
+        }
+
+        .table select.form-select option {
+            background: var(--bg-black) !important;
+            color: var(--text-main) !important;
+        }
+
+        .table .badge,
+        .table .bg-secondary,
+        .table .bg-success,
+        .table .bg-danger,
+        .table .bg-warning {
+            font-size: 0.7rem !important;
+            padding: 5px 8px !important;
+            border-radius: 6px !important;
+            font-weight: 600 !important;
+        }
+
+        .table .badge.bg-secondary,
+        .table .badge.bg-dark {
+            background: var(--bg-input) !important;
+            color: var(--text-silver) !important;
+            border: 1px solid var(--border) !important;
+        }
+
+        .table .badge.bg-success {
+            background: rgba(0, 255, 136, 0.08) !important;
+            color: var(--regio-green) !important;
+            border: 1px solid var(--regio-green) !important;
+        }
+
+        .table .badge.bg-danger {
+            background: rgba(255, 51, 51, 0.08) !important;
+            color: var(--regio-red) !important;
+            border: 1px solid var(--regio-red) !important;
+        }
+
+        .table .badge.bg-warning {
+            background: rgba(255, 149, 0, 0.08) !important;
+            color: #ff9500 !important;
+            border: 1px solid #ff9500 !important;
+        }
+
+        .btn-premium {
+            background: var(--bg-input);
+            color: var(--text-main);
+            border: 1px solid var(--text-silver);
+            padding: 12px 24px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 0.8rem;
+            letter-spacing: 0.5px;
+            border-radius: 6px;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            gap: 8px;
+            box-sizing: border-box;
+        }
+
+        .btn-premium:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: var(--text-main);
+            transform: translateY(-1px);
+        }
+
+        .btn-premium-outline {
+            background: transparent;
+            color: var(--text-main);
+            border: 1px solid var(--border);
+            padding: 12px 24px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 0.8rem;
+            letter-spacing: 0.5px;
+            border-radius: 6px;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            gap: 8px;
+            box-sizing: border-box;
+        }
+
+        .btn-premium-outline:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: var(--text-main);
+            transform: translateY(-1px);
+        }
+
+        .input-luxury {
+            width: 100%;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            padding: 14px 16px;
+            margin-bottom: 15px;
+            font-weight: 400;
+            font-size: 0.9rem;
+            border-radius: 6px;
+        }
+
+        .input-luxury:focus {
+            border-color: var(--text-silver);
+            outline: none;
         }
 
         .tab-content {
@@ -82,874 +423,414 @@
             display: block;
         }
 
-        .nav-tabs .nav-link {
-            color: #a0a0a0;
-            border: none;
-            cursor: pointer;
-        }
-
-        .nav-tabs .nav-link:hover {
-            color: #c9a84c;
-        }
-
-        .nav-tabs .nav-link.active {
-            color: #c9a84c;
-            background: transparent;
-            border-bottom: 2px solid #c9a84c;
-        }
-
-        .navbar {
-            background: #0a0a0a !important;
-            border-bottom: 1px solid #2a2a2a !important;
-        }
-
-        .btn-scroll-top {
+        .form-overlay {
+            display: none;
             position: fixed;
-            bottom: 100px;
-            right: 30px;
-            width: 50px;
-            height: 50px;
-            background: #c9a84c;
-            color: #0a0a0a;
-            border: none;
-            border-radius: 50%;
-            font-size: 24px;
-            cursor: pointer;
-            box-shadow: 0 4px 15px rgba(201, 168, 76, 0.4);
-            transition: all 0.3s ease;
-            z-index: 998;
-            opacity: 0;
-            visibility: hidden;
-            transform: translateY(20px);
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+            overflow-y: auto;
+            padding: 20px;
         }
 
-        .btn-scroll-top:hover {
-            background: #dbb95c;
-            transform: scale(1.1);
+        .form-overlay .admin-card {
+            max-width: 600px;
+            width: 100%;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            padding: 30px;
+            border-radius: 8px;
         }
 
-        .btn-scroll-top.visible {
-            opacity: 1;
-            visibility: visible;
-            transform: translateY(0);
-        }
-
-        @media (max-width: 576px) {
-            .btn-scroll-top {
-                width: 45px;
-                height: 45px;
-                font-size: 20px;
-                bottom: 90px;
-                right: 20px;
-            }
-        }
-
-        .mensaje-exito {
-            color: #28a745;
-        }
-
-        .mensaje-error {
-            color: #dc3545;
-        }
-
-        .filtro-btn.active {
-            background: #c9a84c !important;
-            color: #0a0a0a !important;
-        }
-
-        .filtro-btn {
-            color: #a0a0a0;
-            border-color: #2a2a2a;
-        }
-
-        .filtro-btn:hover {
-            color: #ffffff;
-            border-color: #c9a84c;
-        }
-
-        .bg-opacity-25 {
-            background-color: rgba(255, 255, 255, 0.05);
-        }
-
-        .badge {
-            font-size: 0.75rem;
+        .modal-box {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 3000;
+            align-items: center;
+            justify-content: center;
         }
 
         .modal-content {
-            background: #1a1a1a;
-            border-color: #2a2a2a;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            padding: 30px;
+            max-width: 600px;
+            width: 90%;
+            border-radius: 8px;
         }
 
-        .btn-danger {
-            background: #dc3545;
-            border: none;
+        @media(max-width: 768px) {
+            .admin-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+
+            .admin-header>div {
+                flex-wrap: wrap;
+                width: 100%;
+                justify-content: flex-start;
+            }
+
+            .stat-grid {
+                grid-template-columns: 1fr 1fr;
+            }
         }
 
-        .btn-danger:hover {
-            background: #c82333;
-        }
+        @media(max-width: 480px) {
+            .container-admin {
+                padding: 12px;
+            }
 
-        .producto-thumb {
-            width: 40px;
-            height: 40px;
-            object-fit: cover;
-            border-radius: 4px;
-            background: #1a1a1a;
-        }
+            .admin-card {
+                padding: 12px;
+            }
 
-        .placeholder-icon {
-            font-size: 24px;
-            display: inline-block;
-            width: 40px;
-            text-align: center;
-            color: #666;
-        }
+            .stat-grid {
+                grid-template-columns: 1fr;
+            }
 
-        .tabla-scroll {
-            max-height: 400px;
-            overflow-y: auto;
-        }
-
-        .ticket-lista {
-            max-height: 200px;
-            overflow-y: auto;
-        }
-
-        .ticket-item {
-            background: rgba(255, 255, 255, 0.05);
-            padding: 8px 12px;
-            border-radius: 4px;
-            margin-bottom: 4px;
-        }
-
-        .ticket-item:hover {
-            background: rgba(255, 255, 255, 0.1);
-        }
-
-        .ticket-item .btn-remove {
-            padding: 0 6px;
-            font-size: 12px;
-        }
-
-        .btn-info-custom {
-            background: #17a2b8;
-            color: white;
-            border: none;
-            padding: 4px 10px;
-            border-radius: 4px;
-            font-size: 12px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .btn-info-custom:hover {
-            background: #138496;
-            transform: scale(1.05);
-        }
-
-        .modal-backdrop {
-            background-color: rgba(0, 0, 0, 0.8);
-        }
-
-        .acciones-linea {
-            display: flex;
-            gap: 4px;
-            flex-wrap: nowrap;
-            align-items: center;
-        }
-
-        .acciones-linea .btn-sm {
-            padding: 2px 8px;
-            font-size: 11px;
-            min-width: 30px;
-        }
-
-        .cliente-linea {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            flex-wrap: nowrap;
-            font-size: 0.9rem;
-        }
-
-        .cliente-linea .nombre {
-            font-weight: 600;
-            color: #fff;
-            white-space: nowrap;
-        }
-
-        .cliente-linea .telefono {
-            color: #c9a84c;
-            font-weight: 500;
-            white-space: nowrap;
-        }
-
-        .cliente-linea .email {
-            color: #8ab4f8;
-            white-space: nowrap;
-        }
-
-        .cliente-linea .sep {
-            color: #666;
-        }
-
-        .pedido-numero {
-            background: #1a1a1a;
-            padding: 2px 8px;
-            border-radius: 4px;
-            color: #c9a84c;
-            font-size: 12px;
-            white-space: nowrap;
-            font-family: monospace;
-        }
-
-        .productos-lista {
-            font-size: 13px;
-            line-height: 1.6;
-            white-space: nowrap;
-        }
-
-        .productos-lista .item {
-            display: inline-block;
-            margin-right: 8px;
-        }
-
-        .productos-lista .item .nombre {
-            color: #c9a84c;
-            font-weight: 500;
-        }
-
-        .productos-lista .item .cant {
-            color: #fff;
-            font-weight: 600;
-        }
-
-        .productos-lista .item .precio {
-            color: #666;
+            .btn-premium,
+            .btn-premium-outline {
+                font-size: 0.75rem;
+                padding: 10px 14px;
+            }
         }
     </style>
 </head>
 
 <body>
 
-    <!-- HEADER ADMIN -->
-    <nav class="navbar navbar-dark">
-        <div class="container">
-            <span class="navbar-brand">👑 Panel Admin</span>
-            <div class="d-flex align-items-center gap-2">
-                <span id="adminEmail" class="text-secondary small"></span>
-                <a href="index.html" class="btn btn-outline-secondary btn-sm">🏠 Inicio</a>
-                <button id="btnLogout" class="btn btn-outline-danger btn-sm">Cerrar</button>
+    <div class="container-admin">
+        <div class="admin-header">
+            <h1>⚡ ADMIN PANEL</h1>
+            <div style="display:flex; gap:10px; align-items:center;">
+                <span class="admin-user" id="adminEmail">Cargando...</span>
+                <button class="btn-header primary" style="width:auto;" onclick="window.location.href='index.html'">Ver
+                    Tienda</button>
+                <button class="btn-header danger" style="width:auto;" onclick="cerrarSesion()">Salir</button>
             </div>
         </div>
-    </nav>
 
-    <!-- TABS -->
-    <div class="container mt-3">
-        <ul class="nav nav-tabs border-secondary" id="adminTabs">
-            <li class="nav-item"><button class="nav-link text-warning active" data-tab="productos">📦 Productos</button>
-            </li>
-            <li class="nav-item"><button class="nav-link text-warning" data-tab="inventario">📊 Inventario</button></li>
-            <li class="nav-item"><button class="nav-link text-warning" data-tab="pedidos">🛒 Pedidos</button></li>
-            <li class="nav-item"><button class="nav-link text-warning" data-tab="finanzas">💰 Finanzas</button></li>
-            <li class="nav-item"><button class="nav-link text-warning" data-tab="ticket">🧾 Ticket</button></li>
-            <li class="nav-item"><button class="nav-link text-warning" data-tab="envios">📧 Envíos</button></li>
-        </ul>
-    </div>
+        <div class="admin-nav">
+            <button class="tab-btn active" data-tab="productos">📦 Productos</button>
+            <button class="tab-btn" data-tab="inventario">📊 Inventario</button>
+            <button class="tab-btn" data-tab="pedidos">🛒 Pedidos</button>
+            <button class="tab-btn" data-tab="finanzas">💰 Finanzas</button>
+            <button class="tab-btn" data-tab="ticket">🧾 Ticket</button>
+            <button class="tab-btn" data-tab="envios">📧 Envíos</button>
+        </div>
 
-    <div class="container mt-4 pb-5">
-
-        <!-- ========================================== -->
-        <!-- TAB: PRODUCTOS                            -->
-        <!-- ========================================== -->
         <div id="tab-productos" class="tab-content active">
-            <div class="card border-secondary">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h5 class="text-white">📦 Gestión de Productos</h5>
-                        <div>
-                            <button id="btnRefrescarProductos" class="btn btn-outline-secondary btn-sm me-2">🔄
-                                Refrescar</button>
-                            <button id="btnAgregarProducto" class="btn btn-warning btn-sm">+ Agregar</button>
-                        </div>
+            <div class="admin-card">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <h5>Gestión de Productos</h5>
+                    <div style="display: flex; gap: 10px; width: auto;">
+                        <button id="btnRefrescarProductos" class="btn-premium-outline"
+                            style="padding:10px 16px;font-size:0.75rem; width: auto;">🔄 Refrescar</button>
+                        <button id="btnAgregarProducto" class="btn-premium"
+                            style="padding:10px 16px;font-size:0.75rem; width: auto;"><i class="fas fa-plus"></i>
+                            Agregar Producto</button>
                     </div>
-
-                    <div class="bg-secondary bg-opacity-25 p-3 rounded-3 mb-3">
-                        <div class="row g-2 align-items-center">
-                            <div class="col-md-8">
-                                <div class="d-flex gap-2">
-                                    <input type="text" id="inputCodigoBarras" class="form-control"
-                                        placeholder="📷 Escanea o escribe el código de barras">
-                                    <button id="btnBuscarCodigo" class="btn btn-warning btn-sm">🔍 Buscar</button>
-                                </div>
-                                <small class="text-secondary">Escanea con la pistola o escribe el código de barras para
-                                    encontrar el producto</small>
-                            </div>
-                            <div class="col-md-4" id="resultadoBusquedaCodigo">
-                                <span class="text-secondary">📷 Esperando escaneo...</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div id="formProductoContainer" style="display:none;">
-                        <form id="formProducto" class="bg-secondary bg-opacity-25 p-3 rounded-3 mb-3">
-                            <h6 class="text-warning" id="formProductoTitulo">Agregar Producto</h6>
-                            <div class="row g-2">
-                                <div class="col-md-6">
-                                    <input type="text" id="prodNombre" class="form-control" placeholder="Nombre *"
-                                        required>
-                                </div>
-                                <div class="col-md-6">
-                                    <input type="number" id="prodPrecio" class="form-control" placeholder="Precio *"
-                                        step="0.01" required>
-                                </div>
-                                <div class="col-md-4">
-                                    <select id="prodCategoria" class="form-select">
-                                        <option value="perfumes">Perfumes</option>
-                                        <option value="cuidado_personal">Cuidado Personal</option>
-                                        <option value="juguetes">Juguetes</option>
-                                        <option value="otros">Otros</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-4">
-                                    <input type="number" id="prodStock" class="form-control" placeholder="Stock inicial"
-                                        min="0" value="0">
-                                </div>
-                                <div class="col-md-4">
-                                    <input type="text" id="prodTienda" class="form-control" placeholder="Tienda origen">
-                                </div>
-                                <div class="col-md-6">
-                                    <input type="text" id="prodCodigoBarras" class="form-control"
-                                        placeholder="Código de barras (opcional)">
-                                    <small class="text-secondary">Escanea con la pistola o escribe el código</small>
-                                </div>
-                                <div class="col-md-6">
-                                    <input type="text" id="prodImagen" class="form-control"
-                                        placeholder="URL de imagen (https://...)">
-                                    <small class="text-secondary">Sube a ImgBB y pega la URL directa</small>
-                                </div>
-                                <div class="col-12">
-                                    <textarea id="prodDescripcion" class="form-control" rows="2"
-                                        placeholder="Descripción"></textarea>
-                                </div>
-                            </div>
-                            <input type="hidden" id="prodId">
-                            <div class="mt-2 d-flex gap-2">
-                                <button type="submit" class="btn btn-warning btn-sm">💾 Guardar</button>
-                                <button type="button" id="btnCancelarProducto"
-                                    class="btn btn-secondary btn-sm">Cancelar</button>
-                            </div>
-                            <div id="mensajeProducto" class="mt-2"></div>
-                        </form>
-                    </div>
-
-                    <div id="listaProductos" class="table-responsive">
-                        <div class="text-center text-secondary py-4">Cargando productos...</div>
-                    </div>
+                </div>
+                <div id="listaProductos" class="table-responsive">
+                    <div style="text-align:center; padding:40px; color:var(--text-silver);">Cargando...</div>
                 </div>
             </div>
         </div>
 
-        <!-- ========================================== -->
-        <!-- TAB: INVENTARIO                            -->
-        <!-- ========================================== -->
         <div id="tab-inventario" class="tab-content" style="display:none;">
-            <div class="card border-secondary">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h5 class="text-white">📊 Control de Inventario</h5>
-                        <div>
-                            <button id="btnRefrescarInventario" class="btn btn-outline-secondary btn-sm me-2">🔄
-                                Refrescar</button>
-                            <button id="btnAgregarMovimiento" class="btn btn-warning btn-sm">+ Registrar
-                                Movimiento</button>
-                        </div>
+            <div class="stat-grid">
+                <div class="stat-card"><span class="label">Con stock</span><span class="number" id="totalProductosStock"
+                        style="color:var(--regio-green);">0</span></div>
+                <div class="stat-card" onclick="verProductosSinStock()" style="cursor:pointer;"><span class="label">Sin
+                        stock</span><span class="number" id="totalSinStock" style="color:var(--regio-red);">0</span>
+                </div>
+                <div class="stat-card"><span class="label">Movimientos</span><span class="number"
+                        id="totalMovimientos">0</span></div>
+            </div>
+            <div class="admin-card">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <h5>Control de Inventario</h5>
+                    <div style="display: flex; gap: 10px; width: auto;">
+                        <button id="btnRefrescarInventario" class="btn-premium-outline"
+                            style="padding:10px 16px;font-size:0.75rem; width: auto;">🔄 Refrescar</button>
+                        <button id="btnAgregarMovimiento" class="btn-premium"
+                            style="padding:10px 16px;font-size:0.75rem; width: auto;"><i class="fas fa-plus"></i>
+                            Movimiento</button>
                     </div>
-
-                    <div class="row g-3 mb-3">
-                        <div class="col-md-4">
-                            <div class="bg-secondary bg-opacity-25 p-3 rounded-3 text-center">
-                                <small class="text-secondary">Productos en stock</small>
-                                <h5 class="text-warning" id="totalProductosStock">0</h5>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="bg-secondary bg-opacity-25 p-3 rounded-3 text-center" style="cursor:pointer;"
-                                onclick="verProductosSinStock()">
-                                <small class="text-secondary">Sin stock</small>
-                                <h5 class="text-danger" id="totalSinStock">0</h5>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="bg-secondary bg-opacity-25 p-3 rounded-3 text-center">
-                                <small class="text-secondary">Movimientos totales</small>
-                                <h5 class="text-info" id="totalMovimientos">0</h5>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div id="formMovimientoContainer" style="display:none;">
-                        <form id="formMovimiento" class="bg-secondary bg-opacity-25 p-3 rounded-3 mb-3">
-                            <h6 class="text-warning">Registrar Movimiento de Inventario</h6>
-                            <div class="row g-2">
-                                <div class="col-md-6">
-                                    <select id="movProducto" class="form-select" required>
-                                        <option value="">Selecciona un producto...</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-3">
-                                    <select id="movTipo" class="form-select" required>
-                                        <option value="entrada">📥 Entrada</option>
-                                        <option value="salida">📤 Salida</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-3">
-                                    <input type="number" id="movCantidad" class="form-control" placeholder="Cantidad *"
-                                        min="1" required>
-                                </div>
-                                <div class="col-12">
-                                    <input type="text" id="movDescripcion" class="form-control"
-                                        placeholder="Descripción (ej: Compra a proveedor)">
-                                </div>
-                            </div>
-                            <input type="hidden" id="movId" value="">
-                            <div class="mt-2 d-flex gap-2">
-                                <button type="submit" class="btn btn-warning btn-sm">💾 Registrar</button>
-                                <button type="button" id="btnCancelarMovimiento"
-                                    class="btn btn-secondary btn-sm">Cancelar</button>
-                            </div>
-                            <div id="mensajeMovimiento" class="mt-2"></div>
-                        </form>
-                    </div>
-
-                    <div id="listaInventario" class="table-responsive">
-                        <div class="text-center text-secondary py-4">Cargando movimientos...</div>
-                    </div>
+                </div>
+                <div id="listaInventario" class="table-responsive">
+                    <div style="text-align:center; padding:40px; color:var(--text-silver);">Cargando...</div>
                 </div>
             </div>
         </div>
 
-        <!-- ========================================== -->
-        <!-- TAB: PEDIDOS                              -->
-        <!-- ========================================== -->
         <div id="tab-pedidos" class="tab-content" style="display:none;">
-            <div class="card border-secondary">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h5 class="text-white">🛒 Pedidos</h5>
-                        <button id="btnRefrescarPedidos" class="btn btn-outline-secondary btn-sm">🔄 Refrescar</button>
-                    </div>
-
-                    <div class="d-flex gap-2 flex-wrap mb-3">
-                        <button class="btn btn-outline-warning btn-sm filtro-pedido active"
-                            data-estado="todos">Todos</button>
-                        <button class="btn btn-outline-warning btn-sm filtro-pedido" data-estado="pendiente">📋
-                            Pendientes</button>
-                        <button class="btn btn-outline-warning btn-sm filtro-pedido" data-estado="confirmado">✅
-                            Confirmados</button>
-                        <button class="btn btn-outline-warning btn-sm filtro-pedido" data-estado="entregado">📦
-                            Entregados</button>
-                        <button class="btn btn-outline-warning btn-sm filtro-pedido" data-estado="cancelado">❌
-                            Cancelados</button>
-                    </div>
-                    <div id="listaPedidos" class="table-responsive">
-                        <div class="text-center text-secondary py-4">Cargando pedidos...</div>
-                    </div>
+            <div class="admin-card">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <h5>Gestión de Pedidos</h5>
+                    <button id="btnRefrescarPedidos" class="btn-premium-outline"
+                        style="padding:10px 16px;font-size:0.75rem; width: auto;">🔄 Refrescar</button>
+                </div>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap; margin: 15px 0;">
+                    <button class="btn-premium-outline filtro-pedido active" data-estado="todos"
+                        style="padding:8px 16px;font-size:0.75rem;">Todos</button>
+                    <button class="btn-premium-outline filtro-pedido" data-estado="pendiente"
+                        style="padding:8px 16px;font-size:0.75rem;">📋 Pendientes</button>
+                    <button class="btn-premium-outline filtro-pedido" data-estado="confirmado"
+                        style="padding:8px 16px;font-size:0.75rem;">✅ Confirmados</button>
+                    <button class="btn-premium-outline filtro-pedido" data-estado="entregado"
+                        style="padding:8px 16px;font-size:0.75rem;">📦 Entregados</button>
+                    <button class="btn-premium-outline filtro-pedido" data-estado="cancelado"
+                        style="padding:8px 16px;font-size:0.75rem;">❌ Cancelados</button>
+                </div>
+                <div id="listaPedidos" class="table-responsive">
+                    <div style="text-align:center; padding:40px; color:var(--text-silver);">Cargando...</div>
                 </div>
             </div>
         </div>
 
-        <!-- ========================================== -->
-        <!-- TAB: FINANZAS                             -->
-        <!-- ========================================== -->
         <div id="tab-finanzas" class="tab-content" style="display:none;">
-            <div class="card border-secondary">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h5 class="text-white">💰 Control Financiero</h5>
-                        <div>
-                            <button id="btnRefrescarFinanzas" class="btn btn-outline-secondary btn-sm me-2">🔄
-                                Refrescar</button>
-                            <button id="btnAgregarFinanza" class="btn btn-warning btn-sm">+ Registrar</button>
-                        </div>
+            <div class="stat-grid">
+                <div class="stat-card"><span class="label">Ingresos</span><span class="number" id="totalIngresos"
+                        style="color:var(--regio-green);">$0.00</span></div>
+                <div class="stat-card"><span class="label">Gastos</span><span class="number" id="totalGastos"
+                        style="color:var(--regio-red);">$0.00</span></div>
+                <div class="stat-card"><span class="label">Ganancia</span><span class="number" id="gananciaNeta"
+                        style="color:var(--accent);">$0.00</span></div>
+            </div>
+            <div class="admin-card">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <h5>Control Financiero</h5>
+                    <div style="display: flex; gap: 10px; width: auto;">
+                        <button id="btnRefrescarFinanzas" class="btn-premium-outline"
+                            style="padding:10px 16px;font-size:0.75rem; width: auto;">🔄 Refrescar</button>
+                        <button id="btnAgregarFinanza" class="btn-premium"
+                            style="padding:10px 16px;font-size:0.75rem; width: auto;"><i class="fas fa-plus"></i>
+                            Registrar</button>
                     </div>
-
-                    <div class="row g-3 mb-3">
-                        <div class="col-md-3">
-                            <div class="bg-secondary bg-opacity-25 p-3 rounded-3 text-center">
-                                <small class="text-secondary">Ingresos</small>
-                                <h5 class="text-success" id="totalIngresos">$0.00</h5>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="bg-secondary bg-opacity-25 p-3 rounded-3 text-center">
-                                <small class="text-secondary">Gastos</small>
-                                <h5 class="text-danger" id="totalGastos">$0.00</h5>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="bg-secondary bg-opacity-25 p-3 rounded-3 text-center">
-                                <small class="text-secondary">Ganancia</small>
-                                <h5 id="gananciaNeta">$0.00</h5>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="bg-secondary bg-opacity-25 p-3 rounded-3 text-center">
-                                <small class="text-secondary">Pedidos</small>
-                                <h5 class="text-warning" id="totalPedidos">0</h5>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div id="formFinanzaContainer" style="display:none;">
-                        <form id="formFinanza" class="bg-secondary bg-opacity-25 p-3 rounded-3 mb-3">
-                            <h6 class="text-warning">Registrar Movimiento</h6>
-                            <div class="row g-2">
-                                <div class="col-md-4">
-                                    <select id="finTipo" class="form-select" required>
-                                        <option value="ingreso">Ingreso</option>
-                                        <option value="gasto">Gasto</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-4">
-                                    <select id="finCategoria" class="form-select" required>
-                                        <option value="compra_mercancia">Compra mercancía</option>
-                                        <option value="venta">Venta</option>
-                                        <option value="envio">Envío</option>
-                                        <option value="gastos_varios">Gastos varios</option>
-                                        <option value="otros">Otros</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-4">
-                                    <input type="number" id="finMonto" class="form-control" placeholder="Monto *"
-                                        step="0.01" required>
-                                </div>
-                                <div class="col-12">
-                                    <input type="text" id="finDescripcion" class="form-control"
-                                        placeholder="Descripción *" required>
-                                </div>
-                            </div>
-                            <input type="hidden" id="finId">
-                            <div class="mt-2 d-flex gap-2">
-                                <button type="submit" class="btn btn-warning btn-sm">💾 Guardar</button>
-                                <button type="button" id="btnCancelarFinanza"
-                                    class="btn btn-secondary btn-sm">Cancelar</button>
-                            </div>
-                            <div id="mensajeFinanza" class="mt-2"></div>
-                        </form>
-                    </div>
-
-                    <div id="listaFinanzas" class="table-responsive">
-                        <div class="text-center text-secondary py-4">Cargando movimientos...</div>
-                    </div>
+                </div>
+                <div id="listaFinanzas" class="table-responsive">
+                    <div style="text-align:center; padding:40px; color:var(--text-silver);">Cargando...</div>
                 </div>
             </div>
         </div>
 
-        <!-- ========================================== -->
-        <!-- TAB: TICKET                               -->
-        <!-- ========================================== -->
         <div id="tab-ticket" class="tab-content" style="display:none;">
-            <div class="card border-secondary">
-                <div class="card-body">
-                    <h5 class="text-white">🧾 Generar Ticket de Venta</h5>
-                    <p class="text-secondary">Selecciona los productos y genera el ticket. El stock se actualizará
-                        automáticamente.</p>
-
-                    <div class="row">
-                        <div class="col-md-6">
-                            <form id="formTicketVenta" class="bg-secondary bg-opacity-25 p-3 rounded-3">
-                                <div class="mb-3">
-                                    <label class="text-secondary">Cliente *</label>
-                                    <input type="text" id="ticketCliente" class="form-control"
-                                        placeholder="Nombre del cliente" required>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="text-secondary">Teléfono *</label>
-                                    <input type="text" id="ticketTelefono" class="form-control" placeholder="Teléfono"
-                                        required>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="text-secondary">Dirección</label>
-                                    <input type="text" id="ticketDireccion" class="form-control"
-                                        placeholder="Dirección de entrega">
-                                </div>
-
-                                <hr class="border-secondary">
-                                <h6 class="text-warning">Agregar Producto</h6>
-
-                                <div class="row g-2">
-                                    <div class="col-md-7">
-                                        <label class="text-secondary">Producto *</label>
-                                        <select id="ticketProductoSelect" class="form-select" required>
-                                            <option value="">Selecciona un producto...</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-3">
-                                        <label class="text-secondary">Cantidad *</label>
-                                        <input type="number" id="ticketCantidad" class="form-control" value="1" min="1"
-                                            required>
-                                    </div>
-                                    <div class="col-md-2 d-flex align-items-end">
-                                        <button type="button" id="btnAgregarProductoTicket"
-                                            class="btn btn-warning btn-sm w-100">➕</button>
-                                    </div>
-                                </div>
-
-                                <hr class="border-secondary">
-
-                                <div class="mb-3">
-                                    <label class="text-secondary">Productos agregados</label>
-                                    <div id="ticketListaProductos" class="ticket-lista bg-black p-2 rounded-3"
-                                        style="min-height:80px;">
-                                        <p class="text-secondary text-center small">No hay productos agregados</p>
-                                    </div>
-                                </div>
-
-                                <div class="row g-2">
-                                    <div class="col-md-6">
-                                        <label class="text-secondary">Subtotal</label>
-                                        <input type="text" id="ticketSubtotal" class="form-control" value="$0.00"
-                                            readonly>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="text-secondary">Envío</label>
-                                        <input type="number" id="ticketEnvio" class="form-control" value="0"
-                                            step="0.01">
-                                    </div>
-                                </div>
-                                <div class="mt-2">
-                                    <label class="text-secondary">Total</label>
-                                    <input type="text" id="ticketTotal" class="form-control" value="$0.00" readonly
-                                        style="font-size:1.2rem; font-weight:bold; color:#c9a84c;">
-                                </div>
-
-                                <div class="mt-3">
-                                    <button type="submit" class="btn btn-warning w-100">🖨️ Generar Ticket y Registrar
-                                        Venta</button>
-                                </div>
-                                <div id="mensajeTicket" class="mt-2"></div>
-                            </form>
-                        </div>
-
-                        <div class="col-md-6">
-                            <div class="bg-secondary bg-opacity-25 p-3 rounded-3 h-100">
-                                <h6 class="text-warning">📋 Instrucciones</h6>
-                                <ol class="text-secondary small">
-                                    <li>Selecciona un producto de la lista</li>
-                                    <li>Indica la cantidad deseada</li>
-                                    <li>Haz clic en ➕ para agregar al ticket</li>
-                                    <li>Repite el proceso para más productos</li>
-                                    <li>Completa los datos del cliente</li>
-                                    <li>Haz clic en "Generar Ticket"</li>
-                                </ol>
-                                <div class="alert alert-info alert-sm mt-3">
-                                    <strong>✅ ¿Qué pasa al generar?</strong>
-                                    <ul class="mb-0 small">
-                                        <li>Se genera el ticket</li>
-                                        <li>El stock se descuenta automáticamente</li>
-                                        <li>Se registra en inventario (salida)</li>
-                                        <li>Se registra en finanzas (ingreso)</li>
-                                    </ul>
-                                </div>
-                            </div>
-                        </div>
+            <div class="admin-card">
+                <h5>🧾 Generar Ticket de Venta</h5>
+                <form id="formTicketVenta">
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <input type="text" id="ticketCliente" class="input-luxury" placeholder="Cliente *" required>
+                        <input type="tel" id="ticketTelefono" class="input-luxury" placeholder="Teléfono *" required>
                     </div>
-                </div>
+                    <input type="text" id="ticketDireccion" class="input-luxury" placeholder="Dirección">
+
+                    <div style="display:grid; grid-template-columns: 1fr 100px; gap: 15px; margin-bottom: 15px;">
+                        <select id="ticketProductoSelect" class="input-luxury" style="margin:0;" required>
+                            <option value="">Selecciona producto...</option>
+                        </select>
+                        <input type="number" id="ticketCantidad" class="input-luxury" style="margin:0;" value="1"
+                            min="1">
+                    </div>
+
+                    <button type="button" id="btnAgregarProductoTicket" class="btn-premium-outline"
+                        style="width:100%; margin-bottom:15px;"><i class="fas fa-plus"></i> Agregar Producto</button>
+
+                    <div id="ticketListaProductos"
+                        style="min-height:50px; background:var(--bg-input); padding:12px; border:1px solid var(--border); margin-bottom: 15px; border-radius:6px;">
+                        <p style="color:var(--text-dim); font-size:0.8rem; margin:0;">No hay productos agregados</p>
+                    </div>
+
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <input type="text" id="ticketSubtotal" class="input-luxury" value="$0.00" readonly>
+                        <input type="number" id="ticketEnvio" class="input-luxury" value="0" step="0.01"
+                            placeholder="Envío">
+                    </div>
+                    <input type="text" id="ticketTotal" class="input-luxury" value="$0.00" readonly
+                        style="font-size:1.5rem; text-align:center; font-weight:500; margin-top:15px;">
+
+                    <button type="submit" class="btn-premium" style="width:100%; padding:15px; margin-top:15px;"><i
+                            class="fas fa-print"></i> Generar Ticket y Registrar Venta</button>
+                    <div id="mensajeTicket" class="mt-2" style="margin-top:10px;"></div>
+                </form>
             </div>
         </div>
 
-        <!-- ========================================== -->
-        <!-- TAB: ENVÍOS - CORREO MANUAL                -->
-        <!-- ========================================== -->
         <div id="tab-envios" class="tab-content" style="display:none;">
-            <div class="card border-secondary">
-                <div class="card-body">
-                    <h5 class="text-white">📧 Enviar Correo al Cliente</h5>
-                    <p class="text-secondary">Selecciona un pedido pendiente y solo agrega el costo de envío.</p>
-
-                    <form id="formEnvioCorreo" class="bg-secondary bg-opacity-25 p-3 rounded-3">
-                        <div class="row g-2">
-                            <div class="col-md-12">
-                                <label class="text-secondary">Seleccionar pedido pendiente *</label>
-                                <select id="selectPedidoEnvio" class="form-select bg-black text-white border-secondary">
-                                    <option value="">Cargando pedidos pendientes...</option>
-                                </select>
-                                <small class="text-secondary">Solo se muestran pedidos con estado "Pendiente"</small>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="text-secondary">Correo del cliente *</label>
-                                <input type="email" id="correoCliente"
-                                    class="form-control bg-black text-white border-secondary"
-                                    placeholder="cliente@email.com" required readonly>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="text-secondary">Número de pedido *</label>
-                                <input type="text" id="numeroPedidoCorreo"
-                                    class="form-control bg-black text-white border-secondary"
-                                    placeholder="P-240817-0042" required readonly>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="text-secondary">Nombre del cliente *</label>
-                                <input type="text" id="nombreClienteCorreo"
-                                    class="form-control bg-black text-white border-secondary" placeholder="María García"
-                                    required readonly>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="text-secondary">Teléfono del cliente</label>
-                                <input type="text" id="telefonoCorreo"
-                                    class="form-control bg-black text-white border-secondary" placeholder="8126878080"
-                                    readonly>
-                            </div>
-                            <div class="col-12">
-                                <label class="text-secondary">Productos *</label>
-                                <textarea id="productosCorreo" class="form-control bg-black text-white border-secondary"
-                                    rows="3" placeholder="Productos del pedido" required readonly></textarea>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="text-secondary">Total *</label>
-                                <input type="text" id="totalCorreo"
-                                    class="form-control bg-black text-white border-secondary" placeholder="$1,530.00"
-                                    required readonly>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="text-secondary">Método de pago</label>
-                                <input type="text" id="metodoPagoCorreo"
-                                    class="form-control bg-black text-white border-secondary"
-                                    placeholder="Transferencia / Efectivo">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="text-secondary">Dirección de entrega</label>
-                                <input type="text" id="direccionCorreo"
-                                    class="form-control bg-black text-white border-secondary"
-                                    placeholder="Calle #123, Colonia Centro" readonly>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="text-secondary">Costo de envío *</label>
-                                <input type="number" id="envioCorreo"
-                                    class="form-control bg-black text-white border-secondary" placeholder="150"
-                                    step="0.01" required>
-                                <small class="text-secondary">Ingresa el costo de envío para este pedido</small>
-                            </div>
-                            <div class="col-12">
-                                <label class="text-secondary">Mensaje adicional</label>
-                                <textarea id="mensajeAdicionalCorreo"
-                                    class="form-control bg-black text-white border-secondary" rows="2"
-                                    placeholder="Mensaje personalizado (opcional)"></textarea>
-                            </div>
-                        </div>
-                        <button type="submit" class="btn btn-warning w-100 mt-3">📧 Enviar Correo y Confirmar
-                            Pedido</button>
-                        <div id="mensajeCorreo" class="mt-2"></div>
-                    </form>
-
-                    <div class="mt-3">
-                        <h6 class="text-warning">📋 Instrucciones</h6>
-                        <ol class="text-secondary small">
-                            <li>Selecciona un pedido pendiente del desplegable</li>
-                            <li>Los datos del pedido se cargarán automáticamente</li>
-                            <li>Ingresa el <strong>costo de envío</strong> (obligatorio)</li>
-                            <li>El correo se enviará y el pedido se marcará como <strong>confirmado</strong></li>
-                        </ol>
+            <div class="admin-card">
+                <h5>📧 Enviar Correo al Cliente</h5>
+                <form id="formEnvioCorreo">
+                    <select id="selectPedidoEnvio" class="input-luxury">
+                        <option value="">Cargando pedidos pendientes...</option>
+                    </select>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <input type="email" id="correoCliente" class="input-luxury" placeholder="Correo" readonly>
+                        <input type="text" id="numeroPedidoCorreo" class="input-luxury" placeholder="N° Pedido"
+                            readonly>
                     </div>
-                </div>
-            </div>
-        </div>
-
-    </div>
-
-    <!-- MODAL CONFIRMAR -->
-    <div class="modal fade" id="modalConfirm" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-body text-center">
-                    <h5 class="text-danger">⚠️ ¿Estás seguro?</h5>
-                    <p id="modalMensaje" class="text-secondary">¿Deseas eliminar este elemento?</p>
-                    <div class="d-flex gap-2 justify-content-center">
-                        <button id="modalConfirmar" class="btn btn-danger">Eliminar</button>
-                        <button id="modalCancelar" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <input type="text" id="nombreClienteCorreo" class="input-luxury" placeholder="Cliente" readonly>
+                        <input type="text" id="telefonoCorreo" class="input-luxury" placeholder="Teléfono" readonly>
                     </div>
-                </div>
+                    <textarea id="productosCorreo" class="input-luxury" rows="3" placeholder="Productos"
+                        readonly></textarea>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <input type="text" id="totalCorreo" class="input-luxury" placeholder="Total" readonly>
+                        <input type="text" id="metodoPagoCorreo" class="input-luxury" placeholder="Método de pago">
+                    </div>
+                    <input type="text" id="direccionCorreo" class="input-luxury" placeholder="Dirección" readonly>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <input type="number" id="envioCorreo" class="input-luxury" placeholder="Costo de envío *"
+                            step="0.01" required>
+                        <input type="text" id="mensajeAdicionalCorreo" class="input-luxury"
+                            placeholder="Mensaje adicional (opcional)">
+                    </div>
+                    <button type="submit" class="btn-premium" style="width:100%; padding:15px; margin-top:15px;"><i
+                            class="fas fa-envelope"></i> Enviar Correo y Confirmar</button>
+                    <div id="mensajeCorreo" style="margin-top:10px;"></div>
+                </form>
             </div>
         </div>
     </div>
 
-    <!-- ========================================== -->
-    <!-- MODAL: ENVÍO DE CORREO                     -->
-    <!-- ========================================== -->
-    <div class="modal fade" id="modalEnvioCorreo" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered modal-lg">
-            <div class="modal-content">
-                <div class="modal-header border-secondary">
-                    <h5 class="text-warning">📧 Enviar Correo al Cliente</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+    <div id="formProductoContainer" class="form-overlay">
+        <div class="admin-card">
+            <h3 id="formProductoTitulo" style="font-weight:400; margin-bottom:20px;">➕ Agregar Producto</h3>
+            <form id="formProducto">
+                <input type="hidden" id="prodId">
+                <input type="text" id="prodNombre" class="input-luxury" placeholder="Nombre del producto *" required>
+                <input type="number" id="prodPrecio" class="input-luxury" placeholder="Precio *" step="0.01" required>
+                <input type="number" id="prodStock" class="input-luxury" placeholder="Stock *">
+                <input type="text" id="prodCodigoBarras" class="input-luxury" placeholder="Código de barras">
+                <input type="text" id="prodImagen" class="input-luxury" placeholder="URL de imagen (opcional)">
+                <input type="text" id="prodTienda" class="input-luxury" placeholder="Tienda de origen (ej: USA)">
+                <select id="prodCategoria" class="input-luxury">
+                    <option value="">Selecciona categoría</option>
+                    <option value="perfumes">Perfumes</option>
+                    <option value="cuidado_personal">Cuidado Personal</option>
+                    <option value="otros">Otros</option>
+                </select>
+                <textarea id="prodDescripcion" class="input-luxury" rows="2" placeholder="Descripción"></textarea>
+                <div style="display:flex; gap:10px; margin-top:10px;">
+                    <button type="submit" class="btn-premium" style="width:100%;"><i class="fas fa-save"></i>
+                        Guardar</button>
+                    <button type="button" class="btn-premium-outline" style="width:100%;"
+                        onclick="ocultarFormProducto()">Cancelar</button>
                 </div>
-                <div class="modal-body">
-                    <div class="row g-2">
-                        <div class="col-md-6">
-                            <label class="text-secondary">Número de pedido</label>
-                            <input type="text" id="modalCorreoNumero"
-                                class="form-control bg-black text-white border-secondary" readonly>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="text-secondary">Cliente</label>
-                            <input type="text" id="modalCorreoCliente"
-                                class="form-control bg-black text-white border-secondary" readonly>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="text-secondary">Teléfono</label>
-                            <input type="text" id="modalCorreoTelefono"
-                                class="form-control bg-black text-white border-secondary" readonly>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="text-secondary">Correo del cliente *</label>
-                            <input type="email" id="modalCorreoEmail"
-                                class="form-control bg-black text-white border-secondary" readonly>
-                        </div>
-                        <div class="col-12">
-                            <label class="text-secondary">Dirección de entrega</label>
-                            <input type="text" id="modalCorreoDireccion"
-                                class="form-control bg-black text-white border-secondary" readonly>
-                        </div>
-                        <div class="col-12">
-                            <label class="text-secondary">Productos</label>
-                            <textarea id="modalCorreoProductos"
-                                class="form-control bg-black text-white border-secondary" rows="3" readonly></textarea>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="text-secondary">Total</label>
-                            <input type="text" id="modalCorreoTotal"
-                                class="form-control bg-black text-white border-secondary" readonly>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="text-secondary">Costo de envío *</label>
-                            <input type="number" id="modalCorreoEnvio"
-                                class="form-control bg-black text-white border-secondary" placeholder="150" step="0.01"
-                                required>
-                        </div>
-                        <div class="col-12">
-                            <label class="text-secondary">Mensaje adicional</label>
-                            <textarea id="modalCorreoMensaje" class="form-control bg-black text-white border-secondary"
-                                rows="2" placeholder="Mensaje personalizado (opcional)"></textarea>
-                        </div>
-                        <input type="hidden" id="modalCorreoPedidoId">
-                    </div>
-                    <div id="mensajeModalCorreo" class="mt-2"></div>
+                <div id="mensajeProducto" style="margin-top:10px;"></div>
+            </form>
+        </div>
+    </div>
+
+    <div id="formMovimientoContainer" class="form-overlay">
+        <div class="admin-card">
+            <h3 style="font-weight:400; margin-bottom:20px;">➕ Registrar Movimiento</h3>
+            <form id="formMovimiento">
+                <input type="hidden" id="movId">
+                <select id="movProducto" class="input-luxury">
+                    <option value="">Selecciona un producto...</option>
+                </select>
+                <select id="movTipo" class="input-luxury">
+                    <option value="entrada">📥 Entrada</option>
+                    <option value="salida">📤 Salida</option>
+                </select>
+                <input type="number" id="movCantidad" class="input-luxury" placeholder="Cantidad *" min="1" required>
+                <input type="text" id="movDescripcion" class="input-luxury" placeholder="Motivo / Descripción">
+                <div style="display:flex; gap:10px; margin-top:10px;">
+                    <button type="submit" class="btn-premium" style="width:100%;"><i class="fas fa-save"></i>
+                        Registrar</button>
+                    <button type="button" class="btn-premium-outline" style="width:100%;"
+                        onclick="ocultarFormMovimiento()">Cancelar</button>
                 </div>
-                <div class="modal-footer border-secondary">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="button" class="btn btn-warning" onclick="enviarCorreoDesdeModal()">📧 Enviar
-                        Correo</button>
+                <div id="mensajeMovimiento" style="margin-top:10px;"></div>
+            </form>
+        </div>
+    </div>
+
+    <div id="formFinanzaContainer" class="form-overlay">
+        <div class="admin-card">
+            <h3 style="font-weight:400; margin-bottom:20px;">➕ Registrar Movimiento</h3>
+            <form id="formFinanza">
+                <input type="hidden" id="finId">
+                <select id="finTipo" class="input-luxury">
+                    <option value="ingreso">📈 Ingreso</option>
+                    <option value="gasto">📉 Gasto</option>
+                </select>
+                <select id="finCategoria" class="input-luxury">
+                    <option value="venta">Venta</option>
+                    <option value="compra">Compra</option>
+                    <option value="envio">Envío</option>
+                    <option value="otros">Otros</option>
+                </select>
+                <input type="text" id="finDescripcion" class="input-luxury" placeholder="Descripción *" required>
+                <input type="number" id="finMonto" class="input-luxury" placeholder="Monto *" step="0.01" required>
+                <div style="display:flex; gap:10px; margin-top:10px;">
+                    <button type="submit" class="btn-premium" style="width:100%;"><i class="fas fa-save"></i>
+                        Guardar</button>
+                    <button type="button" class="btn-premium-outline" style="width:100%;"
+                        onclick="ocultarFormFinanza()">Cancelar</button>
                 </div>
+                <div id="mensajeFinanza" style="margin-top:10px;"></div>
+            </form>
+        </div>
+    </div>
+
+    <div id="modalConfirm" class="modal-box">
+        <div class="modal-content" style="max-width:400px; text-align:center;">
+            <h5 style="color:var(--regio-red); font-weight:400; font-size:1.5rem;">⚠️ ¿Estás seguro?</h5>
+            <p id="modalMensaje" style="color:var(--text-silver);">¿Deseas eliminar este elemento?</p>
+            <div style="display:flex; gap:10px; justify-content:center; margin-top:20px;">
+                <button id="modalConfirmar" class="btn-premium danger"
+                    style="background:var(--regio-red); color:white; border:none; width: auto;">Eliminar</button>
+                <button id="modalCancelar" class="btn-premium-outline" style="width: auto;">Cancelar</button>
             </div>
         </div>
     </div>
 
-    <!-- BOTÓN VOLVER ARRIBA -->
-    <button onclick="window.scrollTo({top:0,behavior:'smooth'})" id="btnScrollTop" class="btn-scroll-top">⬆</button>
+    <div id="modalEnvioCorreo" class="modal-box">
+        <div class="modal-content">
+            <h5 style="font-weight:400; margin-bottom:20px;">📧 Enviar Correo al Cliente</h5>
+            <input type="hidden" id="modalCorreoPedidoId">
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <input type="text" id="modalCorreoNumero" class="input-luxury" placeholder="N° Pedido" readonly>
+                <input type="text" id="modalCorreoCliente" class="input-luxury" placeholder="Cliente" readonly>
+            </div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <input type="text" id="modalCorreoTelefono" class="input-luxury" placeholder="Teléfono" readonly>
+                <input type="email" id="modalCorreoEmail" class="input-luxury" placeholder="Correo" readonly>
+            </div>
+            <input type="text" id="modalCorreoDireccion" class="input-luxury" placeholder="Dirección" readonly>
+            <textarea id="modalCorreoProductos" class="input-luxury" rows="3" placeholder="Productos"
+                readonly></textarea>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <input type="text" id="modalCorreoTotal" class="input-luxury" placeholder="Total" readonly>
+                <input type="number" id="modalCorreoEnvio" class="input-luxury" placeholder="Costo de envío *"
+                    step="0.01" required>
+            </div>
+            <textarea id="modalCorreoMensaje" class="input-luxury" rows="2"
+                placeholder="Mensaje adicional (opcional)"></textarea>
+            <div id="mensajeModalCorreo" style="margin-bottom:15px;"></div>
+            <div style="display:flex; gap:10px; justify-content:flex-end;">
+                <button type="button" class="btn-premium-outline" style="width: auto;"
+                    onclick="document.getElementById('modalEnvioCorreo').style.display='none';">Cancelar</button>
+                <button type="button" class="btn-premium" style="width: auto;" onclick="enviarCorreoDesdeModal()"><i
+                        class="fas fa-envelope"></i> Enviar</button>
+            </div>
+        </div>
+    </div>
 
-    <!-- SCRIPTS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 
@@ -959,20 +840,45 @@
         try {
             var script = document.createElement('script');
             script.src = 'js/config.local.js';
-            script.onerror = function () {
-                console.log('ℹ️ config.local.js no encontrado (entorno de producción)');
-            };
+            script.onerror = function () { console.log('ℹ️ config.local.js no encontrado'); };
             document.head.appendChild(script);
-        } catch (e) {
-            console.log('ℹ️ config.local.js no disponible');
-        }
+        } catch (e) { console.log('ℹ️ config.local.js no disponible'); }
     </script>
-
     <script src="js/config.js"></script>
     <script src="js/supabase.js"></script>
     <script src="js/utils.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/admin.js"></script>
+
+    <script>
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', function () {
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+                this.classList.add('active');
+                document.getElementById('tab-' + this.dataset.tab).classList.add('active');
+
+                if (this.dataset.tab === 'productos') cargarProductos();
+                if (this.dataset.tab === 'inventario') cargarInventario();
+                if (this.dataset.tab === 'pedidos') cargarPedidos();
+                if (this.dataset.tab === 'finanzas') cargarFinanzas();
+                if (this.dataset.tab === 'ticket') cargarProductosTicket();
+                if (this.dataset.tab === 'envios') cargarPedidosPendientes();
+            });
+        });
+
+        function mostrarModal(id) {
+            const el = document.getElementById(id);
+            if (el) el.style.display = 'flex';
+        }
+        function ocultarModal(id) {
+            const el = document.getElementById(id);
+            if (el) el.style.display = 'none';
+        }
+
+        window.mostrarModal = mostrarModal;
+        window.ocultarModal = ocultarModal;
+    </script>
 
 </body>
 

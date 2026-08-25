@@ -1,17 +1,10 @@
 // ============================================
-// CONFIGURACIÓN PARA NETLIFY - MÉTODO DIRECTO
+// CONFIGURACIÓN PARA NETLIFY
 // ============================================
 
 (function () {
-  console.log("🔧 Iniciando config.netlify.js...");
+  console.log("✦ Configurando Netlify...");
 
-  // En Netlify, las variables de entorno se inyectan en el BUILD
-  // No están disponibles directamente en el frontend.
-  // Pero podemos usar un enfoque diferente:
-  // 1. Leer desde meta tags (inyectadas manualmente)
-  // 2. O usar un archivo de configuración generado en el build
-
-  // MÉTODO: Leer desde el HTML (meta tags)
   const urlMeta = document.querySelector('meta[name="supabase-url"]');
   const keyMeta = document.querySelector('meta[name="supabase-key"]');
 
@@ -26,31 +19,22 @@
         SUPABASE_URL: url,
         SUPABASE_ANON_KEY: key,
       };
-      console.log("✅ Configuración inyectada desde meta tags");
-      console.log("📋 URL:", url.substring(0, 30) + "...");
+      console.log("✅ Configuración desde meta tags");
       return;
     }
   }
 
-  // Si no hay meta tags, intentar con el archivo de configuración generado
-  // Este script se ejecutará en Netlify si existe
   try {
-    // Intentar cargar el archivo de configuración generado por Netlify
     const script = document.createElement("script");
     script.src = "/js/config.netlify.generated.js";
     script.onload = function () {
-      console.log("✅ Configuración cargada desde archivo generado");
+      console.log("✅ Configuración desde archivo generado");
     };
     script.onerror = function () {
-      console.warn("⚠️ No se encontró archivo de configuración generado");
-      console.warn(
-        "⚠️ Asegúrate de configurar las variables de entorno en Netlify"
-      );
+      console.warn("⚠️ Archivo generado no encontrado");
     };
     document.head.appendChild(script);
   } catch (e) {
-    console.warn("⚠️ Error al cargar configuración generada");
+    console.warn("⚠️ Error cargando configuración");
   }
-
-  console.log("ℹ️ Esperando configuración...");
 })();

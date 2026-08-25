@@ -1,9 +1,9 @@
 // ============================================
-// SUPABASE - CON DISPARO DE EVENTO
+// SUPABASE - INICIALIZACIÓN
 // ============================================
 
 function iniciarSupabase() {
-  console.log("🔧 Iniciando Supabase...");
+  console.log("✦ Iniciando Supabase...");
 
   const config = window.CONFIG || {};
   const SUPABASE_URL = config.SUPABASE_URL || null;
@@ -25,36 +25,26 @@ function iniciarSupabase() {
   }
 
   try {
-    // Crear el cliente de Supabase
     const supabaseClient = window.supabase.createClient(
       SUPABASE_URL,
       SUPABASE_ANON_KEY
     );
     window.supabase = supabaseClient;
-
     console.log("✅ Supabase configurado");
-    console.log("📋 URL:", SUPABASE_URL);
-
-    // Disparar evento para que otros scripts sepan que Supabase está listo
     document.dispatchEvent(new Event("supabaseReady"));
-    console.log("📢 Evento supabaseReady disparado");
   } catch (error) {
     console.error("❌ Error al crear cliente Supabase:", error);
     window.supabase = null;
   }
 }
 
-// Esperar a que el DOM esté listo
 document.addEventListener("DOMContentLoaded", function () {
-  console.log("📄 DOM cargado, iniciando Supabase...");
   setTimeout(iniciarSupabase, 100);
 });
 
-// Si el DOM ya está cargado, iniciar inmediatamente
 if (
   document.readyState === "complete" ||
   document.readyState === "interactive"
 ) {
-  console.log("📄 DOM ya cargado, iniciando Supabase...");
   setTimeout(iniciarSupabase, 100);
 }
