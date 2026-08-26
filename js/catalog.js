@@ -209,7 +209,7 @@ function mostrarProductos(lista) {
 }
 
 // ============================================
-// HACER PEDIDO POR WHATSAPP (SIN ASTERISCOS, SIN FALLAS)
+// HACER PEDIDO POR WHATSAPP
 // ============================================
 
 function hacerPedido(id) {
@@ -224,7 +224,6 @@ function hacerPedido(id) {
     return;
   }
 
-  // Emojis alusivos y separados en líneas, sin asteriscos para que nunca fallen
   const mensaje = `Hola 👋
 
 🎁 ${p.nombre}
@@ -236,7 +235,6 @@ function hacerPedido(id) {
 
 ✅ ¡Gracias!`;
 
-  // Enlace directo a WhatsApp
   window.open(
     `https://api.whatsapp.com/send?phone=${
       CONFIG.WHATSAPP
@@ -294,7 +292,7 @@ function seleccionarProducto(id) {
 }
 
 // ============================================
-// ENVIAR CORREO DE CONFIRMACIÓN (A CLIENTE Y ADMIN)
+// ENVIAR CORREO DE CONFIRMACIÓN
 // ============================================
 
 async function enviarCorreoConfirmacion(
@@ -354,7 +352,7 @@ async function enviarCorreoConfirmacion(
 }
 
 // ============================================
-// ENVIAR CORREO DE CANCELACIÓN (A CLIENTE Y ADMIN)
+// ENVIAR CORREO DE CANCELACIÓN
 // ============================================
 
 async function enviarCorreoCancelacion(pedido, numeroPedido) {
@@ -409,7 +407,7 @@ async function enviarCorreoCancelacion(pedido, numeroPedido) {
 }
 
 // ============================================
-// CANCELAR PEDIDO (CLIENTE) - CON MODAL Y CORREO
+// CANCELAR PEDIDO (CLIENTE)
 // ============================================
 
 async function cancelarPedidoCliente() {
@@ -508,13 +506,10 @@ async function confirmarCancelacionDesdeModal() {
 
     if (updateError) throw updateError;
 
-    // Enviar correo de cancelación al cliente y admin
     await enviarCorreoCancelacion(pedido, pedido.numero_pedido);
 
-    // Cerrar modal de confirmación
     modalConfirmar.style.display = "none";
 
-    // Mostrar modal de cancelación exitosa
     const modalCancelado = document.getElementById("modalCancelacionPedido");
     if (modalCancelado) {
       document.getElementById("modalCancelarNumero").textContent =
@@ -522,12 +517,160 @@ async function confirmarCancelacionDesdeModal() {
       modalCancelado.style.display = "flex";
     }
 
-    // Limpiar input
     document.getElementById("numeroPedidoCancelar").value = "";
   } catch (error) {
     console.error("Error:", error);
     alert("❌ Error al cancelar: " + error.message);
   }
+}
+
+// ============================================
+// CARRUSEL DE CUPONES - FUNCIONES
+// ============================================
+
+let carouselInterval = null;
+let currentSlide = 0;
+let totalSlides = 3;
+const slideInterval = 5000; // 5 segundos
+
+function iniciarCarrusel() {
+  const slides = document.querySelectorAll(".carousel-slide");
+  const dots = document.querySelectorAll(".dot");
+
+  if (!slides.length) {
+    console.warn("⚠️ No se encontraron slides para el carrusel");
+    return;
+  }
+
+  totalSlides = slides.length;
+
+  function irASlide(index) {
+    slides.forEach((s) => s.classList.remove("active"));
+    dots.forEach((d) => d.classList.remove("active"));
+
+    currentSlide = ((index % totalSlides) + totalSlides) % totalSlides;
+
+    slides[currentSlide].classList.add("active");
+    if (dots[currentSlide]) {
+      dots[currentSlide].classList.add("active");
+    }
+  }
+
+  function siguienteSlide() {
+    irASlide(currentSlide + 1);
+  }
+
+  function irASlideEspecifico(index) {
+    if (carouselInterval) {
+      clearInterval(carouselInterval);
+      carouselInterval = null;
+    }
+
+    irASlide(index);
+
+    setTimeout(() => {
+      if (!carouselInterval) {
+        carouselInterval = setInterval(siguienteSlide, slideInterval);
+      }
+    }, 1500);
+  }
+
+  dots.forEach((dot, index) => {
+    dot.addEventListener("click", () => irASlideEspecifico(index));
+  });
+
+  irASlide(0);
+
+  if (carouselInterval) {
+    clearInterval(carouselInterval);
+  }
+  carouselInterval = setInterval(siguienteSlide, slideInterval);
+
+  console.log("🔄 Carrusel de cupones iniciado con " + totalSlides + " slides");
+}
+
+// ============================================
+// FUNCIÓN PARA COPIAR CÓDIGO DE CUPÓN
+// ============================================
+
+function copiarCodigo(codigo) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard
+      .writeText(codigo)
+      .then(() => {
+        mostrarToastCupon("✅ Código copiado: " + codigo);
+      })
+      .catch(() => {
+        copiarCodigoFallback(codigo);
+      });
+  } else {
+    copiarCodigoFallback(codigo);
+  }
+}
+
+function copiarCodigoFallback(codigo) {
+  const textarea = document.createElement("textarea");
+  textarea.value = codigo;
+  textarea.style.position = "fixed";
+  textarea.style.opacity = "0";
+  textarea.style.left = "-9999px";
+  document.body.appendChild(textarea);
+  textarea.select();
+
+  try {
+    document.execCommand("copy");
+    mostrarToastCupon("✅ Código copiado: " + codigo);
+  } catch (err) {
+    console.error("Error al copiar:", err);
+    mostrarToastCupon("❌ Error al copiar el código");
+  }
+
+  document.body.removeChild(textarea);
+}
+
+// ============================================
+// TOAST NOTIFICACIÓN
+// ============================================
+
+function mostrarToastCupon(mensaje) {
+  let toast = document.getElementById("toastCupon");
+
+  if (!toast) {
+    toast = document.createElement("div");
+    toast.id = "toastCupon";
+    toast.style.cssText = `
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            background: var(--bg-card);
+            border: 1px solid rgba(255,255,255,0.12);
+            color: var(--text-main);
+            padding: 16px 32px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            z-index: 9999;
+            opacity: 0;
+            transition: all 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            pointer-events: none;
+            border-radius: 0;
+            box-shadow: 0 8px 50px rgba(0,0,0,0.6);
+            letter-spacing: 0.5px;
+            max-width: 90%;
+            text-align: center;
+        `;
+    document.body.appendChild(toast);
+  }
+
+  toast.textContent = mensaje;
+  toast.style.opacity = "1";
+  toast.style.transform = "translateX(-50%) translateY(0)";
+
+  clearTimeout(toast._timeout);
+  toast._timeout = setTimeout(() => {
+    toast.style.opacity = "0";
+    toast.style.transform = "translateX(-50%) translateY(20px)";
+  }, 3000);
 }
 
 // ============================================
@@ -537,6 +680,9 @@ async function confirmarCancelacionDesdeModal() {
 document.addEventListener("DOMContentLoaded", function () {
   console.log("📦 catalog.js cargado, esperando Supabase...");
   cargarProductos();
+
+  // Inicializar carrusel de cupones
+  setTimeout(iniciarCarrusel, 300);
 
   document.querySelectorAll(".filtro-btn").forEach((b) => {
     b.addEventListener("click", () => filtrarProductos(b.dataset.filtro));
@@ -557,7 +703,6 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  // CONFIRMAR CANCELACIÓN DESDE EL MODAL
   const confirmarCancelarBtn = document.getElementById("confirmarCancelarBtn");
   if (confirmarCancelarBtn) {
     confirmarCancelarBtn.addEventListener(
@@ -566,7 +711,6 @@ document.addEventListener("DOMContentLoaded", function () {
     );
   }
 
-  // NO CANCELAR DESDE EL MODAL
   const cancelarCancelacionBtn = document.getElementById(
     "cancelarCancelacionBtn"
   );
@@ -610,7 +754,6 @@ document.addEventListener("DOMContentLoaded", function () {
       }
       const telefono = telefonoValidado.telefono;
 
-      // Correo es obligatorio
       if (!email) {
         mostrarMensaje(
           mensaje,
@@ -620,7 +763,6 @@ document.addEventListener("DOMContentLoaded", function () {
         return;
       }
 
-      // Validar campos obligatorios
       if (!nombre || !telefono || !productoId || !metodoPago) {
         mostrarMensaje(
           mensaje,
@@ -630,14 +772,12 @@ document.addEventListener("DOMContentLoaded", function () {
         return;
       }
 
-      // Buscar producto
       const producto = productos.find((p) => p.id === productoId);
       if (!producto) {
         mostrarMensaje(mensaje, "❌ Producto no encontrado", "error");
         return;
       }
 
-      // Validar stock
       if (cantidad > producto.stock) {
         mostrarMensaje(
           mensaje,
@@ -656,7 +796,6 @@ document.addEventListener("DOMContentLoaded", function () {
         return;
       }
 
-      // Calcular total y generar número de pedido
       const total = producto.precio * cantidad;
       const numeroPedido = generarNumeroPedido();
 
@@ -687,13 +826,11 @@ document.addEventListener("DOMContentLoaded", function () {
           throw new Error("Supabase no está listo. Intenta de nuevo.");
         }
 
-        // Guardar pedido en Supabase
         const { error } = await window.supabase
           .from("pedidos")
           .insert([pedido]);
         if (error) throw error;
 
-        // Enviar correo de confirmación al CLIENTE
         await enviarCorreoConfirmacion(
           pedido,
           numeroPedido,
@@ -702,7 +839,6 @@ document.addEventListener("DOMContentLoaded", function () {
           direccion
         );
 
-        // Mostrar modal
         const modal = document.getElementById("modalConfirmacionPedido");
         if (modal) {
           document.getElementById("modalNumeroPedido").textContent =
@@ -723,7 +859,6 @@ document.addEventListener("DOMContentLoaded", function () {
           modal.style.display = "flex";
         }
 
-        // Limpiar formulario
         e.target.reset();
         const selectProductos = document.getElementById("productoSelect");
         if (selectProductos) selectProductos.value = "";
@@ -742,7 +877,6 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  // Cerrar modal de confirmación
   const cerrarModalBtn = document.getElementById("cerrarModalConfirmacion");
   if (cerrarModalBtn) {
     cerrarModalBtn.addEventListener("click", function () {
@@ -751,7 +885,6 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  // Cerrar modal de cancelación exitosa
   const cerrarModalCancelacionBtn = document.getElementById(
     "cerrarModalCancelacion"
   );
@@ -762,3 +895,12 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 });
+
+// Reiniciar carrusel cuando la pestaña vuelve a ser visible
+document.addEventListener("visibilitychange", function () {
+  if (!document.hidden) {
+    setTimeout(iniciarCarrusel, 100);
+  }
+});
+
+console.log("🎯 Sistema de cupones y carrusel cargado en catalog.js");

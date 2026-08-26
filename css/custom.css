@@ -120,7 +120,6 @@ body {
   display: block;
 }
 
-/* ===== TAGLINE CON ICONO MÁS GRANDE ===== */
 .tagline {
   font-size: 0.7rem;
   color: var(--text-silver);
@@ -219,6 +218,628 @@ body {
 }
 
 /* ============================================
+   SECCIÓN PROMO - CUPONES + NEWSLETTER
+   ============================================ */
+
+.section-promo {
+  padding: 60px 0 80px;
+  background: var(--bg-dark);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.promo-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 40px;
+  align-items: stretch;
+}
+
+/* ============================================
+   CARRUSEL DE CUPONES - MEJORADO
+   ============================================ */
+
+.promo-carousel {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  padding: 35px 35px 25px;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.4s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.promo-carousel:hover {
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 0 30px rgba(255, 255, 255, 0.04),
+    0 0 60px rgba(255, 255, 255, 0.02);
+}
+
+.promo-carousel::before {
+  content: "";
+  position: absolute;
+  top: -1px;
+  left: -1px;
+  right: -1px;
+  bottom: -1px;
+  border: 1px solid transparent;
+  transition: all 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.promo-carousel:hover::before {
+  border-color: rgba(255, 255, 255, 0.06);
+  box-shadow: inset 0 0 40px rgba(255, 255, 255, 0.02);
+}
+
+.carousel-header {
+  margin-bottom: 24px;
+  position: relative;
+  z-index: 1;
+}
+
+.carousel-badge {
+  font-size: 0.75rem;
+  color: var(--text-silver);
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  font-weight: 700;
+  display: block;
+  margin-bottom: 2px;
+}
+
+.carousel-header h3 {
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: -1px;
+  margin: 0;
+}
+
+.carousel-header .text-thin {
+  font-weight: 300;
+  color: #333333;
+}
+
+.carousel-track {
+  position: relative;
+  min-height: 240px;
+  overflow: hidden;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.carousel-slide {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.92);
+  width: 100%;
+  opacity: 0;
+  transition: all 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  visibility: hidden;
+  pointer-events: none;
+  display: flex;
+  justify-content: center;
+}
+
+.carousel-slide.active {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+  visibility: visible;
+  pointer-events: all;
+  position: absolute;
+}
+
+.cupon-card {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  padding: 28px 32px;
+  border-radius: 0;
+  transition: all 0.4s ease;
+  width: 100%;
+  max-width: 500px;
+  position: relative;
+  overflow: hidden;
+  margin: 0 auto;
+}
+
+.cupon-card::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(
+    ellipse at 30% 40%,
+    rgba(255, 255, 255, 0.03) 0%,
+    transparent 70%
+  );
+  pointer-events: none;
+  transition: all 0.6s ease;
+}
+
+.cupon-card:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+}
+
+.cupon-card:hover::after {
+  background: radial-gradient(
+    ellipse at 30% 40%,
+    rgba(255, 255, 255, 0.06) 0%,
+    transparent 70%
+  );
+}
+
+.cupon-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  position: relative;
+  z-index: 1;
+  gap: 4px;
+}
+
+.cupon-tag {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  color: var(--text-silver);
+  font-weight: 700;
+  display: inline-block;
+  margin-bottom: 4px;
+  padding: 4px 16px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.cupon-icon {
+  font-size: 2.8rem;
+  margin-bottom: 2px;
+  line-height: 1.2;
+}
+
+.cupon-content h4 {
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin: 0;
+  letter-spacing: -0.3px;
+  color: var(--text-main);
+}
+
+.cupon-desc {
+  font-size: 0.9rem;
+  color: var(--text-silver);
+  font-weight: 300;
+  margin: 0 0 4px 0;
+}
+
+.cupon-code {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--bg-black);
+  border: 1px solid var(--border);
+  padding: 10px 18px;
+  margin: 10px 0 6px;
+  max-width: 280px;
+  width: 100%;
+  justify-content: space-between;
+  transition: all 0.3s ease;
+}
+
+.cupon-code:hover {
+  border-color: var(--text-silver);
+}
+
+.cupon-code span {
+  font-family: "Courier New", monospace;
+  font-weight: 700;
+  font-size: 0.95rem;
+  letter-spacing: 2px;
+  color: var(--text-main);
+  flex: 1;
+}
+
+.btn-copy-code {
+  background: transparent;
+  border: none;
+  color: var(--text-silver);
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 4px 10px;
+  transition: all 0.3s ease;
+}
+
+.btn-copy-code:hover {
+  color: var(--text-main);
+  transform: scale(1.15);
+}
+
+.cupon-expiry {
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  font-weight: 300;
+  letter-spacing: 0.5px;
+}
+
+.carousel-indicators {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+  position: relative;
+  z-index: 1;
+}
+
+.carousel-indicators .dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text-dim);
+  cursor: pointer;
+  transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  border: none;
+  padding: 0;
+  position: relative;
+}
+
+.carousel-indicators .dot.active {
+  background: var(--text-main);
+  width: 30px;
+  border-radius: 5px;
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
+}
+
+.carousel-indicators .dot:hover {
+  background: var(--text-silver);
+  transform: scale(1.2);
+}
+
+/* ============================================
+   NEWSLETTER - TABLERO DE NOTICIAS - MEJORADO
+   ============================================ */
+
+.promo-newsletter {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  padding: 35px 30px 25px;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.4s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.promo-newsletter:hover {
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 0 30px rgba(255, 255, 255, 0.03);
+}
+
+.promo-newsletter::before {
+  content: "";
+  position: absolute;
+  top: -1px;
+  left: -1px;
+  right: -1px;
+  bottom: -1px;
+  border: 1px solid transparent;
+  transition: all 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  pointer-events: none;
+}
+
+.promo-newsletter:hover::before {
+  border-color: rgba(255, 255, 255, 0.05);
+}
+
+.newsletter-header {
+  margin-bottom: 20px;
+  position: relative;
+  z-index: 1;
+}
+
+.newsletter-badge {
+  font-size: 0.75rem;
+  color: var(--text-silver);
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  font-weight: 700;
+  display: block;
+  margin-bottom: 2px;
+}
+
+.newsletter-header h3 {
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  margin: 0;
+}
+
+.newsletter-header .text-thin {
+  font-weight: 300;
+  color: #333333;
+}
+
+.newsletter-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+  position: relative;
+  z-index: 1;
+}
+
+.news-item {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  padding: 16px 20px;
+  transition: all 0.4s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.news-item:hover {
+  border-color: rgba(255, 255, 255, 0.15);
+  transform: translateX(4px);
+}
+
+.news-item.highlight {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.news-item.highlight::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 3px;
+  height: 100%;
+  background: var(--text-silver);
+  opacity: 0.3;
+}
+
+.news-date {
+  font-size: 0.6rem;
+  color: var(--text-silver);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  font-weight: 600;
+  display: block;
+  margin-bottom: 2px;
+}
+
+.news-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin: 0 0 2px 0;
+  color: var(--text-main);
+}
+
+.news-desc {
+  font-size: 0.75rem;
+  color: var(--text-silver);
+  font-weight: 300;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* ============================================
+   SECCIÓN MARCAS - PERSONAL SHOPPER
+   ============================================ */
+
+.section-marcas {
+  padding: 70px 0 80px;
+  background: var(--bg-black);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.marcas-header {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.marcas-badge {
+  font-size: 0.75rem;
+  color: var(--text-silver);
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  font-weight: 700;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.marcas-header h2 {
+  font-size: 2.2rem;
+  font-weight: 700;
+  letter-spacing: -1.5px;
+  margin-bottom: 6px;
+}
+
+.marcas-header .text-thin {
+  font-weight: 300;
+  color: #333333;
+}
+
+.marcas-desc {
+  font-size: 0.95rem;
+  color: var(--text-silver);
+  font-weight: 300;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.marcas-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 24px;
+}
+
+.marca-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  padding: 28px 20px 24px;
+  text-align: center;
+  transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.marca-card::before {
+  content: "";
+  position: absolute;
+  top: -1px;
+  left: -1px;
+  right: -1px;
+  bottom: -1px;
+  border: 1px solid transparent;
+  transition: all 0.5s ease;
+  pointer-events: none;
+}
+
+.marca-card:hover::before {
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 0 30px rgba(255, 255, 255, 0.04),
+    inset 0 0 30px rgba(255, 255, 255, 0.02);
+}
+
+.marca-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.marca-icon {
+  font-size: 2.5rem;
+  margin-bottom: 10px;
+  line-height: 1;
+  transition: transform 0.4s ease;
+}
+
+.marca-card:hover .marca-icon {
+  transform: scale(1.1);
+}
+
+.marca-card h4 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin: 0 0 2px 0;
+  color: var(--text-main);
+  letter-spacing: 0.5px;
+}
+
+.marca-categoria {
+  font-size: 0.55rem;
+  color: var(--text-silver);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  font-weight: 600;
+  display: block;
+  margin-bottom: 6px;
+}
+
+.marca-desc {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  font-weight: 300;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* ============================================
+   PERSONAL SHOPPER - DESTACADO CENTRADO
+   ============================================ */
+
+.marca-card.personal-shopper {
+  background: var(--bg-input);
+  border-color: rgba(255, 255, 255, 0.08);
+  grid-column: 1 / -1;
+  padding: 32px 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  max-width: 600px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.marca-card.personal-shopper::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(255, 255, 255, 0.03) 0%,
+    transparent 70%
+  );
+  pointer-events: none;
+}
+
+.marca-card.personal-shopper .marca-icon {
+  font-size: 3rem;
+}
+
+.marca-card.personal-shopper h4 {
+  font-size: 1.2rem;
+  letter-spacing: 1px;
+}
+
+.marca-card.personal-shopper .marca-desc {
+  font-size: 0.85rem;
+  color: var(--text-silver);
+  margin-bottom: 14px;
+}
+
+.personal-shopper-contactos {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  justify-content: center;
+  width: 100%;
+}
+
+.contacto-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-silver);
+  text-decoration: none;
+  font-size: 0.75rem;
+  font-weight: 400;
+  padding: 8px 16px;
+  border: 1px solid var(--border);
+  transition: all 0.3s ease;
+  background: var(--bg-black);
+}
+
+.contacto-link:hover {
+  color: var(--text-main);
+  border-color: var(--text-silver);
+  transform: translateY(-2px);
+}
+
+.contacto-link i {
+  font-size: 0.9rem;
+}
+
+/* ============================================
    PRODUCT CARDS - EFECTO NEON ELEGANTE
    ============================================ */
 
@@ -229,7 +850,6 @@ body {
   padding: 50px 0;
 }
 
-/* === CARD PREMIUM CON NEON === */
 .card-premium {
   background: var(--bg-card);
   border: 1px solid var(--border);
@@ -240,7 +860,6 @@ body {
   overflow: hidden;
 }
 
-/* ===== EFECTO NEON PRINCIPAL - BRILLO EN BORDES ===== */
 .card-premium::before {
   content: "";
   position: absolute;
@@ -262,7 +881,6 @@ body {
     inset 0 0 20px rgba(255, 255, 255, 0.03);
 }
 
-/* ===== SEGUNDA CAPA DE NEON - GLOW EXTERIOR ===== */
 .card-premium::after {
   content: "";
   position: absolute;
@@ -290,7 +908,6 @@ body {
   transform: translateY(-6px);
 }
 
-/* ===== CONTENEDOR DE IMAGEN ===== */
 .img-container {
   width: 100%;
   aspect-ratio: 1;
@@ -312,7 +929,6 @@ body {
   transform: scale(1.05);
 }
 
-/* ===== IMAGEN POR DEFECTO - ICONO DE CAJA ===== */
 .img-container .placeholder-icon {
   width: 100%;
   height: 100%;
@@ -324,7 +940,6 @@ body {
   background: var(--bg-input);
 }
 
-/* ===== BADGE AGOTADO ===== */
 .sold-out-overlay {
   position: absolute;
   top: 50%;
@@ -343,7 +958,6 @@ body {
   box-shadow: 0 0 40px rgba(255, 255, 255, 0.04);
 }
 
-/* ===== INFO DE LA CARD ===== */
 .card-info {
   padding: 22px 24px 26px;
   flex-grow: 1;
@@ -353,7 +967,6 @@ body {
   z-index: 3;
 }
 
-/* ===== TAG "IMPORTADO DE USA" CON ICONO GRANDE ===== */
 .usa-tag {
   font-size: 0.6rem;
   color: var(--text-silver);
@@ -376,7 +989,6 @@ body {
   letter-spacing: 2.5px;
 }
 
-/* ===== NOMBRE DEL PRODUCTO ===== */
 .card-info h3 {
   font-size: 0.95rem;
   margin-bottom: 2px;
@@ -386,7 +998,6 @@ body {
   color: var(--text-main);
 }
 
-/* ===== PRECIO ===== */
 .card-info .price {
   font-size: 1.3rem;
   font-weight: 300;
@@ -396,7 +1007,6 @@ body {
   letter-spacing: -0.5px;
 }
 
-/* ===== STOCK ===== */
 .stock-status {
   font-size: 0.55rem;
   font-weight: 800;
@@ -414,7 +1024,6 @@ body {
   color: var(--regio-red);
 }
 
-/* ===== BOTÓN "PEDIR" - PREMIUM CON EFECTO ===== */
 .btn-card {
   display: block;
   width: 100%;
@@ -434,7 +1043,6 @@ body {
   overflow: hidden;
 }
 
-/* ===== EFECTO DE RELLENO DESLIZANTE ===== */
 .btn-card::before {
   content: "";
   position: absolute;
@@ -458,7 +1066,6 @@ body {
   box-shadow: 0 8px 30px rgba(255, 255, 255, 0.06);
 }
 
-/* ===== BOTÓN DESHABILITADO ===== */
 .btn-card:disabled,
 .btn-card.disabled {
   background: var(--bg-input);
@@ -494,7 +1101,6 @@ body {
   padding: 20px 0;
 }
 
-/* Línea conectora entre pasos */
 .steps-wrapper::before {
   content: "";
   position: absolute;
@@ -849,7 +1455,6 @@ select.input-luxury option {
   color: var(--text-silver);
 }
 
-/* ===== HORARIO DESTACADO ===== */
 .horario-wrap {
   margin-top: 28px;
   display: flex;
@@ -987,6 +1592,21 @@ select.input-luxury option {
   .contact-grid {
     grid-template-columns: 1fr 1fr;
   }
+
+  .promo-grid {
+    grid-template-columns: 1fr;
+    gap: 30px;
+  }
+
+  .marcas-grid {
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 18px;
+  }
+
+  .marca-card.personal-shopper {
+    grid-column: 1 / -1;
+    max-width: 500px;
+  }
 }
 
 @media (max-width: 768px) {
@@ -1113,6 +1733,159 @@ select.input-luxury option {
   .social-icons {
     justify-content: center;
   }
+
+  .section-promo {
+    padding: 40px 0 50px;
+  }
+
+  .promo-carousel {
+    padding: 25px 20px 20px;
+  }
+
+  .carousel-badge {
+    font-size: 0.65rem;
+  }
+
+  .carousel-header h3 {
+    font-size: 1.3rem;
+  }
+
+  .carousel-track {
+    min-height: 220px;
+  }
+
+  .cupon-card {
+    padding: 22px 24px;
+    max-width: 100%;
+  }
+
+  .cupon-tag {
+    font-size: 0.6rem;
+    padding: 3px 12px;
+  }
+
+  .cupon-icon {
+    font-size: 2.2rem;
+  }
+
+  .cupon-content h4 {
+    font-size: 1rem;
+  }
+
+  .cupon-desc {
+    font-size: 0.8rem;
+  }
+
+  .cupon-code {
+    max-width: 100%;
+    padding: 8px 14px;
+  }
+
+  .cupon-code span {
+    font-size: 0.8rem;
+  }
+
+  .carousel-indicators {
+    gap: 10px;
+    margin-top: 18px;
+    padding-top: 14px;
+  }
+
+  .carousel-indicators .dot {
+    width: 8px;
+    height: 8px;
+  }
+
+  .carousel-indicators .dot.active {
+    width: 24px;
+  }
+
+  .promo-newsletter {
+    padding: 25px 20px 20px;
+  }
+
+  .newsletter-badge {
+    font-size: 0.65rem;
+  }
+
+  .newsletter-header h3 {
+    font-size: 1.3rem;
+  }
+
+  .news-item {
+    padding: 14px 16px;
+  }
+
+  .news-title {
+    font-size: 0.85rem;
+  }
+
+  .news-desc {
+    font-size: 0.7rem;
+  }
+
+  .section-marcas {
+    padding: 50px 0 60px;
+  }
+
+  .marcas-header h2 {
+    font-size: 1.8rem;
+  }
+
+  .marcas-desc {
+    font-size: 0.85rem;
+  }
+
+  .marcas-grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 14px;
+  }
+
+  .marca-card {
+    padding: 20px 14px 18px;
+  }
+
+  .marca-icon {
+    font-size: 2rem;
+  }
+
+  .marca-card h4 {
+    font-size: 0.8rem;
+  }
+
+  .marca-desc {
+    font-size: 0.6rem;
+  }
+
+  .marca-card.personal-shopper {
+    padding: 24px 18px;
+    max-width: 100%;
+  }
+
+  .marca-card.personal-shopper .marca-icon {
+    font-size: 2.4rem;
+  }
+
+  .marca-card.personal-shopper h4 {
+    font-size: 1rem;
+  }
+
+  .marca-card.personal-shopper .marca-desc {
+    font-size: 0.75rem;
+  }
+
+  .personal-shopper-contactos {
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .contacto-link {
+    width: 100%;
+    justify-content: center;
+    font-size: 0.7rem;
+    padding: 10px 14px;
+  }
 }
 
 @media (max-width: 576px) {
@@ -1208,5 +1981,174 @@ select.input-luxury option {
 
   .horario-card .text {
     font-size: 0.7rem;
+  }
+
+  .section-promo {
+    padding: 30px 0 40px;
+  }
+
+  .promo-carousel {
+    padding: 18px 14px 16px;
+  }
+
+  .carousel-badge {
+    font-size: 0.55rem;
+    letter-spacing: 3px;
+  }
+
+  .carousel-header h3 {
+    font-size: 1.1rem;
+  }
+
+  .carousel-track {
+    min-height: 200px;
+  }
+
+  .cupon-card {
+    padding: 16px 18px;
+  }
+
+  .cupon-tag {
+    font-size: 0.5rem;
+    padding: 2px 10px;
+    letter-spacing: 2px;
+  }
+
+  .cupon-icon {
+    font-size: 1.8rem;
+  }
+
+  .cupon-content h4 {
+    font-size: 0.9rem;
+  }
+
+  .cupon-desc {
+    font-size: 0.7rem;
+  }
+
+  .cupon-code {
+    padding: 6px 12px;
+    gap: 8px;
+  }
+
+  .cupon-code span {
+    font-size: 0.7rem;
+    letter-spacing: 1px;
+  }
+
+  .btn-copy-code {
+    font-size: 0.8rem;
+    padding: 3px 8px;
+  }
+
+  .cupon-expiry {
+    font-size: 0.55rem;
+  }
+
+  .carousel-indicators {
+    gap: 8px;
+    margin-top: 14px;
+    padding-top: 12px;
+  }
+
+  .carousel-indicators .dot {
+    width: 6px;
+    height: 6px;
+  }
+
+  .carousel-indicators .dot.active {
+    width: 20px;
+  }
+
+  .promo-newsletter {
+    padding: 18px 14px 16px;
+  }
+
+  .newsletter-badge {
+    font-size: 0.55rem;
+    letter-spacing: 3px;
+  }
+
+  .newsletter-header h3 {
+    font-size: 1.1rem;
+  }
+
+  .news-item {
+    padding: 12px 14px;
+  }
+
+  .news-date {
+    font-size: 0.5rem;
+  }
+
+  .news-title {
+    font-size: 0.75rem;
+  }
+
+  .news-desc {
+    font-size: 0.65rem;
+  }
+
+  .section-marcas {
+    padding: 40px 0 50px;
+  }
+
+  .marcas-header h2 {
+    font-size: 1.4rem;
+  }
+
+  .marcas-badge {
+    font-size: 0.6rem;
+    letter-spacing: 3px;
+  }
+
+  .marcas-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .marca-card {
+    padding: 16px 10px 14px;
+  }
+
+  .marca-icon {
+    font-size: 1.6rem;
+    margin-bottom: 6px;
+  }
+
+  .marca-card h4 {
+    font-size: 0.7rem;
+  }
+
+  .marca-categoria {
+    font-size: 0.45rem;
+    letter-spacing: 1px;
+  }
+
+  .marca-desc {
+    font-size: 0.55rem;
+  }
+
+  .marca-card.personal-shopper {
+    grid-column: 1 / -1;
+    padding: 18px 14px;
+    max-width: 100%;
+  }
+
+  .marca-card.personal-shopper .marca-icon {
+    font-size: 2rem;
+  }
+
+  .marca-card.personal-shopper h4 {
+    font-size: 0.9rem;
+  }
+
+  .marca-card.personal-shopper .marca-desc {
+    font-size: 0.65rem;
+  }
+
+  .contacto-link {
+    font-size: 0.6rem;
+    padding: 8px 12px;
   }
 }
