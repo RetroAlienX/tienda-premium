@@ -10,9 +10,9 @@ const CONFIG = {
 
 // CONFIGURACIÓN DE EMAILJS (GMAIL CONECTADO)
 const EMAILJS_CONFIG = {
-  SERVICE_ID: "service_zyekllp", // Nuevo Service ID
-  TEMPLATE_ID: "template_1dcnw6v", // Mismo Template ID
-  USER_ID: "Jx00-aXDn9h0eWxnY", // Misma Public Key
+  SERVICE_ID: "service_zyekllp",
+  TEMPLATE_ID: "template_1dcnw6v",
+  USER_ID: "Jx00-aXDn9h0eWxnY",
 };
 
 // IMAGEN POR DEFECTO - ICONO DE CAJA
@@ -209,7 +209,7 @@ function mostrarProductos(lista) {
 }
 
 // ============================================
-// HACER PEDIDO POR WHATSAPP
+// HACER PEDIDO POR WHATSAPP (SIN ASTERISCOS, SIN FALLAS)
 // ============================================
 
 function hacerPedido(id) {
@@ -224,13 +224,25 @@ function hacerPedido(id) {
     return;
   }
 
-  const mensaje = `Hola, quiero pedir:%0A%0A📦 *${
-    p.nombre
-  }*%0A💰 ${formatearMoneda(
-    p.precio
-  )}%0A📌 Cantidad: _[escribe la cantidad]_%0A📍 Dirección: _[escribe tu dirección]_%0A💳 Pago: _[Transferencia / Efectivo]_%0A%0A¡Gracias!`;
+  // Emojis alusivos y separados en líneas, sin asteriscos para que nunca fallen
+  const mensaje = `Hola 👋
 
-  window.open(`https://wa.me/${CONFIG.WHATSAPP}?text=${mensaje}`, "_blank");
+🎁 ${p.nombre}
+💰 Precio: ${formatearMoneda(p.precio)}
+
+🔢 Cantidad: ¿Cuántas unidades necesitas?
+📍 Dirección: ¿A dónde te lo enviamos?
+💳 Pago: ¿Transferencia o pago contra entrega?
+
+✅ ¡Gracias!`;
+
+  // Enlace directo a WhatsApp
+  window.open(
+    `https://api.whatsapp.com/send?phone=${
+      CONFIG.WHATSAPP
+    }&text=${encodeURIComponent(mensaje)}`,
+    "_blank"
+  );
 }
 
 // ============================================
@@ -306,6 +318,7 @@ async function enviarCorreoConfirmacion(
     }
 
     const params = {
+      tipo_correo: "confirmacion",
       cliente: pedido.cliente_nombre,
       numero_pedido: numeroPedido,
       fecha: new Date().toLocaleString("es-MX"),
@@ -321,10 +334,10 @@ async function enviarCorreoConfirmacion(
           : "Efectivo contra entrega",
       direccion:
         direccion || "No especificada (te contactaremos para coordinar envío)",
-      to_email: pedido.cliente_email, // Se envía al correo del CLIENTE
+      to_email: pedido.cliente_email,
     };
 
-    console.log("📧 Enviando correo a:", params.to_email);
+    console.log("📧 Enviando correo de CONFIRMACIÓN a:", params.to_email);
 
     const response = await emailjs.send(
       EMAILJS_CONFIG.SERVICE_ID,
@@ -341,7 +354,62 @@ async function enviarCorreoConfirmacion(
 }
 
 // ============================================
-// CANCELAR PEDIDO (CLIENTE)
+// ENVIAR CORREO DE CANCELACIÓN (A CLIENTE Y ADMIN)
+// ============================================
+
+async function enviarCorreoCancelacion(pedido, numeroPedido) {
+  try {
+    if (typeof emailjs === "undefined") {
+      await new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        script.src =
+          "https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js";
+        script.onload = resolve;
+        script.onerror = reject;
+        document.head.appendChild(script);
+      });
+      emailjs.init(EMAILJS_CONFIG.USER_ID);
+    }
+
+    const params = {
+      tipo_correo: "cancelacion",
+      cliente: pedido.cliente_nombre,
+      numero_pedido: numeroPedido,
+      fecha: new Date().toLocaleString("es-MX"),
+      productos: pedido.productos.map((p) => ({
+        nombre: p.nombre,
+        cantidad: p.cantidad,
+        precio: formatearMoneda(p.precio * p.cantidad),
+      })),
+      total: formatearMoneda(pedido.total),
+      metodo_pago:
+        pedido.metodo_pago === "transferencia" ? "Transferencia" : "Efectivo",
+      direccion: pedido.direccion_entrega || "No especificada",
+      mensaje_estado: "❌ Este pedido ha sido CANCELADO.",
+      to_email: pedido.cliente_email,
+    };
+
+    console.log("📧 Enviando correo de CANCELACIÓN a:", params.to_email);
+
+    const response = await emailjs.send(
+      EMAILJS_CONFIG.SERVICE_ID,
+      EMAILJS_CONFIG.TEMPLATE_ID,
+      params
+    );
+
+    console.log("✅ Correo de cancelación enviado:", response);
+    return true;
+  } catch (error) {
+    console.error(
+      "❌ Error al enviar correo de cancelación (no crítico):",
+      error
+    );
+    return false;
+  }
+}
+
+// ============================================
+// CANCELAR PEDIDO (CLIENTE) - CON MODAL Y CORREO
 // ============================================
 
 async function cancelarPedidoCliente() {
@@ -353,52 +421,112 @@ async function cancelarPedidoCliente() {
   if (!numeroPedido) {
     mensaje.innerHTML =
       '<span style="color:var(--regio-red);">❌ Ingresa el número de pedido</span>';
+    mensaje.classList.add("visible");
+    setTimeout(() => {
+      mensaje.textContent = "";
+      mensaje.classList.remove("visible");
+    }, 5000);
     return;
   }
 
   try {
     const { data, error } = await window.supabase
       .from("pedidos")
-      .select("id, estado, cliente_nombre")
+      .select("*")
       .eq("numero_pedido", numeroPedido)
       .single();
 
     if (error || !data) {
       mensaje.innerHTML =
         '<span style="color:var(--regio-red);">❌ Pedido no encontrado. Verifica el número.</span>';
+      mensaje.classList.add("visible");
+      setTimeout(() => {
+        mensaje.textContent = "";
+        mensaje.classList.remove("visible");
+      }, 5000);
       return;
     }
 
     if (data.estado === "cancelado") {
       mensaje.innerHTML =
         '<span style="color:#ff9500;">⚠️ Este pedido ya fue cancelado.</span>';
+      mensaje.classList.add("visible");
+      setTimeout(() => {
+        mensaje.textContent = "";
+        mensaje.classList.remove("visible");
+      }, 5000);
       return;
     }
 
     if (data.estado === "entregado") {
       mensaje.innerHTML =
         '<span style="color:#ff9500;">⚠️ Este pedido ya fue entregado, no se puede cancelar.</span>';
+      mensaje.classList.add("visible");
+      setTimeout(() => {
+        mensaje.textContent = "";
+        mensaje.classList.remove("visible");
+      }, 5000);
       return;
     }
 
-    if (
-      !confirm(`¿Cancelar el pedido ${numeroPedido} de ${data.cliente_nombre}?`)
-    ) {
-      return;
-    }
+    // ABRIR MODAL DE CONFIRMACIÓN
+    const modalConfirmar = document.getElementById("modalConfirmarCancelacion");
+    if (modalConfirmar) {
+      document.getElementById("pedidoCancelarNumero").textContent =
+        numeroPedido;
 
+      modalConfirmar.dataset.pedidoId = data.id;
+      modalConfirmar.dataset.pedidoJson = JSON.stringify(data);
+
+      modalConfirmar.style.display = "flex";
+    }
+  } catch (error) {
+    console.error("Error:", error);
+    mensaje.innerHTML = `<span style="color:var(--regio-red);">❌ Error al buscar: ${error.message}</span>`;
+    mensaje.classList.add("visible");
+    setTimeout(() => {
+      mensaje.textContent = "";
+      mensaje.classList.remove("visible");
+    }, 5000);
+  }
+}
+
+// ============================================
+// CONFIRMAR CANCELACIÓN DESDE EL MODAL
+// ============================================
+
+async function confirmarCancelacionDesdeModal() {
+  const modalConfirmar = document.getElementById("modalConfirmarCancelacion");
+  const pedidoId = modalConfirmar.dataset.pedidoId;
+  const pedido = JSON.parse(modalConfirmar.dataset.pedidoJson);
+
+  try {
     const { error: updateError } = await window.supabase
       .from("pedidos")
       .update({ estado: "cancelado" })
-      .eq("id", data.id);
+      .eq("id", pedidoId);
 
     if (updateError) throw updateError;
 
-    mensaje.innerHTML = `<span style="color:var(--regio-green);">✅ Pedido ${numeroPedido} cancelado correctamente.</span>`;
+    // Enviar correo de cancelación al cliente y admin
+    await enviarCorreoCancelacion(pedido, pedido.numero_pedido);
+
+    // Cerrar modal de confirmación
+    modalConfirmar.style.display = "none";
+
+    // Mostrar modal de cancelación exitosa
+    const modalCancelado = document.getElementById("modalCancelacionPedido");
+    if (modalCancelado) {
+      document.getElementById("modalCancelarNumero").textContent =
+        pedido.numero_pedido;
+      modalCancelado.style.display = "flex";
+    }
+
+    // Limpiar input
     document.getElementById("numeroPedidoCancelar").value = "";
   } catch (error) {
     console.error("Error:", error);
-    mensaje.innerHTML = `<span style="color:var(--regio-red);">❌ Error al cancelar: ${error.message}</span>`;
+    alert("❌ Error al cancelar: " + error.message);
   }
 }
 
@@ -426,6 +554,28 @@ document.addEventListener("DOMContentLoaded", function () {
         e.preventDefault();
         cancelarPedidoCliente();
       }
+    });
+  }
+
+  // CONFIRMAR CANCELACIÓN DESDE EL MODAL
+  const confirmarCancelarBtn = document.getElementById("confirmarCancelarBtn");
+  if (confirmarCancelarBtn) {
+    confirmarCancelarBtn.addEventListener(
+      "click",
+      confirmarCancelacionDesdeModal
+    );
+  }
+
+  // NO CANCELAR DESDE EL MODAL
+  const cancelarCancelacionBtn = document.getElementById(
+    "cancelarCancelacionBtn"
+  );
+  if (cancelarCancelacionBtn) {
+    cancelarCancelacionBtn.addEventListener("click", function () {
+      const modalConfirmar = document.getElementById(
+        "modalConfirmarCancelacion"
+      );
+      if (modalConfirmar) modalConfirmar.style.display = "none";
     });
   }
 
@@ -592,10 +742,22 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
+  // Cerrar modal de confirmación
   const cerrarModalBtn = document.getElementById("cerrarModalConfirmacion");
   if (cerrarModalBtn) {
     cerrarModalBtn.addEventListener("click", function () {
       const modal = document.getElementById("modalConfirmacionPedido");
+      if (modal) modal.style.display = "none";
+    });
+  }
+
+  // Cerrar modal de cancelación exitosa
+  const cerrarModalCancelacionBtn = document.getElementById(
+    "cerrarModalCancelacion"
+  );
+  if (cerrarModalCancelacionBtn) {
+    cerrarModalCancelacionBtn.addEventListener("click", function () {
+      const modal = document.getElementById("modalCancelacionPedido");
       if (modal) modal.style.display = "none";
     });
   }
