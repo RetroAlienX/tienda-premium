@@ -529,6 +529,7 @@
             <button class="tab-btn" data-tab="finanzas">💰 Finanzas</button>
             <button class="tab-btn" data-tab="ticket">🧾 Ticket</button>
             <button class="tab-btn" data-tab="envios">📧 Envíos</button>
+            <button class="tab-btn" data-tab="promociones">🎯 Promociones</button>
         </div>
 
         <div id="tab-productos" class="tab-content active">
@@ -703,6 +704,37 @@
                 </form>
             </div>
         </div>
+
+        <!-- TAB PROMOCIONES -->
+        <div id="tab-promociones" class="tab-content" style="display:none;">
+            <div class="admin-card">
+                <div
+                    style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:20px;">
+                    <h5>🎯 Cupones del Carrusel</h5>
+                    <button id="btnAgregarCupon" class="btn-premium"
+                        style="padding:10px 16px;font-size:0.75rem; width:auto;">
+                        <i class="fas fa-plus"></i> Agregar Cupón
+                    </button>
+                </div>
+                <div id="listaCupones" class="table-responsive">
+                    <div style="text-align:center; padding:40px; color:var(--text-silver);">Cargando...</div>
+                </div>
+            </div>
+
+            <div class="admin-card" style="margin-top:20px;">
+                <div
+                    style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:20px;">
+                    <h5>📰 Noticias</h5>
+                    <button id="btnAgregarNoticia" class="btn-premium"
+                        style="padding:10px 16px;font-size:0.75rem; width:auto;">
+                        <i class="fas fa-plus"></i> Agregar Noticia
+                    </button>
+                </div>
+                <div id="listaNoticias" class="table-responsive">
+                    <div style="text-align:center; padding:40px; color:var(--text-silver);">Cargando...</div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div id="formProductoContainer" class="form-overlay">
@@ -787,6 +819,76 @@
         </div>
     </div>
 
+    <!-- MODAL PARA CUPÓN -->
+    <div id="formCuponContainer" class="form-overlay">
+        <div class="admin-card">
+            <h3 id="formCuponTitulo" style="font-weight:400; margin-bottom:20px;">➕ Agregar Cupón</h3>
+            <form id="formCupon">
+                <input type="hidden" id="cuponId">
+                <input type="text" id="cuponTitulo" class="input-luxury" placeholder="Título del cupón *" required>
+                <input type="text" id="cuponDescripcion" class="input-luxury" placeholder="Descripción *" required>
+                <input type="text" id="cuponCodigo" class="input-luxury" placeholder="Código del cupón *" required>
+                <input type="text" id="cuponTag" class="input-luxury" placeholder="Etiqueta (ej: 🔥 NUEVO) *" required>
+                <input type="text" id="cuponIcono" class="input-luxury" placeholder="Icono (ej: 🎁) *" required>
+                <label style="display:block; font-size:0.7rem; color:var(--text-silver); margin-bottom:6px;">Vigencia
+                    (hasta qué fecha es válido el cupón)</label>
+                <input type="date" id="cuponVigenciaPicker" class="input-luxury" required>
+                <input type="number" id="cuponOrden" class="input-luxury" placeholder="Orden (1, 2, 3...)" min="1"
+                    required>
+                <select id="cuponActivo" class="input-luxury">
+                    <option value="true">✅ Activo</option>
+                    <option value="false">❌ Inactivo</option>
+                </select>
+                <div style="display:flex; gap:10px; margin-top:10px;">
+                    <button type="submit" class="btn-premium" style="width:100%;"><i class="fas fa-save"></i>
+                        Guardar</button>
+                    <button type="button" class="btn-premium-outline" style="width:100%;"
+                        onclick="ocultarFormCupon()">Cancelar</button>
+                </div>
+                <div id="mensajeCupon" style="margin-top:10px;"></div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL PARA NOTICIA -->
+    <div id="formNoticiaContainer" class="form-overlay">
+        <div class="admin-card">
+            <h3 id="formNoticiaTitulo" style="font-weight:400; margin-bottom:20px;">➕ Agregar Noticia</h3>
+            <form id="formNoticia">
+                <input type="hidden" id="noticiaId">
+                <input type="text" id="noticiaTitulo" class="input-luxury" placeholder="Título de la noticia *"
+                    required>
+                <textarea id="noticiaDescripcion" class="input-luxury" rows="3" placeholder="Descripción *"
+                    required></textarea>
+                <label
+                    style="display:flex; align-items:center; gap:8px; font-size:0.7rem; color:var(--text-silver); margin:-8px 0 12px; cursor:pointer;">
+                    <input type="checkbox" id="noticiaFechaEsTexto" style="width:auto; margin:0;">
+                    Usar una etiqueta especial en vez de una fecha (ej: "⚡ ¡ÚLTIMO MOMENTO!")
+                </label>
+                <input type="date" id="noticiaFechaPicker" class="input-luxury">
+                <input type="text" id="noticiaFechaTexto" class="input-luxury"
+                    placeholder="Etiqueta especial (ej: ⚡ ¡ÚLTIMO MOMENTO!)" style="display:none;">
+                <select id="noticiaDestacado" class="input-luxury">
+                    <option value="false">Normal</option>
+                    <option value="true">⭐ Destacado</option>
+                </select>
+                <input type="number" id="noticiaOrden" class="input-luxury" placeholder="Orden (1, 2, 3...)" min="1"
+                    required>
+                <select id="noticiaActivo" class="input-luxury">
+                    <option value="true">✅ Activo</option>
+                    <option value="false">❌ Inactivo</option>
+                </select>
+                <div style="display:flex; gap:10px; margin-top:10px;">
+                    <button type="submit" class="btn-premium" style="width:100%;"><i class="fas fa-save"></i>
+                        Guardar</button>
+                    <button type="button" class="btn-premium-outline" style="width:100%;"
+                        onclick="ocultarFormNoticia()">Cancelar</button>
+                </div>
+                <div id="mensajeNoticia" style="margin-top:10px;"></div>
+            </form>
+        </div>
+    </div>
+
     <div id="modalConfirm" class="modal-box">
         <div class="modal-content" style="max-width:400px; text-align:center;">
             <h5 style="color:var(--regio-red); font-weight:400; font-size:1.5rem;">⚠️ ¿Estás seguro?</h5>
@@ -851,21 +953,11 @@
     <script src="js/admin.js"></script>
 
     <script>
-        document.querySelectorAll('.tab-btn').forEach(btn => {
-            btn.addEventListener('click', function () {
-                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-                document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-                this.classList.add('active');
-                document.getElementById('tab-' + this.dataset.tab).classList.add('active');
-
-                if (this.dataset.tab === 'productos') cargarProductos();
-                if (this.dataset.tab === 'inventario') cargarInventario();
-                if (this.dataset.tab === 'pedidos') cargarPedidos();
-                if (this.dataset.tab === 'finanzas') cargarFinanzas();
-                if (this.dataset.tab === 'ticket') cargarProductosTicket();
-                if (this.dataset.tab === 'envios') cargarPedidosPendientes();
-            });
-        });
+        // NOTA: el cambio de pestañas (tabs) ya lo maneja por completo
+        // cambiarTab() dentro de js/admin.js (incluye productos, inventario,
+        // pedidos, finanzas, ticket, envíos y promociones). Este bloque
+        // duplicado se quitó porque generaba doble carga de datos y una
+        // condición de carrera con el manejador de admin.js.
 
         function mostrarModal(id) {
             const el = document.getElementById(id);

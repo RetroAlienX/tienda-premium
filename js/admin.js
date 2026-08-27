@@ -15,9 +15,9 @@ let productosDisponibles = [];
 
 // 🔥 CONFIGURACIÓN DE EMAILJS (GMAIL CONECTADO)
 const EMAILJS_CONFIG = {
-  SERVICE_ID: "service_zyekllp", // Nuevo Service ID
-  TEMPLATE_ID: "template_1dcnw6v", // Mismo Template ID
-  USER_ID: "Jx00-aXDn9h0eWxnY", // Misma Public Key
+  SERVICE_ID: "service_zyekllp",
+  TEMPLATE_ID: "template_1dcnw6v",
+  USER_ID: "Jx00-aXDn9h0eWxnY",
 };
 
 if (typeof emailjs !== "undefined") {
@@ -347,10 +347,8 @@ function abrirModalCorreo(pedidoId) {
     mensaje.className = "";
   }
 
-  const modal = new bootstrap.Modal(
-    document.getElementById("modalEnvioCorreo")
-  );
-  modal.show();
+  const modalEl = document.getElementById("modalEnvioCorreo");
+  if (modalEl) modalEl.style.display = "flex";
 }
 
 // ============================================
@@ -470,10 +468,8 @@ async function enviarCorreoDesdeModal() {
     btn.textContent = "✅ Enviado";
 
     setTimeout(() => {
-      const modal = bootstrap.Modal.getInstance(
-        document.getElementById("modalEnvioCorreo")
-      );
-      if (modal) modal.hide();
+      const modalEl = document.getElementById("modalEnvioCorreo");
+      if (modalEl) modalEl.style.display = "none";
       const activeFilter = document.querySelector(".filtro-pedido.active");
       cargarPedidos(activeFilter?.dataset?.estado || "todos");
       cargarPedidosPendientes();
@@ -740,7 +736,12 @@ document.addEventListener("DOMContentLoaded", function () {
     if (tabId === "inventario") cargarInventario();
     if (tabId === "pedidos") cargarPedidos();
     if (tabId === "finanzas") cargarFinanzas();
+    if (tabId === "ticket") cargarProductosTicket();
     if (tabId === "envios") cargarPedidosPendientes();
+    if (tabId === "promociones") {
+      cargarCupones();
+      cargarNoticias();
+    }
   }
 
   document.querySelectorAll("[data-tab]").forEach((btn) => {
@@ -791,8 +792,6 @@ document.addEventListener("DOMContentLoaded", function () {
   addEventListenerSafe("btnAgregarProducto", "click", () =>
     mostrarFormProducto()
   );
-  addEventListenerSafe("btnCancelarProducto", "click", ocultarFormProducto);
-
   const formProducto = document.getElementById("formProducto");
   if (formProducto) formProducto.addEventListener("submit", guardarProducto);
 
@@ -807,8 +806,6 @@ document.addEventListener("DOMContentLoaded", function () {
     if (submitBtn) submitBtn.textContent = "💾 Registrar";
     mostrarFormMovimiento();
   });
-  addEventListenerSafe("btnCancelarMovimiento", "click", ocultarFormMovimiento);
-
   const formMovimiento = document.getElementById("formMovimiento");
   if (formMovimiento)
     formMovimiento.addEventListener("submit", guardarMovimiento);
@@ -819,8 +816,6 @@ document.addEventListener("DOMContentLoaded", function () {
   addEventListenerSafe("btnAgregarFinanza", "click", () =>
     mostrarFormFinanza()
   );
-  addEventListenerSafe("btnCancelarFinanza", "click", ocultarFormFinanza);
-
   const formFinanza = document.getElementById("formFinanza");
   if (formFinanza) formFinanza.addEventListener("submit", guardarFinanza);
 
@@ -848,21 +843,6 @@ document.addEventListener("DOMContentLoaded", function () {
   esperarSupabase(function () {
     cargarProductosTicket();
   });
-
-  // ============================================
-  // CÓDIGO DE BARRAS
-  // ============================================
-  addEventListenerSafe("btnBuscarCodigo", "click", buscarPorCodigoBarras);
-
-  const inputCodigo = document.getElementById("inputCodigoBarras");
-  if (inputCodigo) {
-    inputCodigo.addEventListener("keypress", function (e) {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        buscarPorCodigoBarras();
-      }
-    });
-  }
 
   // ============================================
   // FILTROS PEDIDOS
@@ -906,18 +886,29 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   // ============================================
-  // BOTÓN CERRAR MODAL
+  // PROMOCIONES - EVENTOS
   // ============================================
-  document
-    .getElementById("btnCerrarModalCorreo")
-    ?.addEventListener("click", function () {
-      const modal = bootstrap.Modal.getInstance(
-        document.getElementById("modalEnvioCorreo")
-      );
-      if (modal) modal.hide();
-    });
+  addEventListenerSafe("btnAgregarCupon", "click", () => mostrarFormCupon());
+  addEventListenerSafe("btnAgregarNoticia", "click", () =>
+    mostrarFormNoticia()
+  );
 
-  cambiarTab("productos");
+  const formCupon = document.getElementById("formCupon");
+  if (formCupon) formCupon.addEventListener("submit", guardarCupon);
+
+  const formNoticia = document.getElementById("formNoticia");
+  if (formNoticia) formNoticia.addEventListener("submit", guardarNoticia);
+
+  const noticiaFechaEsTexto = document.getElementById("noticiaFechaEsTexto");
+  if (noticiaFechaEsTexto) {
+    noticiaFechaEsTexto.addEventListener("change", actualizarModoFechaNoticia);
+  }
+
+  // Se espera a que Supabase esté listo antes de cargar la primera
+  // pestaña, para no disparar el reintento de "Supabase no disponible".
+  esperarSupabase(function () {
+    cambiarTab("productos");
+  });
   console.log("✅ Panel admin inicializado");
 });
 
@@ -940,7 +931,7 @@ async function cargarProductos() {
 
   try {
     if (!window.supabase || typeof window.supabase.from !== "function") {
-      console.warn("⏳ Supabase no disponible, reintentando...");
+      console.log("⏳ Supabase no disponible todavía, reintentando...");
       setTimeout(cargarProductos, 500);
       return;
     }
@@ -1019,7 +1010,7 @@ function mostrarFormProducto(data = null) {
   const container = document.getElementById("formProductoContainer");
   if (!container) return;
 
-  container.style.display = "block";
+  container.style.display = "flex";
   container.scrollIntoView({ behavior: "smooth" });
 
   if (data) {
@@ -1264,7 +1255,7 @@ async function cargarSelectProductosInventario() {
 function mostrarFormMovimiento() {
   const container = document.getElementById("formMovimientoContainer");
   if (container) {
-    container.style.display = "block";
+    container.style.display = "flex";
     container.scrollIntoView({ behavior: "smooth" });
   }
   cargarSelectProductosInventario();
@@ -1606,7 +1597,6 @@ async function cargarPedidos(estado = "todos") {
                               p.fecha_pedido
                             )}</small></td>
                             <td>
-                                <!-- 🔥 CAMBIO APLICADO AQUÍ PARA APILAR CORRECTAMENTE -->
                                 <div style="display:block; margin-bottom:4px; font-weight:600; color:var(--text-main); font-size:0.95rem;">${
                                   p.cliente_nombre
                                 }</div>
@@ -1866,7 +1856,7 @@ async function cargarFinanzas() {
 function mostrarFormFinanza(data = null) {
   const container = document.getElementById("formFinanzaContainer");
   if (container) {
-    container.style.display = "block";
+    container.style.display = "flex";
     container.scrollIntoView({ behavior: "smooth" });
   }
 
@@ -2381,10 +2371,7 @@ function pedirEliminar(id, tipo) {
     modalMensaje.textContent = mensajes[tipo] || "¿Eliminar este elemento?";
 
   const modalElement = document.getElementById("modalConfirm");
-  if (modalElement) {
-    const modal = new bootstrap.Modal(modalElement);
-    modal.show();
-  }
+  if (modalElement) modalElement.style.display = "flex";
 }
 
 async function confirmarEliminar() {
@@ -2443,10 +2430,7 @@ async function confirmarEliminar() {
     if (result.error) throw result.error;
 
     const modalElement = document.getElementById("modalConfirm");
-    if (modalElement) {
-      const modal = bootstrap.Modal.getInstance(modalElement);
-      if (modal) modal.hide();
-    }
+    if (modalElement) modalElement.style.display = "none";
 
     if (eliminarTipo === "producto") {
       cargarProductos();
@@ -2468,16 +2452,618 @@ async function confirmarEliminar() {
 
 function cerrarModal() {
   const modalElement = document.getElementById("modalConfirm");
-  if (modalElement) {
-    const modal = bootstrap.Modal.getInstance(modalElement);
-    if (modal) modal.hide();
-  }
+  if (modalElement) modalElement.style.display = "none";
   eliminarId = null;
   eliminarTipo = null;
 }
 
 // ============================================
-// 8. EXPONER FUNCIONES AL WINDOW
+// 8. PROMOCIONES - CUPONES Y NOTICIAS
+// ============================================
+
+let cuponEditando = null;
+let noticiaEditando = null;
+let ultimoTotalCupones = 0;
+let ultimoTotalNoticias = 0;
+
+// ============================================
+// HELPERS DE FECHA (date picker <-> texto guardado)
+// ============================================
+
+const MESES_ES = [
+  "Ene",
+  "Feb",
+  "Mar",
+  "Abr",
+  "May",
+  "Jun",
+  "Jul",
+  "Ago",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dic",
+];
+const MESES_ES_MAP = {
+  ene: 1,
+  feb: 2,
+  mar: 3,
+  abr: 4,
+  may: 5,
+  jun: 6,
+  jul: 7,
+  ago: 8,
+  sep: 9,
+  oct: 10,
+  nov: 11,
+  dic: 12,
+};
+
+// "2026-01-15" -> "📅 15 Ene 2026"
+function formatearFechaNoticia(fechaISO) {
+  if (!fechaISO) return "";
+  const [y, m, d] = fechaISO.split("-").map(Number);
+  if (!y || !m || !d) return "";
+  return `📅 ${d} ${MESES_ES[m - 1]} ${y}`;
+}
+
+// "📅 15 Ene 2026" -> "2026-01-15" (o "" si no se puede interpretar)
+function parsearFechaNoticiaAISO(texto) {
+  if (!texto) return "";
+  const match = texto.match(/(\d{1,2})\s+([A-Za-zÀ-ÿ]{3,})\s+(\d{4})/);
+  if (!match) return "";
+  const dia = parseInt(match[1], 10);
+  const mes = MESES_ES_MAP[match[2].toLowerCase().substring(0, 3)];
+  const anio = parseInt(match[3], 10);
+  if (!mes) return "";
+  return `${anio}-${String(mes).padStart(2, "0")}-${String(dia).padStart(
+    2,
+    "0"
+  )}`;
+}
+
+// "2026-12-31" -> "Válido hasta: 31/12/2026"
+function formatearVigenciaCupon(fechaISO) {
+  if (!fechaISO) return "";
+  const [y, m, d] = fechaISO.split("-").map(Number);
+  if (!y || !m || !d) return "";
+  return `Válido hasta: ${String(d).padStart(2, "0")}/${String(m).padStart(
+    2,
+    "0"
+  )}/${y}`;
+}
+
+// "Válido hasta: 31/12/2026" -> "2026-12-31" (o "" si no se puede interpretar)
+function parsearVigenciaAISO(texto) {
+  if (!texto) return "";
+  const match = texto.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (!match) return "";
+  const dia = parseInt(match[1], 10);
+  const mes = parseInt(match[2], 10);
+  const anio = parseInt(match[3], 10);
+  return `${anio}-${String(mes).padStart(2, "0")}-${String(dia).padStart(
+    2,
+    "0"
+  )}`;
+}
+
+// Alterna entre el date picker y el campo de texto especial de noticias
+function actualizarModoFechaNoticia() {
+  const esTexto = document.getElementById("noticiaFechaEsTexto")?.checked;
+  const picker = document.getElementById("noticiaFechaPicker");
+  const texto = document.getElementById("noticiaFechaTexto");
+  if (!picker || !texto) return;
+  picker.style.display = esTexto ? "none" : "block";
+  texto.style.display = esTexto ? "block" : "none";
+}
+
+// ============================================
+// CARGAR CUPONES
+// ============================================
+
+async function cargarCupones() {
+  const container = document.getElementById("listaCupones");
+  if (!container) return;
+
+  const tabPromociones = document.getElementById("tab-promociones");
+  if (tabPromociones && tabPromociones.style.display === "none") {
+    console.log("ℹ️ Pestaña de promociones no visible, omitiendo carga");
+    return;
+  }
+
+  container.innerHTML =
+    '<div class="text-center text-dim py-3">Cargando...</div>';
+
+  try {
+    const { data, error } = await window.supabase
+      .from("cupones")
+      .select("*")
+      .order("orden", { ascending: true });
+
+    if (error) throw error;
+
+    if (!data || !data.length) {
+      ultimoTotalCupones = 0;
+      container.innerHTML =
+        '<p class="text-center text-dim py-3">🎯 No hay cupones registrados</p>';
+      return;
+    }
+    ultimoTotalCupones = data.length;
+
+    container.innerHTML = `
+            <table class="table table-dark table-hover table-sm">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Icono</th>
+                        <th>Tag</th>
+                        <th>Título</th>
+                        <th>Código</th>
+                        <th>Vigencia</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${data
+                      .map(
+                        (c, i) => `
+                        <tr>
+                            <td>${i + 1}</td>
+                            <td style="font-size:1.5rem;">${
+                              c.icono || "🎯"
+                            }</td>
+                            <td><span class="badge bg-secondary">${
+                              c.tag || "Sin tag"
+                            }</span></td>
+                            <td><strong>${c.titulo}</strong></td>
+                            <td><code style="background:var(--bg-input);padding:2px 8px;border-radius:4px;font-size:12px;">${
+                              c.codigo
+                            }</code></td>
+                            <td><small>${c.vigencia}</small></td>
+                            <td>
+                                <span class="badge ${
+                                  c.activo ? "bg-success" : "bg-danger"
+                                }">
+                                    ${c.activo ? "✅ Activo" : "❌ Inactivo"}
+                                </span>
+                            </td>
+                            <td>
+                                <button onclick="editarCupon('${
+                                  c.id
+                                }')" class="btn btn-outline-warning btn-sm">✏️</button>
+                                <button onclick="pedirEliminarCupon('${
+                                  c.id
+                                }')" class="btn btn-outline-danger btn-sm">🗑️</button>
+                            </td>
+                        </tr>
+                    `
+                      )
+                      .join("")}
+                </tbody>
+            </table>
+            <div style="margin-top:10px; color:var(--text-dim); font-size:0.75rem;">
+                <i class="fas fa-info-circle"></i> Máximo 5 cupones activos recomendados
+            </div>
+        `;
+  } catch (error) {
+    console.error("Error cargando cupones:", error);
+    container.innerHTML =
+      '<p class="text-danger text-center">❌ Error al cargar cupones</p>';
+  }
+}
+
+// ============================================
+// CARGAR NOTICIAS
+// ============================================
+
+async function cargarNoticias() {
+  const container = document.getElementById("listaNoticias");
+  if (!container) return;
+
+  const tabPromociones = document.getElementById("tab-promociones");
+  if (tabPromociones && tabPromociones.style.display === "none") {
+    console.log("ℹ️ Pestaña de promociones no visible, omitiendo carga");
+    return;
+  }
+
+  container.innerHTML =
+    '<div class="text-center text-dim py-3">Cargando...</div>';
+
+  try {
+    const { data, error } = await window.supabase
+      .from("noticias")
+      .select("*")
+      .order("orden", { ascending: true });
+
+    if (error) throw error;
+
+    if (!data || !data.length) {
+      ultimoTotalNoticias = 0;
+      container.innerHTML =
+        '<p class="text-center text-dim py-3">📰 No hay noticias registradas</p>';
+      return;
+    }
+    ultimoTotalNoticias = data.length;
+
+    container.innerHTML = `
+            <table class="table table-dark table-hover table-sm">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Fecha</th>
+                        <th>Título</th>
+                        <th>Descripción</th>
+                        <th>Destacado</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${data
+                      .map(
+                        (n, i) => `
+                        <tr>
+                            <td>${i + 1}</td>
+                            <td><small>${n.fecha}</small></td>
+                            <td><strong>${n.titulo}</strong></td>
+                            <td><small>${n.descripcion.substring(0, 60)}${
+                          n.descripcion.length > 60 ? "..." : ""
+                        }</small></td>
+                            <td>
+                                ${
+                                  n.destacado
+                                    ? '<span class="badge bg-warning">⭐ Destacado</span>'
+                                    : '<span class="badge bg-secondary">Normal</span>'
+                                }
+                            </td>
+                            <td>
+                                <span class="badge ${
+                                  n.activo ? "bg-success" : "bg-danger"
+                                }">
+                                    ${n.activo ? "✅ Activo" : "❌ Inactivo"}
+                                </span>
+                            </td>
+                            <td>
+                                <button onclick="editarNoticia('${
+                                  n.id
+                                }')" class="btn btn-outline-warning btn-sm">✏️</button>
+                                <button onclick="pedirEliminarNoticia('${
+                                  n.id
+                                }')" class="btn btn-outline-danger btn-sm">🗑️</button>
+                            </td>
+                        </tr>
+                    `
+                      )
+                      .join("")}
+                </tbody>
+            </table>
+            <div style="margin-top:10px; color:var(--text-dim); font-size:0.75rem;">
+                <i class="fas fa-info-circle"></i> Máximo 4 noticias activas recomendadas
+            </div>
+        `;
+  } catch (error) {
+    console.error("Error cargando noticias:", error);
+    container.innerHTML =
+      '<p class="text-danger text-center">❌ Error al cargar noticias</p>';
+  }
+}
+
+// ============================================
+// CRUD - CUPONES
+// ============================================
+
+function mostrarFormCupon(data = null) {
+  const container = document.getElementById("formCuponContainer");
+  if (!container) return;
+
+  container.style.display = "flex";
+  container.scrollIntoView({ behavior: "smooth" });
+
+  if (data) {
+    cuponEditando = data;
+    document.getElementById("formCuponTitulo").textContent = "✏️ Editar Cupón";
+    const submitBtn = document.querySelector(
+      '#formCupon button[type="submit"]'
+    );
+    if (submitBtn) submitBtn.textContent = "💾 Actualizar";
+
+    document.getElementById("cuponId").value = data.id;
+    document.getElementById("cuponTitulo").value = data.titulo || "";
+    document.getElementById("cuponDescripcion").value = data.descripcion || "";
+    document.getElementById("cuponCodigo").value = data.codigo || "";
+    document.getElementById("cuponTag").value = data.tag || "";
+    document.getElementById("cuponIcono").value = data.icono || "";
+    document.getElementById("cuponVigenciaPicker").value = parsearVigenciaAISO(
+      data.vigencia
+    );
+    document.getElementById("cuponOrden").value = data.orden || 1;
+    document.getElementById("cuponActivo").value = data.activo
+      ? "true"
+      : "false";
+  } else {
+    cuponEditando = null;
+    document.getElementById("formCuponTitulo").textContent = "➕ Agregar Cupón";
+    const submitBtn = document.querySelector(
+      '#formCupon button[type="submit"]'
+    );
+    if (submitBtn) submitBtn.textContent = "💾 Guardar";
+
+    document.getElementById("formCupon").reset();
+    document.getElementById("cuponId").value = "";
+    document.getElementById("cuponActivo").value = "true";
+    // Sugerimos el siguiente número de orden disponible; se puede cambiar.
+    document.getElementById("cuponOrden").value = ultimoTotalCupones + 1;
+  }
+}
+
+function ocultarFormCupon() {
+  const container = document.getElementById("formCuponContainer");
+  if (container) container.style.display = "none";
+  cuponEditando = null;
+}
+
+async function editarCupon(id) {
+  try {
+    const { data, error } = await window.supabase
+      .from("cupones")
+      .select("*")
+      .eq("id", id)
+      .single();
+    if (error) throw error;
+    if (data) mostrarFormCupon(data);
+  } catch (error) {
+    console.error("Error:", error);
+    alert("Error al cargar el cupón");
+  }
+}
+
+async function guardarCupon(e) {
+  e.preventDefault();
+  const msg = document.getElementById("mensajeCupon");
+  const btn = e.target.querySelector('button[type="submit"]');
+
+  const id = document.getElementById("cuponId").value || null;
+  const esEdicion = id && id !== "";
+
+  const vigenciaISO = document.getElementById("cuponVigenciaPicker").value;
+
+  const datos = {
+    titulo: document.getElementById("cuponTitulo").value.trim(),
+    descripcion: document.getElementById("cuponDescripcion").value.trim(),
+    codigo: document.getElementById("cuponCodigo").value.trim(),
+    tag: document.getElementById("cuponTag").value.trim(),
+    icono: document.getElementById("cuponIcono").value.trim(),
+    vigencia: formatearVigenciaCupon(vigenciaISO),
+    orden: parseInt(document.getElementById("cuponOrden").value) || 1,
+    activo: document.getElementById("cuponActivo").value === "true",
+  };
+
+  if (
+    !datos.titulo ||
+    !datos.descripcion ||
+    !datos.codigo ||
+    !datos.tag ||
+    !datos.icono ||
+    !vigenciaISO
+  ) {
+    if (msg) mostrarMensaje(msg, "❌ Completa todos los campos", "error");
+    return;
+  }
+
+  try {
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = "Guardando...";
+    }
+
+    let result;
+    if (esEdicion) {
+      result = await window.supabase
+        .from("cupones")
+        .update({ ...datos, updated_at: new Date().toISOString() })
+        .eq("id", id);
+    } else {
+      result = await window.supabase.from("cupones").insert([{ ...datos }]);
+    }
+
+    if (result.error) throw result.error;
+
+    if (msg) mostrarMensaje(msg, "✅ Cupón guardado correctamente", "exito");
+    ocultarFormCupon();
+    cargarCupones();
+  } catch (error) {
+    console.error("Error:", error);
+    if (msg) mostrarMensaje(msg, "❌ " + error.message, "error");
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = esEdicion ? "💾 Actualizar" : "💾 Guardar";
+    }
+  }
+}
+
+async function pedirEliminarCupon(id) {
+  if (!confirm("¿Eliminar este cupón permanentemente?")) return;
+  try {
+    const { error } = await window.supabase
+      .from("cupones")
+      .delete()
+      .eq("id", id);
+    if (error) throw error;
+    alert("✅ Cupón eliminado");
+    cargarCupones();
+  } catch (error) {
+    console.error("Error:", error);
+    alert("❌ Error al eliminar: " + error.message);
+  }
+}
+
+// ============================================
+// CRUD - NOTICIAS
+// ============================================
+
+function mostrarFormNoticia(data = null) {
+  const container = document.getElementById("formNoticiaContainer");
+  if (!container) return;
+
+  container.style.display = "flex";
+  container.scrollIntoView({ behavior: "smooth" });
+
+  if (data) {
+    noticiaEditando = data;
+    document.getElementById("formNoticiaTitulo").textContent =
+      "✏️ Editar Noticia";
+    const submitBtn = document.querySelector(
+      '#formNoticia button[type="submit"]'
+    );
+    if (submitBtn) submitBtn.textContent = "💾 Actualizar";
+
+    document.getElementById("noticiaId").value = data.id;
+    document.getElementById("noticiaTitulo").value = data.titulo || "";
+    document.getElementById("noticiaDescripcion").value =
+      data.descripcion || "";
+    document.getElementById("noticiaDestacado").value = data.destacado
+      ? "true"
+      : "false";
+    document.getElementById("noticiaOrden").value = data.orden || 1;
+    document.getElementById("noticiaActivo").value = data.activo
+      ? "true"
+      : "false";
+
+    // Intentamos interpretar la fecha guardada como una fecha real.
+    // Si no se puede (ej. "⚡ ¡ÚLTIMO MOMENTO!"), se activa el modo texto.
+    const fechaISO = parsearFechaNoticiaAISO(data.fecha);
+    const checkboxTexto = document.getElementById("noticiaFechaEsTexto");
+    if (fechaISO) {
+      checkboxTexto.checked = false;
+      document.getElementById("noticiaFechaPicker").value = fechaISO;
+      document.getElementById("noticiaFechaTexto").value = "";
+    } else {
+      checkboxTexto.checked = true;
+      document.getElementById("noticiaFechaTexto").value = data.fecha || "";
+      document.getElementById("noticiaFechaPicker").value = "";
+    }
+    actualizarModoFechaNoticia();
+  } else {
+    noticiaEditando = null;
+    document.getElementById("formNoticiaTitulo").textContent =
+      "➕ Agregar Noticia";
+    const submitBtn = document.querySelector(
+      '#formNoticia button[type="submit"]'
+    );
+    if (submitBtn) submitBtn.textContent = "💾 Guardar";
+
+    document.getElementById("formNoticia").reset();
+    document.getElementById("noticiaId").value = "";
+    document.getElementById("noticiaDestacado").value = "false";
+    document.getElementById("noticiaActivo").value = "true";
+    // Sugerimos el siguiente número de orden disponible; se puede cambiar.
+    document.getElementById("noticiaOrden").value = ultimoTotalNoticias + 1;
+    document.getElementById("noticiaFechaEsTexto").checked = false;
+    document.getElementById("noticiaFechaTexto").value = "";
+    actualizarModoFechaNoticia();
+  }
+}
+
+function ocultarFormNoticia() {
+  const container = document.getElementById("formNoticiaContainer");
+  if (container) container.style.display = "none";
+  noticiaEditando = null;
+}
+
+async function editarNoticia(id) {
+  try {
+    const { data, error } = await window.supabase
+      .from("noticias")
+      .select("*")
+      .eq("id", id)
+      .single();
+    if (error) throw error;
+    if (data) mostrarFormNoticia(data);
+  } catch (error) {
+    console.error("Error:", error);
+    alert("Error al cargar la noticia");
+  }
+}
+
+async function guardarNoticia(e) {
+  e.preventDefault();
+  const msg = document.getElementById("mensajeNoticia");
+  const btn = e.target.querySelector('button[type="submit"]');
+
+  const id = document.getElementById("noticiaId").value || null;
+  const esEdicion = id && id !== "";
+
+  const esTexto = document.getElementById("noticiaFechaEsTexto").checked;
+  const fechaISO = document.getElementById("noticiaFechaPicker").value;
+  const fechaTexto = document.getElementById("noticiaFechaTexto").value.trim();
+  const fechaFinal = esTexto ? fechaTexto : formatearFechaNoticia(fechaISO);
+
+  const datos = {
+    titulo: document.getElementById("noticiaTitulo").value.trim(),
+    descripcion: document.getElementById("noticiaDescripcion").value.trim(),
+    fecha: fechaFinal,
+    destacado: document.getElementById("noticiaDestacado").value === "true",
+    orden: parseInt(document.getElementById("noticiaOrden").value) || 1,
+    activo: document.getElementById("noticiaActivo").value === "true",
+  };
+
+  if (!datos.titulo || !datos.descripcion || !datos.fecha) {
+    if (msg) mostrarMensaje(msg, "❌ Completa todos los campos", "error");
+    return;
+  }
+
+  try {
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = "Guardando...";
+    }
+
+    let result;
+    if (esEdicion) {
+      result = await window.supabase
+        .from("noticias")
+        .update({ ...datos, updated_at: new Date().toISOString() })
+        .eq("id", id);
+    } else {
+      result = await window.supabase.from("noticias").insert([{ ...datos }]);
+    }
+
+    if (result.error) throw result.error;
+
+    if (msg) mostrarMensaje(msg, "✅ Noticia guardada correctamente", "exito");
+    ocultarFormNoticia();
+    cargarNoticias();
+  } catch (error) {
+    console.error("Error:", error);
+    if (msg) mostrarMensaje(msg, "❌ " + error.message, "error");
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = esEdicion ? "💾 Actualizar" : "💾 Guardar";
+    }
+  }
+}
+
+async function pedirEliminarNoticia(id) {
+  if (!confirm("¿Eliminar esta noticia permanentemente?")) return;
+  try {
+    const { error } = await window.supabase
+      .from("noticias")
+      .delete()
+      .eq("id", id);
+    if (error) throw error;
+    alert("✅ Noticia eliminada");
+    cargarNoticias();
+  } catch (error) {
+    console.error("Error:", error);
+    alert("❌ Error al eliminar: " + error.message);
+  }
+}
+
+// ============================================
+// 9. EXPONER FUNCIONES AL WINDOW
 // ============================================
 window.eliminarProductoTicket = eliminarProductoTicket;
 window.agregarProductoTicket = agregarProductoTicket;
@@ -2505,3 +3091,17 @@ window.mostrarFormMovimiento = mostrarFormMovimiento;
 window.ocultarFormMovimiento = ocultarFormMovimiento;
 window.cerrarModal = cerrarModal;
 window.confirmarEliminar = confirmarEliminar;
+
+// Exponer funciones de promociones
+window.cargarCupones = cargarCupones;
+window.cargarNoticias = cargarNoticias;
+window.editarCupon = editarCupon;
+window.editarNoticia = editarNoticia;
+window.pedirEliminarCupon = pedirEliminarCupon;
+window.pedirEliminarNoticia = pedirEliminarNoticia;
+window.mostrarFormCupon = mostrarFormCupon;
+window.ocultarFormCupon = ocultarFormCupon;
+window.mostrarFormNoticia = mostrarFormNoticia;
+window.ocultarFormNoticia = ocultarFormNoticia;
+window.guardarCupon = guardarCupon;
+window.guardarNoticia = guardarNoticia;

@@ -103,7 +103,8 @@ function initEasterEgg() {
     ".logo-area, #secretLogo, #adminAccess, .logo"
   );
   if (!header) {
-    console.warn("⚠️ No se encontró el elemento para el easter egg");
+    // Es normal no encontrarlo en páginas sin logo (ej. admin.html);
+    // no es un error, así que no se muestra advertencia en consola.
     return;
   }
 

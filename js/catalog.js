@@ -525,13 +525,143 @@ async function confirmarCancelacionDesdeModal() {
 }
 
 // ============================================
-// CARRUSEL DE CUPONES - FUNCIONES
+// CARRUSEL DE CUPONES - CON SUPABASE
 // ============================================
 
 let carouselInterval = null;
 let currentSlide = 0;
-let totalSlides = 3;
+let totalSlides = 0;
 const slideInterval = 5000; // 5 segundos
+
+async function cargarCuponesDesdeDB() {
+  try {
+    const { data, error } = await window.supabase
+      .from("cupones")
+      .select("*")
+      .eq("activo", true)
+      .order("orden", { ascending: true });
+
+    if (error) throw error;
+
+    const track = document.getElementById("carouselTrack");
+    const indicators = document.getElementById("carouselIndicators");
+
+    if (!track || !indicators) return;
+
+    if (!data || data.length === 0) {
+      track.innerHTML =
+        '<div class="text-center text-dim py-4">No hay cupones disponibles</div>';
+      indicators.innerHTML = "";
+      return;
+    }
+
+    // Generar slides
+    track.innerHTML = data
+      .map(
+        (cupon, index) => `
+            <div class="carousel-slide ${index === 0 ? "active" : ""}">
+                <div class="cupon-card">
+                    <div class="cupon-content">
+                        <span class="cupon-tag">${
+                          cupon.tag || "🎯 PROMOCIÓN"
+                        }</span>
+                        <div class="cupon-icon">${cupon.icono || "🎁"}</div>
+                        <h4>${cupon.titulo}</h4>
+                        <p class="cupon-desc">${cupon.descripcion}</p>
+                        <div class="cupon-code">
+                            <span>${cupon.codigo}</span>
+                            <button class="btn-copy-code" onclick="copiarCodigo('${
+                              cupon.codigo
+                            }')">📋</button>
+                        </div>
+                        <span class="cupon-expiry">${
+                          cupon.vigencia || "Válido hasta: Sin fecha"
+                        }</span>
+                    </div>
+                </div>
+            </div>
+        `
+      )
+      .join("");
+
+    // Generar indicadores
+    indicators.innerHTML = data
+      .map(
+        (_, index) => `
+            <span class="dot ${
+              index === 0 ? "active" : ""
+            }" data-slide="${index}"></span>
+        `
+      )
+      .join("");
+
+    // Actualizar total de slides y reiniciar carrusel
+    totalSlides = data.length;
+    currentSlide = 0;
+    iniciarCarrusel();
+
+    console.log(`✅ Cupones cargados desde DB: ${totalSlides}`);
+  } catch (error) {
+    console.error("Error cargando cupones:", error);
+    const track = document.getElementById("carouselTrack");
+    if (track) {
+      track.innerHTML =
+        '<div class="text-center text-danger py-4">❌ Error al cargar cupones</div>';
+    }
+  }
+}
+
+// ============================================
+// NOTICIAS - CON SUPABASE
+// ============================================
+
+async function cargarNoticiasDesdeDB() {
+  try {
+    const { data, error } = await window.supabase
+      .from("noticias")
+      .select("*")
+      .eq("activo", true)
+      .order("orden", { ascending: true });
+
+    if (error) throw error;
+
+    const container = document.getElementById("newsletterContent");
+    if (!container) return;
+
+    if (!data || data.length === 0) {
+      container.innerHTML =
+        '<div class="text-center text-dim py-3">No hay noticias disponibles</div>';
+      return;
+    }
+
+    container.innerHTML = data
+      .map(
+        (noticia) => `
+            <div class="news-item ${noticia.destacado ? "highlight" : ""}">
+                <span class="news-date">${
+                  noticia.fecha || "📅 Sin fecha"
+                }</span>
+                <p class="news-title">${noticia.titulo}</p>
+                <p class="news-desc">${noticia.descripcion}</p>
+            </div>
+        `
+      )
+      .join("");
+
+    console.log(`✅ Noticias cargadas desde DB: ${data.length}`);
+  } catch (error) {
+    console.error("Error cargando noticias:", error);
+    const container = document.getElementById("newsletterContent");
+    if (container) {
+      container.innerHTML =
+        '<div class="text-center text-danger py-3">❌ Error al cargar noticias</div>';
+    }
+  }
+}
+
+// ============================================
+// FUNCIÓN iniciarCarrusel
+// ============================================
 
 function iniciarCarrusel() {
   const slides = document.querySelectorAll(".carousel-slide");
@@ -681,8 +811,11 @@ document.addEventListener("DOMContentLoaded", function () {
   console.log("📦 catalog.js cargado, esperando Supabase...");
   cargarProductos();
 
-  // Inicializar carrusel de cupones
-  setTimeout(iniciarCarrusel, 300);
+  // Cargar cupones y noticias desde Supabase
+  setTimeout(() => {
+    cargarCuponesDesdeDB();
+    cargarNoticiasDesdeDB();
+  }, 500);
 
   document.querySelectorAll(".filtro-btn").forEach((b) => {
     b.addEventListener("click", () => filtrarProductos(b.dataset.filtro));
@@ -899,8 +1032,8 @@ document.addEventListener("DOMContentLoaded", function () {
 // Reiniciar carrusel cuando la pestaña vuelve a ser visible
 document.addEventListener("visibilitychange", function () {
   if (!document.hidden) {
-    setTimeout(iniciarCarrusel, 100);
+    setTimeout(cargarCuponesDesdeDB, 100);
   }
 });
 
-console.log("🎯 Sistema de cupones y carrusel cargado en catalog.js");
+console.log("🎯 Sistema de cupones y noticias cargado en catalog.js");
