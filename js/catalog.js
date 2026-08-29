@@ -192,7 +192,7 @@ function mostrarProductos(lista) {
                             <span class="usa-tag"><span class="flag-icon">🇺🇸</span> <span class="highlight-text">Importado de USA</span></span>
                             <h3>${p.nombre}</h3>
                             <span class="price">${formatearMoneda(
-                              p.precio
+                              p.precio,
                             )}</span>
                             <span class="stock-status ${stockClass}">${stockText}</span>
                             <button onclick="hacerPedido('${
@@ -215,31 +215,29 @@ function mostrarProductos(lista) {
 function hacerPedido(id) {
   const p = productos.find((x) => x.id === id);
   if (!p) {
-    alert("❌ Producto no encontrado");
+    mostrarToastCupon("❌ Producto no encontrado");
     return;
   }
 
   if (p.stock <= 0) {
-    alert("❌ Este producto está agotado");
+    mostrarToastCupon("❌ Este producto está agotado");
     return;
   }
 
   const mensaje = `Hola 👋
-
 🎁 ${p.nombre}
 💰 Precio: ${formatearMoneda(p.precio)}
-
 🔢 Cantidad: ¿Cuántas unidades necesitas?
 📍 Dirección: ¿A dónde te lo enviamos?
 💳 Pago: ¿Transferencia o pago contra entrega?
-
+🎟️ Cupón: ¿Tienes algún cupón? Indícanos el código
 ✅ ¡Gracias!`;
 
   window.open(
     `https://api.whatsapp.com/send?phone=${
       CONFIG.WHATSAPP
     }&text=${encodeURIComponent(mensaje)}`,
-    "_blank"
+    "_blank",
   );
 }
 
@@ -247,23 +245,150 @@ function hacerPedido(id) {
 // CARGAR SELECT DE PRODUCTOS
 // ============================================
 
+// ============================================
+// DROPDOWN PERSONALIZADO DE PRODUCTOS (con imagen)
+// ============================================
+
+let productosParaPicker = [];
+
 function cargarSelectProductos(lista) {
-  const sel = document.getElementById("productoSelect");
-  if (!sel) return;
+  const hidden = document.getElementById("productoSelect");
+  const lista_el = document.getElementById("productoPickerList");
+  const label = document.getElementById("productoPickerLabel");
+  if (!hidden || !lista_el || !label) return;
 
-  const disponibles = lista.filter((p) => p.stock > 0);
+  productosParaPicker = lista.filter((p) => p.stock > 0);
 
-  if (disponibles.length === 0) {
-    sel.innerHTML = '<option value="">⚠️ No hay productos disponibles</option>';
+  hidden.value = "";
+  label.textContent = "Selecciona un producto...";
+  label.classList.remove("seleccionado");
+
+  if (productosParaPicker.length === 0) {
+    lista_el.innerHTML =
+      '<div class="producto-picker-vacio">⚠️ No hay productos disponibles</div>';
     return;
   }
 
-  sel.innerHTML = '<option value="">Selecciona un producto...</option>';
-  disponibles.forEach((p) => {
-    sel.innerHTML += `<option value="${p.id}">${p.nombre} - ${formatearMoneda(
-      p.precio
-    )} (${p.stock} disponibles)</option>`;
+  lista_el.innerHTML = productosParaPicker
+    .map((p) => {
+      const tieneImagen = p.imagen_url && p.imagen_url.trim() !== "";
+      const imgHtml = tieneImagen
+        ? `<img class="producto-picker-item-img" src="${p.imagen_url}" alt="${p.nombre}" loading="lazy" onerror="this.outerHTML='<div class=\\'producto-picker-item-img placeholder\\'>📦</div>'">`
+        : '<div class="producto-picker-item-img placeholder">📦</div>';
+
+      return `
+                <div class="producto-picker-item" data-id="${p.id}">
+                    ${imgHtml}
+                    <div class="producto-picker-item-info">
+                        <span class="producto-picker-item-nombre">${
+                          p.nombre
+                        }</span>
+                        <span class="producto-picker-item-detalle">${formatearMoneda(
+                          p.precio,
+                        )} · ${p.stock} disponibles</span>
+                    </div>
+                </div>
+            `;
+    })
+    .join("");
+
+  lista_el.querySelectorAll(".producto-picker-item").forEach((item) => {
+    item.addEventListener("click", () => {
+      aplicarSeleccionProducto(item.dataset.id);
+      cerrarProductoPicker();
+    });
   });
+}
+
+function aplicarSeleccionProducto(id) {
+  const hidden = document.getElementById("productoSelect");
+  const label = document.getElementById("productoPickerLabel");
+  if (!hidden || !label) return;
+
+  const producto = productosParaPicker.find((p) => p.id === id);
+  if (!producto) return;
+
+  hidden.value = id;
+  label.textContent = `${producto.nombre} - ${formatearMoneda(
+    producto.precio,
+  )}`;
+  label.classList.add("seleccionado");
+}
+
+function abrirProductoPicker() {
+  document.getElementById("productoPicker")?.classList.add("abierto");
+}
+
+function cerrarProductoPicker() {
+  document.getElementById("productoPicker")?.classList.remove("abierto");
+}
+
+function initProductoPicker() {
+  const picker = document.getElementById("productoPicker");
+  const btn = document.getElementById("productoPickerBtn");
+  if (!picker || !btn) return;
+
+  btn.addEventListener("click", (e) => {
+    e.preventDefault();
+    if (picker.classList.contains("abierto")) {
+      cerrarProductoPicker();
+    } else {
+      abrirProductoPicker();
+    }
+  });
+
+  document.addEventListener("click", (e) => {
+    if (!picker.contains(e.target)) cerrarProductoPicker();
+  });
+}
+
+document.addEventListener("DOMContentLoaded", initProductoPicker);
+
+// ============================================
+// MODAL SECRETO DEL CORAZÓN (5 clics)
+// ============================================
+
+let heartClickCount = 0;
+let heartClickTimer = null;
+
+function initSecretHeart() {
+  const heart = document.getElementById("secretHeart");
+  const overlay = document.getElementById("secretHeartModalOverlay");
+  const btnAceptar = document.getElementById("btnAceptarSecretHeart");
+  if (!heart || !overlay) return;
+
+  heart.addEventListener("click", function () {
+    heartClickCount++;
+    if (heartClickTimer) clearTimeout(heartClickTimer);
+    heartClickTimer = setTimeout(() => {
+      heartClickCount = 0;
+    }, 2000);
+
+    if (heartClickCount >= 5) {
+      heartClickCount = 0;
+      overlay.classList.add("abierto");
+    }
+  });
+
+    if (btnAceptar) {
+      btnAceptar.addEventListener("click", function () {
+        overlay.classList.remove("abierto");
+      });
+    }
+
+    overlay.addEventListener("click", function (e) {
+      if (e.target === overlay) overlay.classList.remove("abierto");
+    });
+
+    // El mensaje se define en el HTML (index.html) para mantener el estilo.
+  }
+
+document.addEventListener("DOMContentLoaded", initSecretHeart);
+
+// Mantenido para compatibilidad: preselecciona un producto por id
+// (por ejemplo, desde un botón "Pedir este producto").
+function seleccionarProducto(id) {
+  aplicarSeleccionProducto(id);
 }
 
 // ============================================
@@ -283,15 +408,6 @@ function filtrarProductos(categoria) {
 }
 
 // ============================================
-// FUNCIONES PARA EL FORMULARIO DE PEDIDO
-// ============================================
-
-function seleccionarProducto(id) {
-  const select = document.getElementById("productoSelect");
-  if (select) select.value = id;
-}
-
-// ============================================
 // ENVIAR CORREO DE CONFIRMACIÓN
 // ============================================
 
@@ -300,7 +416,7 @@ async function enviarCorreoConfirmacion(
   numeroPedido,
   total,
   metodoPago,
-  direccion
+  direccion,
 ) {
   try {
     if (typeof emailjs === "undefined") {
@@ -315,6 +431,12 @@ async function enviarCorreoConfirmacion(
       emailjs.init(EMAILJS_CONFIG.USER_ID);
     }
 
+    const subtotalProd = (pedido.productos || []).reduce(
+      (s, p) => s + (Number(p.precio) || 0) * (Number(p.cantidad) || 0),
+      0,
+    );
+    const envioPedido = Number(pedido.costo_envio) || 0;
+
     const params = {
       tipo_correo: "confirmacion",
       cliente: pedido.cliente_nombre,
@@ -325,6 +447,8 @@ async function enviarCorreoConfirmacion(
         cantidad: p.cantidad,
         precio: formatearMoneda(p.precio * p.cantidad),
       })),
+      subtotal: formatearMoneda(subtotalProd),
+      envio: envioPedido > 0 ? formatearMoneda(envioPedido) : "",
       total: formatearMoneda(total),
       metodo_pago:
         metodoPago === "transferencia"
@@ -340,7 +464,7 @@ async function enviarCorreoConfirmacion(
     const response = await emailjs.send(
       EMAILJS_CONFIG.SERVICE_ID,
       EMAILJS_CONFIG.TEMPLATE_ID,
-      params
+      params,
     );
 
     console.log("✅ Correo enviado:", response);
@@ -379,6 +503,13 @@ async function enviarCorreoCancelacion(pedido, numeroPedido) {
         cantidad: p.cantidad,
         precio: formatearMoneda(p.precio * p.cantidad),
       })),
+      subtotal: formatearMoneda(
+        (pedido.productos || []).reduce(
+          (s, p) => s + (Number(p.precio) || 0) * (Number(p.cantidad) || 0),
+          0,
+        ),
+      ),
+      envio: (Number(pedido.costo_envio) || 0) > 0 ? formatearMoneda(Number(pedido.costo_envio) || 0) : "",
       total: formatearMoneda(pedido.total),
       metodo_pago:
         pedido.metodo_pago === "transferencia" ? "Transferencia" : "Efectivo",
@@ -392,7 +523,7 @@ async function enviarCorreoCancelacion(pedido, numeroPedido) {
     const response = await emailjs.send(
       EMAILJS_CONFIG.SERVICE_ID,
       EMAILJS_CONFIG.TEMPLATE_ID,
-      params
+      params,
     );
 
     console.log("✅ Correo de cancelación enviado:", response);
@@ -400,7 +531,7 @@ async function enviarCorreoCancelacion(pedido, numeroPedido) {
   } catch (error) {
     console.error(
       "❌ Error al enviar correo de cancelación (no crítico):",
-      error
+      error,
     );
     return false;
   }
@@ -520,7 +651,7 @@ async function confirmarCancelacionDesdeModal() {
     document.getElementById("numeroPedidoCancelar").value = "";
   } catch (error) {
     console.error("Error:", error);
-    alert("❌ Error al cancelar: " + error.message);
+    mostrarToastCupon("❌ Error al cancelar: " + error.message);
   }
 }
 
@@ -580,7 +711,7 @@ async function cargarCuponesDesdeDB() {
                     </div>
                 </div>
             </div>
-        `
+        `,
       )
       .join("");
 
@@ -591,7 +722,7 @@ async function cargarCuponesDesdeDB() {
             <span class="dot ${
               index === 0 ? "active" : ""
             }" data-slide="${index}"></span>
-        `
+        `,
       )
       .join("");
 
@@ -644,7 +775,7 @@ async function cargarNoticiasDesdeDB() {
                 <p class="news-title">${noticia.titulo}</p>
                 <p class="news-desc">${noticia.descripcion}</p>
             </div>
-        `
+        `,
       )
       .join("");
 
@@ -840,17 +971,17 @@ document.addEventListener("DOMContentLoaded", function () {
   if (confirmarCancelarBtn) {
     confirmarCancelarBtn.addEventListener(
       "click",
-      confirmarCancelacionDesdeModal
+      confirmarCancelacionDesdeModal,
     );
   }
 
   const cancelarCancelacionBtn = document.getElementById(
-    "cancelarCancelacionBtn"
+    "cancelarCancelacionBtn",
   );
   if (cancelarCancelacionBtn) {
     cancelarCancelacionBtn.addEventListener("click", function () {
       const modalConfirmar = document.getElementById(
-        "modalConfirmarCancelacion"
+        "modalConfirmarCancelacion",
       );
       if (modalConfirmar) modalConfirmar.style.display = "none";
     });
@@ -869,19 +1000,31 @@ document.addEventListener("DOMContentLoaded", function () {
       const email = document.getElementById("emailCliente").value.trim();
       const productoId = document.getElementById("productoSelect").value;
       const cantidad =
-        parseInt(document.getElementById("cantidadProducto").value) || 1;
+        parseInt(document.getElementById("cantidadProducto").value) || 0;
       const metodoPago = document.getElementById("metodoPago").value;
       const direccion = document
         .getElementById("direccionCliente")
         .value.trim();
+
+      // LUGAR DE ENTREGA + COSTO DE ENVÍO
+      const lugarSel = document.getElementById("lugarEntrega");
+      const lugarEntrega = lugarSel ? lugarSel.value : "";
+      const lugarCostoOpt = lugarSel
+        ? lugarSel.options[lugarSel.selectedIndex]
+        : null;
+      const costoEnvio = lugarCostoOpt
+        ? parseFloat(lugarCostoOpt.dataset.costo) || 0
+        : 0;
+
       const notas = document.getElementById("notasPedido").value.trim();
+      const cupon = document.getElementById("cuponCliente")?.value.trim() || "";
 
       const telefonoValidado = validarTelefono(telefonoRaw);
       if (!telefonoValidado.valido) {
         mostrarMensaje(
           mensaje,
           "❌ Teléfono inválido. Debe tener 10 dígitos (ej: 8126878080)",
-          "error"
+          "error",
         );
         return;
       }
@@ -891,7 +1034,7 @@ document.addEventListener("DOMContentLoaded", function () {
         mostrarMensaje(
           mensaje,
           "❌ El correo electrónico es obligatorio para confirmar tu pedido.",
-          "error"
+          "error",
         );
         return;
       }
@@ -900,7 +1043,7 @@ document.addEventListener("DOMContentLoaded", function () {
         mostrarMensaje(
           mensaje,
           "❌ Completa todos los campos obligatorios",
-          "error"
+          "error",
         );
         return;
       }
@@ -911,25 +1054,44 @@ document.addEventListener("DOMContentLoaded", function () {
         return;
       }
 
-      if (cantidad > producto.stock) {
-        mostrarMensaje(
-          mensaje,
-          `❌ No hay suficiente stock. Solo tenemos ${producto.stock} unidades disponibles.`,
-          "error"
-        );
-        return;
-      }
-
       if (producto.stock === 0) {
         mostrarMensaje(
           mensaje,
           `❌ El producto "${producto.nombre}" no tiene stock disponible.`,
-          "error"
+          "error",
         );
         return;
       }
 
-      const total = producto.precio * cantidad;
+      if (!cantidad || cantidad < 1) {
+        mostrarMensaje(
+          mensaje,
+          "❌ Indica la cantidad requerida.",
+          "error",
+        );
+        return;
+      }
+
+      if (cantidad > producto.stock) {
+        mostrarMensaje(
+          mensaje,
+          `❌ No hay stock suficiente. Solo tenemos ${producto.stock} unidades disponibles.`,
+          "error",
+        );
+        return;
+      }
+
+      if (!lugarEntrega) {
+        mostrarMensaje(
+          mensaje,
+          "❌ Selecciona tu lugar de entrega.",
+          "error",
+        );
+        return;
+      }
+
+      // Total = productos + costo de envío del lugar seleccionado
+      const total = producto.precio * cantidad + costoEnvio;
       const numeroPedido = generarNumeroPedido();
 
       const pedido = {
@@ -945,9 +1107,12 @@ document.addEventListener("DOMContentLoaded", function () {
           },
         ],
         total: total,
+        costo_envio: costoEnvio,
+        lugar_entrega: lugarEntrega,
         metodo_pago: metodoPago,
         direccion_entrega: direccion || null,
         notas: notas || null,
+        cupon: cupon || null,
         estado: "pendiente",
       };
 
@@ -969,7 +1134,7 @@ document.addEventListener("DOMContentLoaded", function () {
           numeroPedido,
           total,
           metodoPago,
-          direccion
+          direccion,
         );
 
         const modal = document.getElementById("modalConfirmacionPedido");
@@ -982,9 +1147,10 @@ document.addEventListener("DOMContentLoaded", function () {
           document.getElementById("modalEmailCliente").textContent = email;
           document.getElementById("modalDireccionCliente").textContent =
             direccion || "No especificada";
-          document.getElementById(
-            "modalProductoInfo"
-          ).textContent = `${producto.nombre} × ${cantidad}`;
+          document.getElementById("modalProductoInfo").textContent =
+            `${producto.nombre} × ${cantidad}`;
+          document.getElementById("modalLugarEntregaInfo").textContent =
+            `${lugarEntrega} · Envío ${formatearMoneda(costoEnvio)}`;
           document.getElementById("modalTotalInfo").textContent =
             formatearMoneda(total);
           document.getElementById("modalMetodoPagoInfo").textContent =
@@ -1001,7 +1167,7 @@ document.addEventListener("DOMContentLoaded", function () {
         mostrarMensaje(
           mensaje,
           "❌ Error al enviar el pedido: " + error.message,
-          "error"
+          "error",
         );
       } finally {
         btn.disabled = false;
@@ -1019,7 +1185,7 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   const cerrarModalCancelacionBtn = document.getElementById(
-    "cerrarModalCancelacion"
+    "cerrarModalCancelacion",
   );
   if (cerrarModalCancelacionBtn) {
     cerrarModalCancelacionBtn.addEventListener("click", function () {

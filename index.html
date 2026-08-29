@@ -505,12 +505,33 @@
                                 placeholder="Correo electrónico *" required>
                         </div>
                         <div class="col-12">
-                            <select id="productoSelect" class="input-luxury" required>
-                                <option value="">Selecciona un producto...</option>
-                            </select>
+                            <div class="producto-picker" id="productoPicker">
+                                <input type="hidden" id="productoSelect" value="">
+                                <button type="button" id="productoPickerBtn" class="input-luxury producto-picker-btn">
+                                    <span id="productoPickerLabel" class="producto-picker-label">Selecciona un
+                                        producto...</span>
+                                    <span class="producto-picker-arrow">▾</span>
+                                </button>
+                                <div id="productoPickerList" class="producto-picker-list"></div>
+                            </div>
                         </div>
                         <div class="col-12">
-                            <input type="number" id="cantidadProducto" class="input-luxury" value="1" min="1">
+                            <input type="number" id="cantidadProducto" class="input-luxury" placeholder="Cantidad requerida *" min="1" value="" required>
+                        </div>
+                        <div class="col-12">
+                            <select id="lugarEntrega" class="input-luxury" required>
+                                <option value="" disabled selected>Selecciona tu lugar de entrega...</option>
+                                <option value="Punto de entrega" data-costo="0">Punto de entrega (proporcionado por vendedor) — $0.00</option>
+                                <option value="San Nicolas" data-costo="100">San Nicolás — $100.00</option>
+                                <option value="Apodaca" data-costo="80">Apodaca — $80.00</option>
+                                <option value="Escobedo" data-costo="100">Escobedo — $100.00</option>
+                                <option value="Monterrey" data-costo="150">Monterrey — $150.00</option>
+                                <option value="Cienega de Flores" data-costo="100">Ciénega de Flores — $100.00</option>
+                                <option value="Zuazua" data-costo="130">Zuazua — $130.00</option>
+                                <option value="Marin" data-costo="130">Marín — $130.00</option>
+                                <option value="San Pedro" data-costo="150">San Pedro — $150.00</option>
+                                <option value="Garcia" data-costo="150">García — $150.00</option>
+                            </select>
                         </div>
                         <div class="col-12">
                             <select id="metodoPago" class="input-luxury" required>
@@ -522,6 +543,11 @@
                         <div class="col-12">
                             <textarea id="direccionCliente" class="input-luxury" rows="2"
                                 placeholder="Dirección completa de entrega *" required></textarea>
+                        </div>
+                        <div class="col-12">
+                            <input type="text" id="cuponCliente" class="input-luxury"
+                                title="Opcional: si tienes un código de cupón vigente, escríbelo aquí."
+                                placeholder="🎟️ ¿Tienes un cupón? Escribe el código (Opcional)">
                         </div>
                         <div class="col-12">
                             <textarea id="notasPedido" class="input-luxury" rows="1"
@@ -647,53 +673,20 @@
             </div>
             <div class="footer-bottom">
                 &copy; 2026 The Route66 Market · Todos los derechos reservados
-            </div>
-
-            <!-- FRASE SECRETA (Justo después de la línea de copyright) -->
-            <div
-                style="margin-top: 10px; font-size: 0.85rem; color: var(--text-silver); display: flex; justify-content: center; align-items: center; gap: 5px;">
-                Made with <span id="secretHeart"
-                    style="cursor: default; font-size: 1.1rem; color: #000; transition: transform 0.2s; user-select: none;">🖤</span>
-                by RetroalienX 👽
+                <div class="footer-credit">
+                    Made with <span id="secretHeart" class="footer-heart">🖤</span> by RetroalienX 👽
+                </div>
             </div>
         </div>
     </footer>
 
-    <!-- MODAL SECRETO (Centrado) -->
-    <div id="secretModal"
-        style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 9999; align-items: center; justify-content: center;">
-        <div
-            style="background: var(--bg-card); border: 2px solid var(--text-main); border-radius: 12px; padding: 30px; max-width: 400px; width: 90%; text-align: center; box-shadow: 0 0 40px rgba(255,255,255,0.1);">
-            <p style="color: var(--text-main); font-size: 1.1rem; line-height: 1.6; margin-bottom: 20px;">
-                Made with love for our future.<br>
-                Always together, J&V 2026.<br>
-                I love you eternally. 🐺🦦
-            </p>
-            <button onclick="document.getElementById('secretModal').style.display='none'"
-                style="background: var(--text-main); color: var(--bg-black); border: none; padding: 10px 30px; border-radius: 6px; font-weight: 600; cursor: pointer;">Aceptar</button>
+    <div id="secretHeartModalOverlay" class="secret-modal-overlay">
+        <div class="secret-modal-box">
+            <p class="secret-modal-message">Made with love for our future.<br>Always together, J&amp;V 2026.<br>I
+                love you eternally. 🐺🦦</p>
+            <button type="button" id="btnAceptarSecretHeart" class="secret-modal-btn">Aceptar</button>
         </div>
     </div>
-
-    <!-- SCRIPT PARA LOS 5 CLICS -->
-    <script>
-        let heartClicks = 0;
-        let heartTimer = null;
-
-        document.getElementById('secretHeart').addEventListener('click', function () {
-            heartClicks++;
-            if (heartTimer) clearTimeout(heartTimer);
-            heartTimer = setTimeout(() => { heartClicks = 0; }, 2000);
-
-            // Efecto de rebote en el corazón (discreto)
-            this.style.transform = 'scale(1.2)';
-            setTimeout(() => { this.style.transform = 'scale(1)'; }, 150);
-
-            if (heartClicks >= 5) {
-                heartClicks = 0;
-                document.getElementById('secretModal').style.display = 'flex';
-            }
-        });
-    </script>
 
     <!-- WHATSAPP FLOAT -->
     <a href="https://wa.me/5218126878080" class="float-wa" target="_blank" aria-label="WhatsApp">
@@ -715,6 +708,7 @@
             <div class="info-row"><strong>Correo:</strong> <span id="modalEmailCliente"></span></div>
             <div class="info-row"><strong>Dirección:</strong> <span id="modalDireccionCliente"></span></div>
             <div class="info-row"><strong>Producto:</strong> <span id="modalProductoInfo"></span></div>
+            <div class="info-row"><strong>Lugar de entrega:</strong> <span id="modalLugarEntregaInfo"></span></div>
             <div class="info-row"><strong>Total:</strong> <span id="modalTotalInfo"
                     style="color: var(--regio-green); font-weight: 700;"></span></div>
             <div class="info-row"><strong>Método de pago:</strong> <span id="modalMetodoPagoInfo"></span></div>

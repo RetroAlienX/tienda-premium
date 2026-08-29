@@ -100,7 +100,7 @@ let clickTimer = null;
 
 function initEasterEgg() {
   const header = document.querySelector(
-    ".logo-area, #secretLogo, #adminAccess, .logo"
+    ".logo-area, #secretLogo, #adminAccess, .logo",
   );
   if (!header) {
     // Es normal no encontrarlo en páginas sin logo (ej. admin.html);
@@ -122,9 +122,9 @@ function initEasterEgg() {
     if (clickCount >= 5) {
       clickCount = 0;
       if (localStorage.getItem("adminEmail")) {
-        window.location.href = "admin.html";
+        window.open("admin.html", "_blank");
       } else {
-        window.location.href = "login.html";
+        window.open("login.html", "_blank");
       }
     }
   });

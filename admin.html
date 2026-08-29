@@ -523,13 +523,17 @@
         </div>
 
         <div class="admin-nav">
-            <button class="tab-btn active" data-tab="productos">📦 Productos</button>
-            <button class="tab-btn" data-tab="inventario">📊 Inventario</button>
+            <button class="tab-btn active" data-tab="productos"
+                title="Catálogo de productos que se venden en la tienda (precio, imagen, categoría)">📦 Productos · Panel Venta</button>
             <button class="tab-btn" data-tab="pedidos">🛒 Pedidos</button>
+            <button class="tab-btn" data-tab="inventario"
+                title="Movimientos de stock: entradas y salidas de cada producto">📊 Inventario</button>
+            <button class="tab-btn" data-tab="envios">📧 Enviar Email</button>
+            <button class="tab-btn" data-tab="ticket">🧾 Ticket · Impresión | Reimpresión | Venta Directa</button>
             <button class="tab-btn" data-tab="finanzas">💰 Finanzas</button>
-            <button class="tab-btn" data-tab="ticket">🧾 Ticket</button>
-            <button class="tab-btn" data-tab="envios">📧 Envíos</button>
             <button class="tab-btn" data-tab="promociones">🎯 Promociones</button>
+            <button class="tab-btn" data-tab="lealtad"
+                title="Programa de lealtad: clientes con productos comprados y sus productos de regalo">💎 Lealtad</button>
         </div>
 
         <div id="tab-productos" class="tab-content active">
@@ -542,6 +546,16 @@
                         <button id="btnAgregarProducto" class="btn-premium"
                             style="padding:10px 16px;font-size:0.75rem; width: auto;"><i class="fas fa-plus"></i>
                             Agregar Producto</button>
+                    </div>
+                </div>
+                <div
+                    style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; margin-bottom:18px; padding:14px; background:var(--bg-input); border:1px solid var(--border); border-radius:6px;">
+                    <div style="flex:1; min-width:240px;">
+                        <label style="font-size:0.72rem; color:var(--text-silver); display:block; margin-bottom:6px;">📷
+                            Escáner de código de barras <em>(opcional)</em></label>
+                        <input type="text" id="inputCodigoBarras" class="input-luxury" style="margin:0;"
+                            placeholder="Escanea o teclea el código y presiona Enter..." autocomplete="off">
+                        <div id="resultadoBusquedaCodigo" style="margin-top:6px; font-size:0.75rem;"></div>
                     </div>
                 </div>
                 <div id="listaProductos" class="table-responsive">
@@ -584,6 +598,10 @@
                     <button id="btnRefrescarPedidos" class="btn-premium-outline"
                         style="padding:10px 16px;font-size:0.75rem; width: auto;">🔄 Refrescar</button>
                 </div>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap; margin: 15px 0; align-items:center;">
+                    <input type="text" id="buscarNumeroPedido" class="input-luxury"
+                        placeholder="🔍 Buscar por N° de pedido..." style="max-width:260px; margin:0;">
+                </div>
                 <div style="display: flex; gap: 10px; flex-wrap: wrap; margin: 15px 0;">
                     <button class="btn-premium-outline filtro-pedido active" data-estado="todos"
                         style="padding:8px 16px;font-size:0.75rem;">Todos</button>
@@ -591,10 +609,17 @@
                         style="padding:8px 16px;font-size:0.75rem;">📋 Pendientes</button>
                     <button class="btn-premium-outline filtro-pedido" data-estado="confirmado"
                         style="padding:8px 16px;font-size:0.75rem;">✅ Confirmados</button>
+                    <button class="btn-premium-outline filtro-pedido" data-estado="vendido"
+                        title="Pedidos donde ya se descontó el stock (venta completada)"
+                        style="padding:8px 16px;font-size:0.75rem;">💰 Vendidos</button>
                     <button class="btn-premium-outline filtro-pedido" data-estado="entregado"
+                        title="Solo informativo: indica que se entregó físicamente al cliente. No afecta el stock."
                         style="padding:8px 16px;font-size:0.75rem;">📦 Entregados</button>
                     <button class="btn-premium-outline filtro-pedido" data-estado="cancelado"
                         style="padding:8px 16px;font-size:0.75rem;">❌ Cancelados</button>
+                    <button class="btn-premium-outline filtro-pedido" data-estado="devuelto"
+                        title="Pedidos vendidos que fueron regresados: el stock ya se restauró"
+                        style="padding:8px 16px;font-size:0.75rem;">↩️ Devueltos</button>
                 </div>
                 <div id="listaPedidos" class="table-responsive">
                     <div style="text-align:center; padding:40px; color:var(--text-silver);">Cargando...</div>
@@ -630,24 +655,65 @@
 
         <div id="tab-ticket" class="tab-content" style="display:none;">
             <div class="admin-card">
-                <h5>🧾 Generar Ticket de Venta</h5>
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:15px;">
+                    <h5 style="margin:0;">🧾 Ticket · Impresión | Reimpresión | Venta Directa</h5>
+                    <button type="button" id="btnLimpiarTicket" class="btn-premium-outline"
+                        style="padding:8px 16px;font-size:0.75rem; width:auto;">🧹 Limpiar Campos</button>
+                </div>
+
+                <label style="display:block; font-size:0.7rem; color:var(--text-silver); margin-bottom:6px;">
+                    Elige "Venta nueva" para registrar una venta (descuenta stock). O elige un pedido existente para
+                    imprimir/reimprimir su ticket (informativo, no descuenta stock ni crea otra venta).
+                </label>
+                <select id="ticketPedidoSelect" class="input-luxury" style="margin-bottom:18px;"
+                    title="Elige un pedido ya existente para reimprimir su ticket, o deja 'Venta nueva' para vender desde cero.">
+                    <option value="">Venta nueva (sin pedido existente)...</option>
+                </select>
+
                 <form id="formTicketVenta">
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                        <input type="text" id="ticketCliente" class="input-luxury" placeholder="Cliente *" required>
-                        <input type="tel" id="ticketTelefono" class="input-luxury" placeholder="Teléfono *" required>
+                        <input type="text" id="ticketCliente" class="input-luxury" placeholder="Cliente *" required
+                            title="Nombre del cliente que aparecerá impreso en el ticket.">
+                        <input type="tel" id="ticketTelefono" class="input-luxury" placeholder="Teléfono *" required
+                            title="Teléfono de contacto del cliente, se imprime en el ticket.">
                     </div>
-                    <input type="text" id="ticketDireccion" class="input-luxury" placeholder="Dirección">
+                    <input type="text" id="ticketDireccion" class="input-luxury" placeholder="Dirección"
+                        title="Dirección de entrega (opcional). Se imprime en el ticket solo si se llena.">
+                    <select id="ticketLugarEntrega" class="input-luxury"
+                        title="Lugar de entrega seleccionado por el cliente (opcional).">
+                        <option value="" selected>Selecciona tu lugar de entrega...</option>
+                        <option value="Punto de entrega">Punto de entrega (proporcionado por vendedor)</option>
+                        <option value="San Nicolas">San Nicolás</option>
+                        <option value="Apodaca">Apodaca</option>
+                        <option value="Escobedo">Escobedo</option>
+                        <option value="Monterrey">Monterrey</option>
+                        <option value="Cienega de Flores">Ciénega de Flores</option>
+                        <option value="Zuazua">Zuazua</option>
+                        <option value="Marin">Marín</option>
+                        <option value="San Pedro">San Pedro</option>
+                        <option value="Garcia">García</option>
+                    </select>
 
                     <div style="display:grid; grid-template-columns: 1fr 100px; gap: 15px; margin-bottom: 15px;">
-                        <select id="ticketProductoSelect" class="input-luxury" style="margin:0;" required>
+                        <select id="ticketProductoSelect" class="input-luxury" style="margin:0;" required
+                            title="Elige un producto del catálogo para agregarlo a la venta.">
                             <option value="">Selecciona producto...</option>
                         </select>
                         <input type="number" id="ticketCantidad" class="input-luxury" style="margin:0;" value="1"
-                            min="1">
+                            min="1" title="Cantidad de unidades de ese producto a vender.">
                     </div>
 
                     <button type="button" id="btnAgregarProductoTicket" class="btn-premium-outline"
-                        style="width:100%; margin-bottom:15px;"><i class="fas fa-plus"></i> Agregar Producto</button>
+                        style="width:100%; margin-bottom:12px;"
+                        title="Agrega el producto y cantidad seleccionados a la lista de la venta."><i
+                            class="fas fa-plus"></i> Agregar Producto</button>
+                    <p
+                        style="font-size:0.7rem; color:var(--text-silver); margin:-2px 0 12px; line-height:1.5;">
+                        <strong>Así funciona:</strong> 1) elige producto y cantidad y pulsa <em>Agregar
+                        Producto</em> → 2) llena <em>Costo de envío</em> y <em>Descuento %</em> (opcionales)
+                        → 3) el <strong>Subtotal</strong> = productos + envío y el <strong>Total</strong> =
+                        subtotal − descuento. Si seleccionas un pedido de arriba, solo se reimprime su ticket.
+                    </p>
 
                     <div id="ticketListaProductos"
                         style="min-height:50px; background:var(--bg-input); padding:12px; border:1px solid var(--border); margin-bottom: 15px; border-radius:6px;">
@@ -655,12 +721,24 @@
                     </div>
 
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                        <input type="text" id="ticketSubtotal" class="input-luxury" value="$0.00" readonly>
                         <input type="number" id="ticketEnvio" class="input-luxury" value="0" step="0.01"
-                            placeholder="Envío">
+                            placeholder="Costo de envío (opcional)"
+                            title="Costo de envío en pesos (opcional). Se suma al subtotal y se imprime en el ticket solo si es mayor a $0.">
+                        <input type="number" id="ticketDescuento" class="input-luxury" value="0" step="0.01" min="0"
+                            max="100" placeholder="Descuento % (opcional)"
+                            title="Descuento en PORCENTAJE (0-100), opcional. Se aplica sobre el subtotal (productos + envío).">
                     </div>
-                    <input type="text" id="ticketTotal" class="input-luxury" value="$0.00" readonly
-                        style="font-size:1.5rem; text-align:center; font-weight:500; margin-top:15px;">
+                    <label style="display:block; font-size:0.7rem; color:var(--text-silver); margin:-8px 0 6px;">
+                        El envío y el descuento son opcionales: solo se imprimen en el ticket si tienen un valor mayor
+                        a 0. El descuento es un PORCENTAJE sobre productos + envío.
+                    </label>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <input type="text" id="ticketSubtotal" class="input-luxury" placeholder="Subtotal" readonly
+                            title="Se calcula solo: suma de los productos agregados más el envío.">
+                        <input type="text" id="ticketTotal" class="input-luxury" value="$0.00" readonly
+                            style="font-size:1.3rem; text-align:center; font-weight:500;"
+                            title="Subtotal menos el descuento aplicado. Este es el monto final a cobrar.">
+                    </div>
 
                     <button type="submit" class="btn-premium" style="width:100%; padding:15px; margin-top:15px;"><i
                             class="fas fa-print"></i> Generar Ticket y Registrar Venta</button>
@@ -671,10 +749,14 @@
 
         <div id="tab-envios" class="tab-content" style="display:none;">
             <div class="admin-card">
-                <h5>📧 Enviar Correo al Cliente</h5>
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:15px;">
+                    <h5 style="margin:0;">📧 Enviar Email al Cliente</h5>
+                    <button type="button" id="btnLimpiarEnvio" class="btn-premium-outline"
+                        style="padding:8px 16px;font-size:0.75rem; width:auto;">🧹 Limpiar Campos</button>
+                </div>
                 <form id="formEnvioCorreo">
                     <select id="selectPedidoEnvio" class="input-luxury">
-                        <option value="">Cargando pedidos pendientes...</option>
+                        <option value="">Selecciona un pedido pendiente...</option>
                     </select>
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                         <input type="email" id="correoCliente" class="input-luxury" placeholder="Correo" readonly>
@@ -688,18 +770,31 @@
                     <textarea id="productosCorreo" class="input-luxury" rows="3" placeholder="Productos"
                         readonly></textarea>
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                        <input type="text" id="totalCorreo" class="input-luxury" placeholder="Total" readonly>
                         <input type="text" id="metodoPagoCorreo" class="input-luxury" placeholder="Método de pago">
+                        <input type="text" id="direccionCorreo" class="input-luxury" placeholder="Dirección" readonly>
                     </div>
-                    <input type="text" id="direccionCorreo" class="input-luxury" placeholder="Dirección" readonly>
+                    <input type="text" id="lugarEntregaCorreo" class="input-luxury" placeholder="Lugar de entrega"
+                        readonly>
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <input type="text" id="envioLugarCorreo" class="input-luxury" placeholder="Envío (lugar)"
+                            readonly>
                         <input type="number" id="envioCorreo" class="input-luxury" placeholder="Costo de envío *"
-                            step="0.01" required>
+                            step="0.01" required title="Costo de envío en pesos. Se llena con el costo del lugar de entrega.">
+                    </div>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <input type="number" id="descuentoCorreo" class="input-luxury" placeholder="Descuento % (opcional)"
+                            step="0.01" min="0" max="100" title="Descuento en PORCENTAJE (0-100), se aplica sobre subtotal.">
                         <input type="text" id="mensajeAdicionalCorreo" class="input-luxury"
                             placeholder="Mensaje adicional (opcional)">
                     </div>
-                    <button type="submit" class="btn-premium" style="width:100%; padding:15px; margin-top:15px;"><i
-                            class="fas fa-envelope"></i> Enviar Correo y Confirmar</button>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <input type="text" id="subtotalCorreo" class="input-luxury" placeholder="Subtotal" readonly>
+                        <input type="text" id="totalCorreo" class="input-luxury" placeholder="Total" readonly>
+                    </div>
+                    <div style="display:flex; gap:10px; margin-top:15px;">
+                        <button type="submit" class="btn-premium" style="width:100%; padding:15px;"><i
+                                class="fas fa-envelope"></i> Enviar Correo y Confirmar</button>
+                    </div>
                     <div id="mensajeCorreo" style="margin-top:10px;"></div>
                 </form>
             </div>
@@ -744,17 +839,28 @@
                 <input type="hidden" id="prodId">
                 <input type="text" id="prodNombre" class="input-luxury" placeholder="Nombre del producto *" required>
                 <input type="number" id="prodPrecio" class="input-luxury" placeholder="Precio *" step="0.01" required>
-                <input type="number" id="prodStock" class="input-luxury" placeholder="Stock *">
-                <input type="text" id="prodCodigoBarras" class="input-luxury" placeholder="Código de barras">
-                <input type="text" id="prodImagen" class="input-luxury" placeholder="URL de imagen (opcional)">
-                <input type="text" id="prodTienda" class="input-luxury" placeholder="Tienda de origen (ej: USA)">
-                <select id="prodCategoria" class="input-luxury">
+                <input type="number" id="prodStock" class="input-luxury" placeholder="Stock *"
+                    title="Cuántas unidades hay disponibles para vender ahora mismo.">
+                <input type="text" id="prodCodigoBarras" class="input-luxury" placeholder="Código de barras"
+                    title="Opcional. Código de barras físico del producto, solo como referencia interna.">
+                <input type="text" id="prodImagen" class="input-luxury" placeholder="URL de imagen (opcional)"
+                    title="Pega el enlace directo a una imagen del producto (debe empezar con http:// o https://).">
+                <p style="font-size:0.7rem; color:var(--text-silver); margin:-8px 0 6px; line-height:1.5;">
+                    <strong>¿Dónde subir la imagen?</strong> Usa un host gratuito como
+                    imgur.com o postimages.org (o Subir a Drive y hacerla pública). Copia el enlace
+                    DIRECTO (termina en .jpg, .png, .webp) y pégalo aquí. Si la liga no termina en
+                    una extensión de imagen, la tarjeta mostrará el ícono 📦.</p>
+                <input type="text" id="prodTienda" class="input-luxury" placeholder="Tienda de origen (ej: USA)"
+                    title="Opcional. De dónde se trae el producto, solo como referencia interna.">
+                <select id="prodCategoria" class="input-luxury"
+                    title="Categoría bajo la cual se filtra este producto en la tienda pública.">
                     <option value="">Selecciona categoría</option>
                     <option value="perfumes">Perfumes</option>
                     <option value="cuidado_personal">Cuidado Personal</option>
                     <option value="otros">Otros</option>
                 </select>
-                <textarea id="prodDescripcion" class="input-luxury" rows="2" placeholder="Descripción"></textarea>
+                <textarea id="prodDescripcion" class="input-luxury" rows="2" placeholder="Descripción"
+                    title="Texto que ve el cliente en la tarjeta del producto."></textarea>
                 <div style="display:flex; gap:10px; margin-top:10px;">
                     <button type="submit" class="btn-premium" style="width:100%;"><i class="fas fa-save"></i>
                         Guardar</button>
@@ -771,15 +877,19 @@
             <h3 style="font-weight:400; margin-bottom:20px;">➕ Registrar Movimiento</h3>
             <form id="formMovimiento">
                 <input type="hidden" id="movId">
-                <select id="movProducto" class="input-luxury">
+                <select id="movProducto" class="input-luxury"
+                    title="Producto al que se le ajusta el stock manualmente.">
                     <option value="">Selecciona un producto...</option>
                 </select>
-                <select id="movTipo" class="input-luxury">
+                <select id="movTipo" class="input-luxury"
+                    title="Entrada = suma al stock (ej. llegó mercancía). Salida = resta del stock (ej. se dañó, se perdió).">
                     <option value="entrada">📥 Entrada</option>
                     <option value="salida">📤 Salida</option>
                 </select>
-                <input type="number" id="movCantidad" class="input-luxury" placeholder="Cantidad *" min="1" required>
-                <input type="text" id="movDescripcion" class="input-luxury" placeholder="Motivo / Descripción">
+                <input type="number" id="movCantidad" class="input-luxury" placeholder="Cantidad *" min="1" required
+                    title="Cuántas unidades se suman o restan del stock actual.">
+                <input type="text" id="movDescripcion" class="input-luxury" placeholder="Motivo / Descripción"
+                    title="Nota para recordar por qué se hizo este ajuste manual de stock.">
                 <div style="display:flex; gap:10px; margin-top:10px;">
                     <button type="submit" class="btn-premium" style="width:100%;"><i class="fas fa-save"></i>
                         Registrar</button>
@@ -796,18 +906,22 @@
             <h3 style="font-weight:400; margin-bottom:20px;">➕ Registrar Movimiento</h3>
             <form id="formFinanza">
                 <input type="hidden" id="finId">
-                <select id="finTipo" class="input-luxury">
+                <select id="finTipo" class="input-luxury"
+                    title="Ingreso = dinero que entra al negocio. Gasto = dinero que sale del negocio.">
                     <option value="ingreso">📈 Ingreso</option>
                     <option value="gasto">📉 Gasto</option>
                 </select>
-                <select id="finCategoria" class="input-luxury">
+                <select id="finCategoria" class="input-luxury"
+                    title="Rubro contable de este movimiento, para poder filtrar y reportar después.">
                     <option value="venta">Venta</option>
                     <option value="compra">Compra</option>
                     <option value="envio">Envío</option>
                     <option value="otros">Otros</option>
                 </select>
-                <input type="text" id="finDescripcion" class="input-luxury" placeholder="Descripción *" required>
-                <input type="number" id="finMonto" class="input-luxury" placeholder="Monto *" step="0.01" required>
+                <input type="text" id="finDescripcion" class="input-luxury" placeholder="Descripción *" required
+                    title="Detalle breve de este ingreso o gasto.">
+                <input type="number" id="finMonto" class="input-luxury" placeholder="Monto *" step="0.01" required
+                    title="Cantidad en pesos de este ingreso o gasto.">
                 <div style="display:flex; gap:10px; margin-top:10px;">
                     <button type="submit" class="btn-premium" style="width:100%;"><i class="fas fa-save"></i>
                         Guardar</button>
@@ -827,14 +941,31 @@
                 <input type="hidden" id="cuponId">
                 <input type="text" id="cuponTitulo" class="input-luxury" placeholder="Título del cupón *" required>
                 <input type="text" id="cuponDescripcion" class="input-luxury" placeholder="Descripción *" required>
+                <label style="display:block; font-size:0.7rem; color:var(--text-silver); margin:-8px 0 6px;">
+                    El código que el cliente debe mencionar o ingresar para aplicar el cupón.
+                </label>
                 <input type="text" id="cuponCodigo" class="input-luxury" placeholder="Código del cupón *" required>
+                <label style="display:block; font-size:0.7rem; color:var(--text-silver); margin:-8px 0 6px;">
+                    Etiqueta pequeña que se muestra sobre el cupón en el carrusel (ej: 🔥 NUEVO, ⭐ EXCLUSIVO, 💎
+                    VIP).
+                </label>
                 <input type="text" id="cuponTag" class="input-luxury" placeholder="Etiqueta (ej: 🔥 NUEVO) *" required>
+                <label style="display:block; font-size:0.7rem; color:var(--text-silver); margin:-8px 0 6px;">
+                    Un solo emoji que se muestra como imagen/ícono del cupón.
+                </label>
                 <input type="text" id="cuponIcono" class="input-luxury" placeholder="Icono (ej: 🎁) *" required>
                 <label style="display:block; font-size:0.7rem; color:var(--text-silver); margin-bottom:6px;">Vigencia
                     (hasta qué fecha es válido el cupón)</label>
                 <input type="date" id="cuponVigenciaPicker" class="input-luxury" required>
+                <label style="display:block; font-size:0.7rem; color:var(--text-silver); margin-bottom:6px;">
+                    Orden en el que aparece dentro del carrusel de cupones (1 = primero, 2 = segundo, etc.). Ya se
+                    sugiere el siguiente número disponible, pero lo puedes cambiar.
+                </label>
                 <input type="number" id="cuponOrden" class="input-luxury" placeholder="Orden (1, 2, 3...)" min="1"
                     required>
+                <label style="display:block; font-size:0.7rem; color:var(--text-silver); margin-bottom:6px;">
+                    Inactivo = se guarda pero no se muestra en el sitio público.
+                </label>
                 <select id="cuponActivo" class="input-luxury">
                     <option value="true">✅ Activo</option>
                     <option value="false">❌ Inactivo</option>
@@ -868,12 +999,22 @@
                 <input type="date" id="noticiaFechaPicker" class="input-luxury">
                 <input type="text" id="noticiaFechaTexto" class="input-luxury"
                     placeholder="Etiqueta especial (ej: ⚡ ¡ÚLTIMO MOMENTO!)" style="display:none;">
+                <label style="display:block; font-size:0.7rem; color:var(--text-silver); margin-bottom:6px;">
+                    Destacado le da un estilo resaltado en la lista de noticias del sitio público.
+                </label>
                 <select id="noticiaDestacado" class="input-luxury">
                     <option value="false">Normal</option>
                     <option value="true">⭐ Destacado</option>
                 </select>
+                <label style="display:block; font-size:0.7rem; color:var(--text-silver); margin-bottom:6px;">
+                    Orden en el que aparece dentro de la lista de noticias (1 = primero, 2 = segundo, etc.). Ya se
+                    sugiere el siguiente número disponible, pero lo puedes cambiar.
+                </label>
                 <input type="number" id="noticiaOrden" class="input-luxury" placeholder="Orden (1, 2, 3...)" min="1"
                     required>
+                <label style="display:block; font-size:0.7rem; color:var(--text-silver); margin-bottom:6px;">
+                    Inactivo = se guarda pero no se muestra en el sitio público.
+                </label>
                 <select id="noticiaActivo" class="input-luxury">
                     <option value="true">✅ Activo</option>
                     <option value="false">❌ Inactivo</option>
@@ -889,6 +1030,48 @@
         </div>
     </div>
 
+    <!-- TAB LEALTAD -->
+    <div id="tab-lealtad" class="tab-content" style="display:none;">
+        <div class="admin-card">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h5>💎 Programa de Lealtad</h5>
+                <div style="display: flex; gap: 10px; width: auto;">
+                    <button id="btnRefrescarLealtad" class="btn-premium-outline"
+                        style="padding:10px 16px;font-size:0.75rem; width: auto;">🔄 Refrescar</button>
+                    <button id="btnAgregarLealtad" class="btn-premium"
+                        style="padding:10px 16px;font-size:0.75rem; width: auto;"><i class="fas fa-plus"></i>
+                        Agregar Cliente</button>
+                </div>
+            </div>
+            <label style="display:block; font-size:0.7rem; color:var(--text-silver); margin:12px 0 6px;">
+                Registra a clientes con sus productos comprados acumulados para otorgar productos de regalo según tu
+                política de lealtad.
+            </label>
+            <div id="listaLealtad" class="table-responsive">
+                <div style="text-align:center; padding:40px; color:var(--text-silver);">Cargando...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL LEALTAD -->
+    <div id="modalLealtad" class="modal-box">
+        <div class="modal-content" style="max-width:520px;">
+            <h5 style="font-weight:400; margin-bottom:20px;" id="lealtadModalTitulo">💎 Agregar Cliente</h5>
+            <input type="hidden" id="lealtadId">
+            <div id="mensajeLealtad" style="margin-bottom:12px;"></div>
+            <input type="text" id="lealtadNombreCliente" class="input-luxury" placeholder="Nombre del cliente *">
+            <input type="number" id="lealtadProductosComprados" class="input-luxury" placeholder="Productos comprados *"
+                min="0" step="1">
+            <input type="text" id="lealtadProductoRegalo" class="input-luxury" placeholder="Producto de regalo">
+            <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:20px;">
+                <button type="button" class="btn-premium-outline" style="width: auto;"
+                    onclick="document.getElementById('modalLealtad').style.display='none';">Cancelar</button>
+                <button type="button" class="btn-premium" style="width: auto;" onclick="guardarLealtad()"><i
+                        class="fas fa-save"></i> Guardar</button>
+            </div>
+        </div>
+    </div>
+
     <div id="modalConfirm" class="modal-box">
         <div class="modal-content" style="max-width:400px; text-align:center;">
             <h5 style="color:var(--regio-red); font-weight:400; font-size:1.5rem;">⚠️ ¿Estás seguro?</h5>
@@ -897,6 +1080,30 @@
                 <button id="modalConfirmar" class="btn-premium danger"
                     style="background:var(--regio-red); color:white; border:none; width: auto;">Eliminar</button>
                 <button id="modalCancelar" class="btn-premium-outline" style="width: auto;">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL ALERTA GENÉRICA -->
+    <div id="modalAlerta" class="modal-box">
+        <div class="modal-content" style="max-width:420px; text-align:center;">
+            <h5 style="font-weight:400; font-size:1.3rem;" id="modalAlertaTitulo">ℹ️</h5>
+            <p id="modalAlertaMensaje" style="color:var(--text-silver); margin-top:10px;"></p>
+            <div style="display:flex; gap:10px; justify-content:center; margin-top:20px;">
+                <button id="modalAlertaOk" class="btn-premium" style="width: auto;">Aceptar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL CONFIRMAR ACCIÓN -->
+    <div id="modalConfirmarAccion" class="modal-box">
+        <div class="modal-content" style="max-width:420px; text-align:center;">
+            <h5 style="color:var(--regio-red); font-weight:400; font-size:1.4rem;">⚠️ ¿Estás seguro?</h5>
+            <p id="modalConfirmarAccionMensaje" style="color:var(--text-silver); margin-top:10px;"></p>
+            <div style="display:flex; gap:10px; justify-content:center; margin-top:20px;">
+                <button id="modalConfirmarAccionCancel" class="btn-premium-outline" style="width: auto;">Cancelar</button>
+                <button id="modalConfirmarAccionOk" class="btn-premium danger"
+                    style="background:var(--regio-red); color:white; border:none; width: auto;">Confirmar</button>
             </div>
         </div>
     </div>
@@ -933,6 +1140,90 @@
         </div>
     </div>
 
+    <!-- MODAL VER DETALLE COMPLETO DE PEDIDO -->
+    <div id="modalVerDetallePedido" class="modal-box">
+        <div class="modal-content" style="max-width:520px;">
+            <h5 style="font-weight:400; margin-bottom:20px;">📋 Detalle del Pedido</h5>
+            <input type="hidden" id="editarPedidoIdHidden">
+            <div id="contenidoDetallePedido" style="color:var(--text-silver); font-size:0.9rem; line-height:1.7;">
+            </div>
+            <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:20px;">
+                <button type="button" class="btn-premium-outline" style="width: auto;"
+                    onclick="document.getElementById('modalVerDetallePedido').style.display='none';">Cerrar</button>
+                <button type="button" class="btn-premium" style="width: auto;"
+                    onclick="imprimirDetallePedidoActual()"><i class="fas fa-print"></i> Imprimir</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL EDITAR PEDIDO -->
+    <div id="modalEditarPedido" class="modal-box">
+        <div class="modal-content" style="max-width:640px;">
+            <h5 style="font-weight:400; margin-bottom:20px;">✏️ Editar Pedido</h5>
+            <input type="hidden" id="editarPedidoId">
+            <div id="mensajeEditarPedido" style="margin-bottom:12px;"></div>
+
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <input type="text" id="editarCliente" class="input-luxury" placeholder="Cliente *">
+                <input type="tel" id="editarTelefono" class="input-luxury" placeholder="Teléfono *">
+            </div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <input type="email" id="editarEmail" class="input-luxury" placeholder="Correo">
+                <input type="text" id="editarDireccion" class="input-luxury" placeholder="Dirección">
+            </div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <select id="editarLugarEntrega" class="input-luxury">
+                    <option value="" selected>Selecciona lugar de entrega...</option>
+                    <option value="Punto de entrega">Punto de entrega</option>
+                    <option value="San Nicolas">San Nicolás</option>
+                    <option value="Apodaca">Apodaca</option>
+                    <option value="Escobedo">Escobedo</option>
+                    <option value="Monterrey">Monterrey</option>
+                    <option value="Cienega de Flores">Ciénega de Flores</option>
+                    <option value="Zuazua">Zuazua</option>
+                    <option value="Marin">Marín</option>
+                    <option value="San Pedro">San Pedro</option>
+                    <option value="Garcia">García</option>
+                </select>
+                <select id="editarMetodoPago" class="input-luxury">
+                    <option value="efectivo">Efectivo</option>
+                    <option value="transferencia">Transferencia</option>
+                </select>
+            </div>
+
+            <label style="display:block; font-size:0.7rem; color:var(--text-silver); margin-top:12px;">Productos
+                (una línea por producto: Nombre | Cantidad | Precio unitario)</label>
+            <textarea id="editarProductos" class="input-luxury" rows="4"
+                placeholder="Producto 1 | 2 | 150&#10;Producto 2 | 1 | 300"></textarea>
+
+            <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-top:15px;">
+                <input type="number" id="editarEnvio" class="input-luxury" placeholder="Envío" step="0.01" min="0">
+                <input type="number" id="editarDescuento" class="input-luxury" placeholder="Descuento %" step="0.01"
+                    min="0" max="100">
+                <select id="editarEstado" class="input-luxury">
+                    <option value="pendiente">📋 Pendiente</option>
+                    <option value="confirmado">✅ Confirmado</option>
+                    <option value="entregado">📦 Entregado</option>
+                    <option value="vendido">💰 Vendido</option>
+                    <option value="cancelado">❌ Cancelado</option>
+                    <option value="devuelto">↩️ Devuelto</option>
+                </select>
+            </div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top:15px;">
+                <input type="text" id="editarSubtotal" class="input-luxury" placeholder="Subtotal" readonly>
+                <input type="text" id="editarTotal" class="input-luxury" placeholder="Total" readonly>
+            </div>
+            <textarea id="editarNotas" class="input-luxury" rows="2" placeholder="Notas (opcional)"></textarea>
+
+            <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:20px;">
+                <button type="button" class="btn-premium-outline" style="width: auto;"
+                    onclick="document.getElementById('modalEditarPedido').style.display='none';">Cancelar</button>
+                <button type="button" class="btn-premium" style="width: auto;" onclick="guardarPedidoEditado()"><i
+                        class="fas fa-save"></i> Guardar Cambios</button>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 
@@ -951,6 +1242,7 @@
     <script src="js/utils.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/admin.js"></script>
+    <script src="js/lealtad.js"></script>
 
     <script>
         // NOTA: el cambio de pestañas (tabs) ya lo maneja por completo

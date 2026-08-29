@@ -11,6 +11,19 @@ let eliminarTipo = null;
 // VARIABLES PARA TICKET
 // ============================================
 let ticketProductos = [];
+let pedidoTicketPrecargado = null;
+
+// Abre una ventana emergente centrada en la pantalla (en vez de la esquina
+// superior izquierda, que es donde el navegador la pone por defecto).
+function abrirVentanaCentrada(url, width, height) {
+  const left = Math.max(0, (window.screen.width - width) / 2);
+  const top = Math.max(0, (window.screen.height - height) / 2);
+  return window.open(
+    url,
+    "_blank",
+    `width=${width},height=${height},left=${left},top=${top}`,
+  );
+}
 let productosDisponibles = [];
 
 // 🔥 CONFIGURACIÓN DE EMAILJS (GMAIL CONECTADO)
@@ -39,20 +52,20 @@ function agregarEventoRefrescar(id, callback, tabId) {
   }
 
   btn.addEventListener("click", function () {
-    const tabContent = document.getElementById(tabId);
-    if (!tabContent || tabContent.style.display === "none") {
-      console.log(`ℹ️ La pestaña ${tabId} no está activa, omitiendo refresco`);
-      return;
-    }
-
+    // El botón solo es visible si su pestaña está activa, así que SIEMPRE
+    // ejecutamos el refresco. (Antes se omitía si display === "none", lo que
+    // dejaba el botón sin efecto en algunos casos.)
     const originalText = this.innerHTML;
     this.disabled = true;
     this.innerHTML = "⏳ Cargando...";
 
-    Promise.resolve(callback()).finally(() => {
-      this.disabled = false;
-      this.innerHTML = originalText;
-    });
+    Promise.resolve()
+      .then(() => callback())
+      .catch((e) => console.error("Error al refrescar", e))
+      .finally(() => {
+        this.disabled = false;
+        this.innerHTML = originalText;
+      });
   });
 }
 
@@ -157,7 +170,7 @@ async function verProductosSinStock() {
     if (error) throw error;
 
     if (!data || data.length === 0) {
-      alert("✅ Todos los productos tienen stock disponible.");
+      mostrarModalAlerta("✅ Todos los productos tienen stock disponible.");
       return;
     }
 
@@ -171,10 +184,10 @@ async function verProductosSinStock() {
       mensaje += `   📂 ${p.categoria || "Sin categoría"}\n\n`;
     });
 
-    alert(mensaje);
+    mostrarModalAlerta(mensaje, "📦 Productos sin stock");
   } catch (error) {
     console.error("Error:", error);
-    alert("❌ Error al cargar productos sin stock");
+    mostrarModalAlerta("❌ Error al cargar productos sin stock");
   }
 }
 
@@ -190,7 +203,7 @@ async function cargarPedidosPendientes() {
     const { data, error } = await window.supabase
       .from("pedidos")
       .select(
-        "id, numero_pedido, cliente_nombre, cliente_telefono, cliente_email, productos, total, direccion_entrega"
+        "id, numero_pedido, cliente_nombre, cliente_telefono, cliente_email, productos, total, direccion_entrega, costo_envio, lugar_entrega, metodo_pago, descuento",
       )
       .eq("estado", "pendiente")
       .order("fecha_pedido", { ascending: false });
@@ -218,7 +231,11 @@ async function cargarPedidosPendientes() {
                         data-numero="${p.numero_pedido || "N/A"}"
                         data-productos='${JSON.stringify(p.productos)}'
                         data-total="${p.total}"
-                        data-direccion="${p.direccion_entrega || ""}">
+                        data-direccion="${p.direccion_entrega || ""}"
+                        data-costoenvio="${p.costo_envio || 0}"
+                        data-lugarentrega="${p.lugar_entrega || ""}"
+                        data-descuento="${p.descuento || 0}"
+                        data-metodopago="${p.metodo_pago || ""}">
                     ${p.numero_pedido} - ${p.cliente_nombre} (${productosText})
                 </option>
             `;
@@ -245,21 +262,64 @@ async function cargarPedidosPendientes() {
               (p) =>
                 `${p.nombre} x${p.cantidad} = $${(
                   p.precio * p.cantidad
-                ).toFixed(2)}`
+                ).toFixed(2)}`,
             )
             .join("\n");
           document.getElementById("productosCorreo").value = productosText;
         } catch (e) {
           document.getElementById("productosCorreo").value = "";
         }
+const costoEnvio = parseFloat(option.dataset.costoenvio || 0) || 0;
+        const lugar = option.dataset.lugarentrega || "";
 
-        document.getElementById("totalCorreo").value = option.dataset.total
-          ? `$${parseFloat(option.dataset.total).toFixed(2)}`
+        // Envío (lugar) + Costo de envío (prellenado con el costo del pedido)
+        document.getElementById("envioLugarCorreo").value = lugar
+          ? `${lugar} · $${costoEnvio.toFixed(2)}`
           : "";
+        document.getElementById("envioCorreo").value =
+          costoEnvio > 0 ? costoEnvio : "";
+
+        document.getElementById("lugarEntregaCorreo").value = lugar || "";
+
+        // Subtotal = suma de PRODUCTOS (sin signo negativo, el descuento
+        // se resta solo al calcular el total).
+        let subtotalProductos = 0;
+        try {
+          const productos = JSON.parse(option.dataset.productos || "[]");
+          subtotalProductos = (productos || []).reduce(
+            (s, x) => s + (Number(x.precio) || 0) * (Number(x.cantidad) || 0),
+            0,
+          );
+        } catch (e) {
+          subtotalProductos = 0;
+        }
+        document.getElementById("subtotalCorreo").value =
+          `$${subtotalProductos.toFixed(2)}`;
+        document.getElementById("descuentoCorreo").value =
+          option.dataset.descuento || 0;
+
+        // Total = subtotal + envío − descuento %
+        if (typeof recalcularTotalCorreo === "function") {
+          recalcularTotalCorreo();
+        } else {
+          const totalBase = subtotalProductos + costoEnvio;
+          const descuentoPct = parseFloat(option.dataset.descuento || 0) || 0;
+          const totalFinal =
+            totalBase - totalBase * (descuentoPct / 100);
+          document.getElementById("totalCorreo").value =
+            `$${totalFinal.toFixed(2)}`;
+        }
+
+        document.getElementById("metodoPagoCorreo").value =
+          option.dataset.metodopago === "transferencia"
+            ? "Transferencia"
+            : option.dataset.metodopago
+              ? option.dataset.metodopago
+              : "";
 
         const msg = document.getElementById("mensajeCorreo");
         if (msg) {
-          msg.innerHTML = `<span class="text-success">✅ Pedido ${option.dataset.numero} seleccionado. Solo agrega el costo de envío.</span>`;
+          msg.innerHTML = `<span class="text-success">✅ Pedido ${option.dataset.numero} seleccionado.</span>`;
           msg.className = "mensaje-exito";
         }
       }
@@ -274,10 +334,25 @@ async function cargarPedidosPendientes() {
 // ABRIR MODAL PARA ENVIAR CORREO DESDE PEDIDOS
 // ============================================
 
+function recalcularTotalCorreo() {
+  const subtotalEl = document.getElementById("subtotalCorreo");
+  const totalEl = document.getElementById("totalCorreo");
+  const envioEl = document.getElementById("envioCorreo");
+  const descuentoEl = document.getElementById("descuentoCorreo");
+  if (!totalEl || !subtotalEl) return;
+  const subtotal =
+    parseFloat((subtotalEl.value || "$0").replace(/[$,]/g, "")) || 0;
+  const envio = envioEl ? parseFloat(envioEl.value || 0) || 0 : 0;
+  const descuento = descuentoEl ? parseFloat(descuentoEl.value || 0) || 0 : 0;
+  const base = subtotal + envio;
+  const total = base - base * (descuento / 100);
+  totalEl.value = `$${total.toFixed(2)}`;
+}
+
 function abrirModalCorreo(pedidoId) {
   const row = document.querySelector(`tr[data-pedido-id="${pedidoId}"]`);
   if (!row) {
-    alert("❌ No se encontraron datos del pedido");
+    mostrarModalAlerta("❌ No se encontraron datos del pedido");
     return;
   }
 
@@ -312,8 +387,8 @@ function abrirModalCorreo(pedidoId) {
     !modalProductos
   ) {
     console.error("❌ Elementos del modal no encontrados");
-    alert(
-      "Error al abrir el modal. Verifica que el modal esté cargado correctamente."
+    mostrarModalAlerta(
+      "Error al abrir el modal. Verifica que el modal esté cargado correctamente.",
     );
     return;
   }
@@ -333,7 +408,7 @@ function abrirModalCorreo(pedidoId) {
     const productosText = productosParsed
       .map(
         (p) =>
-          `${p.nombre} x${p.cantidad} = $${(p.precio * p.cantidad).toFixed(2)}`
+          `${p.nombre} x${p.cantidad} = $${(p.precio * p.cantidad).toFixed(2)}`,
       )
       .join("\n");
     modalProductos.value = productosText;
@@ -382,9 +457,9 @@ async function enviarCorreoDesdeModal() {
     console.warn("⚠️ El pedido no tiene correo, usando correo del admin");
   }
 
-  if (!envio || parseFloat(envio) <= 0) {
+  if (envio === "" || isNaN(parseFloat(envio))) {
     mensaje.innerHTML =
-      '<span class="text-danger">❌ Ingresa un costo de envío válido</span>';
+      '<span class="text-danger">❌ Ingresa un costo de envío válido (usa 0 si es punto de entrega)</span>';
     return;
   }
 
@@ -419,6 +494,9 @@ async function enviarCorreoDesdeModal() {
 
     total = total.replace(/[$,]/g, "");
     const envioNum = envio.replace(/[$,]/g, "");
+    const subtotalModal = items
+      .reduce((s, i) => s + (parseFloat(i.precio) || 0), 0)
+      .toFixed(2);
 
     const params = {
       cliente: nombre,
@@ -431,14 +509,15 @@ async function enviarCorreoDesdeModal() {
         minute: "2-digit",
       }),
       productos: items,
+      subtotal: subtotalModal,
       total: total,
       metodo_pago: "Transferencia / Efectivo",
       direccion: direccion || "No especificada",
-      envio: envioNum,
+      envio: parseFloat(envioNum) > 0 ? envioNum : "",
       mensaje_adicional:
         mensajeAdicional ||
         `El costo de envío es de $${parseFloat(envioNum).toFixed(
-          2
+          2,
         )}. Confirma tu pedido.`,
       to_email: email,
     };
@@ -451,7 +530,7 @@ async function enviarCorreoDesdeModal() {
       params,
       {
         subject: `Confirmación de Pedido #${numeroPedido}!`,
-      }
+      },
     );
 
     console.log("✅ Correo enviado:", response);
@@ -501,28 +580,34 @@ async function enviarCorreoManual(e) {
     .value.trim();
   const nombre = document.getElementById("nombreClienteCorreo").value.trim();
   const productosText = document.getElementById("productosCorreo").value.trim();
-  let total = document.getElementById("totalCorreo").value.trim();
   const metodoPago = document.getElementById("metodoPagoCorreo").value.trim();
   const envio = document.getElementById("envioCorreo").value.trim();
   const direccion = document.getElementById("direccionCorreo").value.trim();
   const mensajeAdicional = document
     .getElementById("mensajeAdicionalCorreo")
     .value.trim();
+  const lugarEntrega = document
+    .getElementById("lugarEntregaCorreo")
+    .value.trim();
+  const descuento = document.getElementById("descuentoCorreo").value.trim();
+  const subtotalStr = document.getElementById("subtotalCorreo").value.trim();
+  const totalStr = document.getElementById("totalCorreo").value.trim();
+  let total = totalStr;
   const pedidoId = document.getElementById("selectPedidoEnvio")?.value;
 
   if (!email || !numeroPedido || !nombre || !productosText || !total) {
     return mostrarMensaje(
       msg,
       "❌ Completa los campos obligatorios (*)",
-      "error"
+      "error",
     );
   }
 
-  if (!envio || parseFloat(envio) <= 0) {
+  if (envio === "" || isNaN(parseFloat(envio))) {
     return mostrarMensaje(
       msg,
-      "❌ El costo de envío es obligatorio y debe ser mayor a 0",
-      "error"
+      "❌ Indica el costo de envío (usa 0 si es punto de entrega)",
+      "error",
     );
   }
 
@@ -557,6 +642,14 @@ async function enviarCorreoManual(e) {
 
     total = total.replace(/[$,]/g, "");
     const envioNum = envio.replace(/[$,]/g, "");
+    const subtotalNum = subtotalStr.replace(/[$,]/g, "");
+    const descuentoNum = descuento ? parseFloat(descuento) : 0;
+
+    // Total = subtotal + envío - descuento
+    const baseTotal = parseFloat(subtotalNum || 0) + parseFloat(envioNum || 0);
+    const descuentoMonto = baseTotal * (descuentoNum / 100);
+    const totalFinal = baseTotal - descuentoMonto;
+    total = totalFinal.toFixed(2);
 
     const params = {
       cliente: nombre,
@@ -570,12 +663,19 @@ async function enviarCorreoManual(e) {
       }),
       productos: items,
       total: total,
+      subtotal: parseFloat(subtotalNum || 0).toFixed(2),
+      lugar_entrega: lugarEntrega || "No especificada",
       metodo_pago: metodoPago || "No especificado",
       direccion: direccion || "No especificada",
       envio: envioNum,
+      descuento: descuentoNum,
       mensaje_adicional:
         mensajeAdicional ||
-        `El costo de envío es de $${parseFloat(envioNum).toFixed(2)}.`,
+        (lugarEntrega
+          ? `El lugar de entrega es ${lugarEntrega} y el costo de envío es de $${parseFloat(
+              envioNum,
+            ).toFixed(2)}.`
+          : `El costo de envío es de $${parseFloat(envioNum).toFixed(2)}.`),
       to_email: email,
     };
 
@@ -587,7 +687,7 @@ async function enviarCorreoManual(e) {
       params,
       {
         subject: `Confirmación de Pedido #${numeroPedido}!`,
-      }
+      },
     );
 
     if (pedidoId) {
@@ -600,7 +700,7 @@ async function enviarCorreoManual(e) {
     mostrarMensaje(
       msg,
       `✅ Correo enviado a ${email}${pedidoId ? " (Pedido confirmado)" : ""}`,
-      "exito"
+      "exito",
     );
     document.getElementById("formEnvioCorreo").reset();
     document.getElementById("envioCorreo").value = "";
@@ -621,7 +721,7 @@ async function enviarCorreoManual(e) {
 
 async function procesarPedido(pedidoId, accion) {
   const estados = {
-    completar: "entregado",
+    completar: "vendido",
     procesar: "confirmado",
   };
 
@@ -629,8 +729,21 @@ async function procesarPedido(pedidoId, accion) {
   if (!nuevoEstado) return;
 
   const mensajeAccion =
-    accion === "completar" ? "completar (descontar stock)" : "procesar";
-  if (!confirm(`¿Confirmar ${mensajeAccion} este pedido?`)) return;
+    accion === "completar"
+      ? "marcar como VENDIDO (esto descuenta el stock y no se puede deshacer aquí; usa 'Devolución' si necesitas regresarlo)"
+      : "procesar";
+  modalConfirmar(`¿Confirmar ${mensajeAccion} este pedido?`, function () {
+    ejecutarProcesarPedido(pedidoId, accion);
+  });
+}
+
+async function ejecutarProcesarPedido(pedidoId, accion) {
+  const estados = {
+    completar: "vendido",
+    procesar: "confirmado",
+  };
+  const nuevoEstado = estados[accion];
+  if (!nuevoEstado) return;
 
   try {
     const { data: pedido, error: getError } = await window.supabase
@@ -653,7 +766,7 @@ async function procesarPedido(pedidoId, accion) {
         if (prodError) {
           console.warn(
             `⚠️ Error buscando producto "${item.nombre}":`,
-            prodError
+            prodError,
           );
           continue;
         }
@@ -665,7 +778,7 @@ async function procesarPedido(pedidoId, accion) {
             .update({ stock: nuevoStock })
             .eq("id", producto.id);
           console.log(
-            `✅ Stock de "${item.nombre}" actualizado: ${producto.stock} → ${nuevoStock}`
+            `✅ Stock de "${item.nombre}" actualizado: ${producto.stock} → ${nuevoStock}`,
           );
 
           await window.supabase.from("inventario").insert([
@@ -678,7 +791,7 @@ async function procesarPedido(pedidoId, accion) {
           ]);
         } else {
           console.warn(
-            `⚠️ Producto "${item.nombre}" no encontrado en la base de datos`
+            `⚠️ Producto "${item.nombre}" no encontrado en la base de datos`,
           );
         }
       }
@@ -691,10 +804,10 @@ async function procesarPedido(pedidoId, accion) {
 
     if (updateError) throw updateError;
 
-    alert(
+    mostrarModalAlerta(
       `✅ Pedido ${
-        accion === "completar" ? "completado" : "procesado"
-      } correctamente`
+        accion === "completar" ? "marcado como vendido" : "procesado"
+      } correctamente`,
     );
 
     const activeFilter = document.querySelector(".filtro-pedido.active");
@@ -702,7 +815,7 @@ async function procesarPedido(pedidoId, accion) {
     cargarPedidosPendientes();
   } catch (error) {
     console.error("❌ Error al procesar pedido:", error);
-    alert("❌ Error al procesar el pedido: " + error.message);
+    mostrarModalAlerta("❌ Error al procesar el pedido: " + error.message);
   }
 }
 
@@ -736,12 +849,17 @@ document.addEventListener("DOMContentLoaded", function () {
     if (tabId === "inventario") cargarInventario();
     if (tabId === "pedidos") cargarPedidos();
     if (tabId === "finanzas") cargarFinanzas();
-    if (tabId === "ticket") cargarProductosTicket();
+    if (tabId === "ticket") {
+      cargarProductosTicket();
+      cargarPedidosParaTicket();
+    }
     if (tabId === "envios") cargarPedidosPendientes();
     if (tabId === "promociones") {
       cargarCupones();
       cargarNoticias();
     }
+    if (tabId === "lealtad" && typeof cargarLealtad === "function")
+      cargarLealtad();
   }
 
   document.querySelectorAll("[data-tab]").forEach((btn) => {
@@ -758,19 +876,46 @@ document.addEventListener("DOMContentLoaded", function () {
   agregarEventoRefrescar(
     "btnRefrescarProductos",
     cargarProductos,
-    "tab-productos"
+    "tab-productos",
   );
   agregarEventoRefrescar(
     "btnRefrescarInventario",
     cargarInventario,
-    "tab-inventario"
+    "tab-inventario",
   );
   agregarEventoRefrescar("btnRefrescarPedidos", cargarPedidos, "tab-pedidos");
   agregarEventoRefrescar(
     "btnRefrescarFinanzas",
     cargarFinanzas,
-    "tab-finanzas"
+    "tab-finanzas",
   );
+  if (document.getElementById("btnRefrescarLealtad")) {
+    agregarEventoRefrescar(
+      "btnRefrescarLealtad",
+      function () {
+        if (typeof cargarLealtad === "function") cargarLealtad();
+      },
+      "tab-lealtad",
+    );
+  }
+
+  // ============================================
+  // ESCÁNER DE CÓDIGO DE BARRAS
+  // ============================================
+  document
+    .getElementById("inputCodigoBarras")
+    ?.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        buscarPorCodigoBarras();
+      }
+    });
+  const btnAgregarLealtad = document.getElementById("btnAgregarLealtad");
+  if (btnAgregarLealtad) {
+    btnAgregarLealtad.addEventListener("click", function () {
+      if (typeof abrirModalLealtad === "function") abrirModalLealtad(null);
+    });
+  }
 
   // ============================================
   // VERIFICAR SESIÓN
@@ -790,7 +935,7 @@ document.addEventListener("DOMContentLoaded", function () {
   // PRODUCTOS
   // ============================================
   addEventListenerSafe("btnAgregarProducto", "click", () =>
-    mostrarFormProducto()
+    mostrarFormProducto(),
   );
   const formProducto = document.getElementById("formProducto");
   if (formProducto) formProducto.addEventListener("submit", guardarProducto);
@@ -801,7 +946,7 @@ document.addEventListener("DOMContentLoaded", function () {
   addEventListenerSafe("btnAgregarMovimiento", "click", () => {
     document.getElementById("movId").value = "";
     const submitBtn = document.querySelector(
-      '#formMovimiento button[type="submit"]'
+      '#formMovimiento button[type="submit"]',
     );
     if (submitBtn) submitBtn.textContent = "💾 Registrar";
     mostrarFormMovimiento();
@@ -814,7 +959,7 @@ document.addEventListener("DOMContentLoaded", function () {
   // FINANZAS
   // ============================================
   addEventListenerSafe("btnAgregarFinanza", "click", () =>
-    mostrarFormFinanza()
+    mostrarFormFinanza(),
   );
   const formFinanza = document.getElementById("formFinanza");
   if (formFinanza) formFinanza.addEventListener("submit", guardarFinanza);
@@ -837,11 +982,42 @@ document.addEventListener("DOMContentLoaded", function () {
     .getElementById("ticketEnvio")
     ?.addEventListener("input", actualizarTotalesTicket);
   document
+    .getElementById("ticketDescuento")
+    ?.addEventListener("input", actualizarTotalesTicket);
+  document
+    .getElementById("ticketPedidoSelect")
+    ?.addEventListener("change", function () {
+      const option = this.options[this.selectedIndex];
+      if (!option || !option.value) {
+        limpiarFormularioTicket();
+        return;
+      }
+      try {
+        const pedido = JSON.parse(option.dataset.pedido);
+        precargarPedidoEnTicket(pedido);
+      } catch (e) {
+        console.error("Error leyendo el pedido seleccionado:", e);
+      }
+    });
+  document
     .getElementById("formTicketVenta")
     ?.addEventListener("submit", generarTicketVenta);
+  document
+    .getElementById("btnLimpiarTicket")
+    ?.addEventListener("click", function () {
+      limpiarFormularioTicket();
+      const sel = document.getElementById("ticketPedidoSelect");
+      if (sel) sel.value = "";
+      const msgt = document.getElementById("mensajeTicket");
+      if (msgt) {
+        msgt.innerHTML = "";
+        msgt.className = "";
+      }
+    });
 
   esperarSupabase(function () {
     cargarProductosTicket();
+    cargarPedidosParaTicket();
   });
 
   // ============================================
@@ -857,11 +1033,42 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   });
 
+  let debounceBusquedaPedidos = null;
+  document
+    .getElementById("buscarNumeroPedido")
+    ?.addEventListener("input", function () {
+      clearTimeout(debounceBusquedaPedidos);
+      debounceBusquedaPedidos = setTimeout(() => {
+        const activeFilter = document.querySelector(".filtro-pedido.active");
+        cargarPedidos(activeFilter?.dataset?.estado || "todos");
+      }, 300);
+    });
+
   // ============================================
   // MODAL
   // ============================================
   addEventListenerSafe("modalCancelar", "click", cerrarModal);
   addEventListenerSafe("modalConfirmar", "click", confirmarEliminar);
+
+  addEventListenerSafe("modalAlertaOk", "click", function () {
+    const modal = document.getElementById("modalAlerta");
+    if (modal) modal.style.display = "none";
+  });
+
+  addEventListenerSafe("modalConfirmarAccionCancel", "click", function () {
+    cerrarModalConfirmarAccion();
+  });
+  addEventListenerSafe("modalConfirmarAccionOk", "click", function () {
+    const cb = confirmarAccionCallback;
+    cerrarModalConfirmarAccion();
+    if (cb) cb();
+  });
+
+  // EDITAR PEDIDO - recálculo dinámico
+  ["editarEnvio", "editarDescuento", "editarProductos"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener("input", recalcularTotalesEditar);
+  });
 
   // ============================================
   // LOGOUT
@@ -885,12 +1092,37 @@ document.addEventListener("DOMContentLoaded", function () {
     formEnvioCorreo.addEventListener("submit", enviarCorreoManual);
   }
 
+  // La función recalcularTotalCorreo es GLOBAL (se define arriba) para poder
+  // usarla también al precargar un pedido desde cargarPedidosPendientes.
+
+  const envioCorreoEl = document.getElementById("envioCorreo");
+  const descuentoCorreoEl = document.getElementById("descuentoCorreo");
+  if (envioCorreoEl)
+    envioCorreoEl.addEventListener("input", recalcularTotalCorreo);
+  if (descuentoCorreoEl)
+    descuentoCorreoEl.addEventListener("input", recalcularTotalCorreo);
+
+  const btnLimpiarEnvio = document.getElementById("btnLimpiarEnvio");
+  if (btnLimpiarEnvio) {
+    btnLimpiarEnvio.addEventListener("click", function () {
+      if (formEnvioCorreo) formEnvioCorreo.reset();
+      const selectSel = document.getElementById("selectPedidoEnvio");
+      if (selectSel) selectSel.value = "";
+      ["envioCorreo", "mensajeAdicionalCorreo", "lugarEntregaCorreo",
+        "envioLugarCorreo", "descuentoCorreo", "subtotalCorreo",
+        "totalCorreo", "metodoPagoCorreo"].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.value = "";
+      });
+    });
+  }
+
   // ============================================
   // PROMOCIONES - EVENTOS
   // ============================================
   addEventListenerSafe("btnAgregarCupon", "click", () => mostrarFormCupon());
   addEventListenerSafe("btnAgregarNoticia", "click", () =>
-    mostrarFormNoticia()
+    mostrarFormNoticia(),
   );
 
   const formCupon = document.getElementById("formCupon");
@@ -967,8 +1199,8 @@ async function cargarProductos() {
                             <td><strong>${
                               p.nombre
                             }</strong><br><small class="text-dim">${
-                          p.descripcion || ""
-                        }</small></td>
+                              p.descripcion || ""
+                            }</small></td>
                             <td><code style="background:var(--bg-input);padding:2px 8px;border-radius:4px;color:var(--accent);font-size:12px;">${
                               p.codigo_barras || "Sin código"
                             }</code></td>
@@ -988,7 +1220,7 @@ async function cargarProductos() {
                                 }','producto')" class="btn btn-outline-danger btn-sm">🗑️</button>
                             </td>
                         </tr>
-                    `
+                    `,
                       )
                       .join("")}
                 </tbody>
@@ -1018,7 +1250,7 @@ function mostrarFormProducto(data = null) {
     const titulo = document.getElementById("formProductoTitulo");
     if (titulo) titulo.textContent = "✏️ Editar Producto";
     const submitBtn = document.querySelector(
-      '#formProducto button[type="submit"]'
+      '#formProducto button[type="submit"]',
     );
     if (submitBtn) submitBtn.textContent = "💾 Actualizar";
 
@@ -1036,7 +1268,7 @@ function mostrarFormProducto(data = null) {
     const titulo = document.getElementById("formProductoTitulo");
     if (titulo) titulo.textContent = "➕ Agregar Producto";
     const submitBtn = document.querySelector(
-      '#formProducto button[type="submit"]'
+      '#formProducto button[type="submit"]',
     );
     if (submitBtn) submitBtn.textContent = "💾 Guardar";
 
@@ -1063,7 +1295,7 @@ async function editarProducto(id) {
     if (data) mostrarFormProducto(data);
   } catch (error) {
     console.error("Error:", error);
-    alert("Error al cargar el producto");
+    mostrarModalAlerta("Error al cargar el producto");
   }
 }
 
@@ -1202,30 +1434,29 @@ async function buscarPorCodigoBarras() {
       .from("productos")
       .select("*")
       .eq("codigo_barras", codigo)
-      .single();
+      .maybeSingle();
+
     if (error || !data) {
-      resultado.innerHTML = `<div class="alert alert-danger alert-sm mt-2">❌ Producto no encontrado: <strong>${codigo}</strong></div>`;
+      resultado.innerHTML = `<span class="text-danger">❌ Producto no encontrado: ${codigo}</span>`;
       input.value = "";
+      input.focus();
       return;
     }
-    resultado.innerHTML = `
-            <div class="alert alert-success alert-sm mt-2">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div><strong>✅ Encontrado:</strong> ${
-                      data.nombre
-                    }<br><small class="text-dim">Precio: ${formatearMoneda(
-      data.precio
-    )} | Stock: ${data.stock}</small></div>
-                    <button onclick="editarProducto('${
-                      data.id
-                    }')" class="btn btn-warning btn-sm">✏️</button>
-                </div>
-            </div>
-        `;
+
+    // AUTO-LLENADO DEL ESCÁNER: abre directamente la edición del producto
+    // con nombre, código de barras, precio, stock y descripción ya cargados.
     input.value = "";
+    resultado.innerHTML = "";
+    if (typeof editarProducto === "function") {
+      editarProducto(data.id);
+    } else {
+      resultado.innerHTML = `<span class="text-success">✅ ${data.nombre}: ${formatearMoneda(
+        data.precio,
+      )} · Stock ${data.stock} [${data.codigo_barras}]</span>`;
+    }
   } catch (error) {
     console.error("Error:", error);
-    resultado.innerHTML = `<div class="alert alert-danger alert-sm mt-2">❌ Error al buscar</div>`;
+    resultado.innerHTML = '<span class="text-danger">❌ Error al buscar</span>';
   }
 }
 
@@ -1268,7 +1499,7 @@ function ocultarFormMovimiento() {
   if (form) form.reset();
   document.getElementById("movId").value = "";
   const submitBtn = document.querySelector(
-    '#formMovimiento button[type="submit"]'
+    '#formMovimiento button[type="submit"]',
   );
   if (submitBtn) submitBtn.textContent = "💾 Registrar";
 }
@@ -1450,8 +1681,8 @@ async function cargarInventario() {
                                 : "text-danger"
                             }">
                                 ${m.tipo === "entrada" ? "+" : "-"} ${
-                          m.cantidad
-                        }
+                                  m.cantidad
+                                }
                             </td>
                             <td><small>${m.descripcion || "-"}</small></td>
                             <td><span class="text-warning">${
@@ -1463,7 +1694,7 @@ async function cargarInventario() {
                                 }','inventario')" class="btn btn-outline-danger btn-sm">🗑️</button>
                             </td>
                         </tr>
-                    `
+                    `,
                       )
                       .join("")}
                 </tbody>
@@ -1505,10 +1736,14 @@ async function cargarPedidos(estado = "todos") {
       todosPedidos?.filter((p) => p.estado === "pendiente").length || 0;
     const confirmados =
       todosPedidos?.filter((p) => p.estado === "confirmado").length || 0;
+    const vendidos =
+      todosPedidos?.filter((p) => p.estado === "vendido").length || 0;
     const entregados =
       todosPedidos?.filter((p) => p.estado === "entregado").length || 0;
     const cancelados =
       todosPedidos?.filter((p) => p.estado === "cancelado").length || 0;
+    const devueltos =
+      todosPedidos?.filter((p) => p.estado === "devuelto").length || 0;
 
     document.querySelectorAll(".filtro-pedido").forEach((btn) => {
       const estadoBtn = btn.dataset.estado;
@@ -1516,8 +1751,10 @@ async function cargarPedidos(estado = "todos") {
       if (estadoBtn === "todos") count = total;
       else if (estadoBtn === "pendiente") count = pendientes;
       else if (estadoBtn === "confirmado") count = confirmados;
+      else if (estadoBtn === "vendido") count = vendidos;
       else if (estadoBtn === "entregado") count = entregados;
       else if (estadoBtn === "cancelado") count = cancelados;
+      else if (estadoBtn === "devuelto") count = devueltos;
 
       let badge = btn.querySelector(".badge");
       if (!badge) {
@@ -1533,6 +1770,13 @@ async function cargarPedidos(estado = "todos") {
       .select("*")
       .order("fecha_pedido", { ascending: false });
     if (estado !== "todos") query = query.eq("estado", estado);
+
+    const busquedaNumero = document
+      .getElementById("buscarNumeroPedido")
+      ?.value.trim();
+    if (busquedaNumero)
+      query = query.ilike("numero_pedido", `%${busquedaNumero}%`);
+
     const { data, error } = await query;
 
     if (error) {
@@ -1558,9 +1802,13 @@ async function cargarPedidos(estado = "todos") {
                         <th style="white-space:nowrap;">Fecha</th>
                         <th style="min-width:180px;">Cliente</th>
                         <th>Productos</th>
+                        <th style="white-space:nowrap;" title="Lugar de entrega seleccionado por el cliente.">Lugar</th>
+                        <th style="white-space:nowrap;" title="Costo de envío en pesos. Se suma al calcular el total.">Envío</th>
+                        <th style="white-space:nowrap;" title="Descuento en PORCENTAJE (%), aplicado sobre productos + envío.">Descuento %</th>
+                        <th style="white-space:nowrap;" title="Subtotal: productos + envío (antes de descuento).">Subtotal</th>
                         <th style="white-space:nowrap;">Total</th>
                         <th style="white-space:nowrap;">Estado</th>
-                        <th style="white-space:nowrap; min-width:180px;">Acciones</th>
+                        <th style="white-space:nowrap; min-width:220px;">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -1574,51 +1822,35 @@ async function cargarPedidos(estado = "todos") {
                               }</span> <span class="cant">×${
                                 x.cantidad
                               }</span> <span class="precio">${formatearMoneda(
-                                x.precio * x.cantidad
-                              )}</span></span>`
+                                x.precio * x.cantidad,
+                              )}</span></span>`,
                           )
                           .join(" ");
 
-                        return `
-                        <tr data-pedido-id="${p.id}"
-                            data-cliente="${p.cliente_nombre}"
-                            data-telefono="${p.cliente_telefono || ""}"
-                            data-email="${p.cliente_email || ""}"
-                            data-numero="${p.numero_pedido || "N/A"}"
-                            data-productos='${JSON.stringify(
-                              p.productos
-                            ).replace(/'/g, "&#39;")}'
-                            data-total="${p.total}"
-                            data-direccion="${p.direccion_entrega || ""}">
-                            <td><span class="pedido-numero">${
-                              p.numero_pedido || "N/A"
-                            }</span></td>
-                            <td><small style="white-space:nowrap;">${formatearFecha(
-                              p.fecha_pedido
-                            )}</small></td>
-                            <td>
-                                <div style="display:block; margin-bottom:4px; font-weight:600; color:var(--text-main); font-size:0.95rem;">${
-                                  p.cliente_nombre
-                                }</div>
-                                ${
-                                  p.cliente_telefono
-                                    ? `<div style="display:block; color:var(--text-silver); font-size:0.85rem; margin-bottom:3px;">📱 ${p.cliente_telefono}</div>`
-                                    : ""
-                                }
-                                ${
-                                  p.cliente_email
-                                    ? `<div style="display:block; color:#8ab4f8; font-size:0.85rem;">📧 ${p.cliente_email}</div>`
-                                    : ""
-                                }
-                            </td>
-                            <td><div class="productos-lista">${productosLinea}</div></td>
-                            <td><strong style="color:var(--accent); font-size:1.1rem; white-space:nowrap;">${formatearMoneda(
-                              p.total
-                            )}</strong></td>
-                            <td>
+                        const envio = Number(p.costo_envio) || 0;
+                        const descuentoPct = Number(p.descuento) || 0;
+                        const subtotalProductos = (p.productos || []).reduce(
+                          (s, x) =>
+                            s +
+                            (Number(x.precio) || 0) * (Number(x.cantidad) || 0),
+                          0,
+                        );
+                        const subtotalConEnvio = subtotalProductos + envio;
+                        const descuentoMonto =
+                          subtotalConEnvio * (descuentoPct / 100);
+                        const totalCalculado =
+                          subtotalConEnvio - descuentoMonto;
+
+                        let estadoHtml;
+                        if (p.estado === "vendido") {
+                          estadoHtml = `<span class="badge bg-success" title="Venta completada: el stock ya se descontó. Usa el botón de Devolución (↩️) si necesitas regresarlo.">💰 Vendido</span>`;
+                        } else if (p.estado === "devuelto") {
+                          estadoHtml = `<span class="badge bg-secondary" title="El stock de este pedido ya fue regresado al inventario.">↩️ Devuelto</span>`;
+                        } else {
+                          estadoHtml = `
                                 <select onchange="cambiarEstadoPedido('${
                                   p.id
-                                }', this.value)" class="form-select form-select-sm bg-black text-white border-secondary" style="width:auto; min-width:100px; display:inline-block;">
+                                }', this.value)" class="form-select form-select-sm bg-black text-white border-secondary" style="width:auto; min-width:100px; display:inline-block;" title="Cambia el estado manualmente. Esto NO afecta el stock.">
                                     <option value="pendiente" ${
                                       p.estado === "pendiente" ? "selected" : ""
                                     }>📋 Pendiente</option>
@@ -1634,30 +1866,128 @@ async function cargarPedidos(estado = "todos") {
                                       p.estado === "cancelado" ? "selected" : ""
                                     }>❌ Cancelado</option>
                                 </select>
+                            `;
+                        }
+
+                        return `
+                        <tr data-pedido-id="${p.id}"
+                            data-cliente="${p.cliente_nombre}"
+                            data-telefono="${p.cliente_telefono || ""}"
+                            data-email="${p.cliente_email || ""}"
+                            data-numero="${p.numero_pedido || "N/A"}"
+                            data-productos='${JSON.stringify(
+                              p.productos,
+                            ).replace(/'/g, "&#39;")}'
+                            data-total="${p.total}"
+                            data-direccion="${p.direccion_entrega || ""}"
+                            data-lugarentrega="${p.lugar_entrega || ""}"
+                            data-costoenvio="${p.costo_envio || 0}"
+                            data-descuento="${p.descuento || 0}"
+                            data-metodopago="${p.metodo_pago || ""}"
+                            data-notas="${(p.notas || "").replace(
+                              /"/g,
+                              "&quot;",
+                            )}">
+                            <td><span class="pedido-numero">${
+                              p.numero_pedido || "N/A"
+                            }</span></td>
+                            <td><small style="white-space:nowrap;">${formatearFecha(
+                              p.fecha_pedido,
+                            )}</small></td>
+                            <td>
+                                <div style="display:block; margin-bottom:4px; font-weight:600; color:var(--text-main); font-size:0.95rem;">${
+                                  p.cliente_nombre
+                                }</div>
+                                ${
+                                  p.cliente_telefono
+                                    ? `<div style="display:block; color:var(--text-silver); font-size:0.85rem; margin-bottom:3px;">📱 ${p.cliente_telefono}</div>`
+                                    : ""
+                                }
+                                ${
+                                  p.cliente_email
+                                    ? `<div style="display:block; color:#8ab4f8; font-size:0.85rem;">📧 ${p.cliente_email}</div>`
+                                    : ""
+                                }
+                                ${
+                                  p.cupon
+                                    ? `<div style="display:block; color:#ffd166; font-size:0.8rem;">🎟️ ${p.cupon}</div>`
+                                    : ""
+                                }
+                                ${
+                                  p.notas
+                                    ? `<div style="display:block; color:var(--text-silver); font-size:0.8rem; margin-top:3px;">📝 ${p.notas}</div>`
+                                    : ""
+                                }
                             </td>
+                            <td><div class="productos-lista">${productosLinea}</div></td>
+                            <td>
+                                ${
+                                  p.lugar_entrega
+                                    ? `<small style="white-space:nowrap; color:var(--text-silver);">📦 ${p.lugar_entrega}</small>`
+                                    : `<small style="color:var(--text-dim);">—</small>`
+                                }
+                            </td>
+                            <td>
+                                ${
+                                  envio > 0
+                                    ? `<small style="white-space:nowrap; color:var(--text-silver);">${formatearMoneda(
+                                        envio,
+                                      )}</small>`
+                                    : `<small style="color:var(--text-dim);">—</small>`
+                                }
+                            </td>
+                            <td>
+                                ${
+                                  descuentoMonto > 0
+                                    ? `<small style="white-space:nowrap; color:#ffd166;">${descuentoPct}% (−${formatearMoneda(
+                                        descuentoMonto,
+                                      )})</small>`
+                                    : `<small style="color:var(--text-dim);">—</small>`
+                                }
+                            </td>
+                            <td><small style="white-space:nowrap; color:var(--text-silver);">${formatearMoneda(
+                              subtotalConEnvio,
+                            )}</small></td>
+                            <td><strong style="color:var(--accent); font-size:1.1rem; white-space:nowrap;" title="Productos + envío, con el descuento ya aplicado.">${formatearMoneda(
+                              totalCalculado,
+                            )}</strong></td>
+                            <td>${estadoHtml}</td>
                             <td style="white-space: nowrap;">
                                 <div class="d-flex gap-1" style="flex-wrap:nowrap;">
+                                    <button onclick="abrirModalEditarPedido('${
+                                      p.id
+                                    }')" class="btn btn-warning btn-sm" title="Editar Pedido (cliente, productos, cantidades, envío, descuento, estado...)">✏️</button>
                                     <button onclick="generarTicketPedido('${
                                       p.id
-                                    }')" class="btn btn-warning btn-sm" title="Generar Ticket">🧾</button>
+                                    }')" class="btn btn-outline-warning btn-sm" title="Generar / Reimprimir Ticket (no afecta el stock)">🧾</button>
                                     <button onclick="verDetallePedido('${
                                       p.id
-                                    }')" class="btn btn-outline-secondary btn-sm" title="Ver Detalle">📋</button>
+                                    }')" class="btn btn-outline-secondary btn-sm" title="Ver Detalle completo e imprimir">📋</button>
                                     ${
                                       p.estado === "pendiente"
                                         ? `
-                                        <button onclick="procesarPedido('${p.id}', 'procesar')" class="btn btn-info-custom btn-sm" title="Procesar Pedido">✅</button>
-                                        <button onclick="abrirModalCorreo('${p.id}')" class="btn btn-primary-custom btn-sm" title="Enviar Correo">📧</button>
+                                        <button onclick="procesarPedido('${p.id}', 'procesar')" class="btn btn-info-custom btn-sm" title="Procesar Pedido: pasa a Confirmado">✅</button>
+                                        <button onclick="abrirModalCorreo('${p.id}')" class="btn btn-primary-custom btn-sm" title="Enviar Correo de confirmación al cliente">📧</button>
                                     `
                                         : ""
                                     }
                                     ${
                                       p.estado === "confirmado"
                                         ? `
-                                        <button onclick="procesarPedido('${p.id}', 'completar')" class="btn btn-success btn-sm" title="Completar Pedido">📦</button>
+                                        <button onclick="procesarPedido('${p.id}', 'completar')" class="btn btn-success btn-sm" title="Marcar como Vendido: descuenta el stock. Es la ÚNICA acción que descuenta stock.">💰</button>
                                     `
                                         : ""
                                     }
+                                    ${
+                                      p.estado === "vendido"
+                                        ? `
+                                        <button onclick="pedirDevolucionPedido('${p.id}')" class="btn btn-outline-warning btn-sm" title="Devolución: regresa el stock de estos productos al inventario">↩️</button>
+                                    `
+                                        : ""
+                                    }
+                                    <button onclick="pedirEliminarPedido('${
+                                      p.id
+                                    }')" class="btn btn-outline-danger btn-sm" title="Eliminar este pedido de la base de datos (permanente)">🗑️</button>
                                 </div>
                             </td>
                         </tr>
@@ -1674,6 +2004,44 @@ async function cargarPedidos(estado = "todos") {
   }
 }
 
+async function guardarEnvioDescuentoPedido(id, envioInput, descuentoInput) {
+  if (!envioInput || !descuentoInput) return;
+  const envio = parseFloat(envioInput.value) || 0;
+  let descuentoPct = parseFloat(descuentoInput.value) || 0;
+  descuentoPct = Math.min(100, Math.max(0, descuentoPct));
+  envioInput.value = envio;
+  descuentoInput.value = descuentoPct;
+
+  try {
+    const { data: pedido, error: getError } = await window.supabase
+      .from("pedidos")
+      .select("productos")
+      .eq("id", id)
+      .single();
+    if (getError) throw getError;
+
+    const subtotalProductos = (pedido.productos || []).reduce(
+      (s, x) => s + (Number(x.precio) || 0) * (Number(x.cantidad) || 0),
+      0,
+    );
+    const subtotalConEnvio = subtotalProductos + envio;
+    const descuentoMonto = subtotalConEnvio * (descuentoPct / 100);
+    const total = subtotalConEnvio - descuentoMonto;
+
+    const { error } = await window.supabase
+      .from("pedidos")
+      .update({ costo_envio: envio, descuento: descuentoPct, total: total })
+      .eq("id", id);
+    if (error) throw error;
+
+    const activeFilter = document.querySelector(".filtro-pedido.active");
+    cargarPedidos(activeFilter?.dataset?.estado || "todos");
+  } catch (error) {
+    console.error("Error guardando envío/descuento:", error);
+    mostrarModalAlerta("❌ Error al guardar envío/descuento: " + error.message);
+  }
+}
+
 async function cambiarEstadoPedido(id, estado) {
   try {
     const { error } = await window.supabase
@@ -1687,39 +2055,357 @@ async function cambiarEstadoPedido(id, estado) {
     }
   } catch (error) {
     console.error("Error:", error);
-    alert("❌ Error al actualizar estado");
+    mostrarModalAlerta("❌ Error al actualizar estado");
   }
 }
 
-async function verDetallePedido(id) {
+let detallePedidoActual = null;
+
+function mostrarModalAlerta(mensaje, titulo) {
+  const modal = document.getElementById("modalAlerta");
+  if (!modal) {
+    alert(mensaje);
+    return;
+  }
+  const mT = document.getElementById("modalAlertaTitulo");
+  const mM = document.getElementById("modalAlertaMensaje");
+  if (mT) mT.textContent = titulo || "ℹ️ Aviso";
+  if (mM) mM.textContent = mensaje;
+  modal.style.display = "flex";
+}
+
+let confirmarAccionCallback = null;
+
+function modalConfirmar(mensaje, onOk) {
+  const modal = document.getElementById("modalConfirmarAccion");
+  if (!modal) {
+    if (window.confirm) {
+      if (window.confirm(mensaje)) onOk();
+    }
+    return;
+  }
+  confirmarAccionCallback = onOk;
+  document.getElementById("modalConfirmarAccionMensaje").textContent = mensaje;
+  modal.style.display = "flex";
+}
+
+function cerrarModalConfirmarAccion() {
+  const modal = document.getElementById("modalConfirmarAccion");
+  if (modal) modal.style.display = "none";
+  confirmarAccionCallback = null;
+}
+
+async function abrirModalEditarPedido(id) {
+  const row = document.querySelector(`tr[data-pedido-id="${id}"]`);
+  if (!row) {
+    mostrarModalAlerta("❌ No se encontraron datos del pedido para editar.");
+    return;
+  }
+
+  // Traemos datos frescos desde la base para un llenado preciso.
+  let pedido = null;
   try {
     const { data } = await window.supabase
       .from("pedidos")
       .select("*")
       .eq("id", id)
       .single();
-    if (!data) return;
-    const productos = data.productos
-      .map(
-        (p) =>
-          `• ${p.nombre} × ${p.cantidad} = ${formatearMoneda(
-            p.precio * p.cantidad
-          )}`
-      )
-      .join("\n");
-    alert(
-      `📋 DETALLE\n\n👤 ${data.cliente_nombre}\n📱 ${
-        data.cliente_telefono
-      }\n📦 Productos:\n${productos}\n💰 Total: ${formatearMoneda(
-        data.total
-      )}\n💳 ${
-        data.metodo_pago === "transferencia" ? "Transferencia" : "Efectivo"
-      }\n📌 Estado: ${data.estado.toUpperCase()}`
+    pedido = data || null;
+  } catch (e) {
+    pedido = null;
+  }
+
+  document.getElementById("editarPedidoId").value = id;
+  document.getElementById("editarCliente").value =
+    (pedido && pedido.cliente_nombre) || row.dataset.cliente || "";
+  document.getElementById("editarTelefono").value =
+    (pedido && pedido.cliente_telefono) || row.dataset.telefono || "";
+  document.getElementById("editarEmail").value =
+    (pedido && pedido.cliente_email) || row.dataset.email || "";
+  document.getElementById("editarDireccion").value =
+    (pedido && pedido.direccion_entrega) || row.dataset.direccion || "";
+  document.getElementById("editarLugarEntrega").value =
+    (pedido && pedido.lugar_entrega) || row.dataset.lugarentrega || "";
+  document.getElementById("editarMetodoPago").value =
+    (pedido && pedido.metodo_pago) || row.dataset.metodopago || "efectivo";
+  document.getElementById("editarEnvio").value =
+    (pedido && pedido.costo_envio != null ? pedido.costo_envio : row.dataset.costoenvio) || "0";
+  document.getElementById("editarDescuento").value =
+    (pedido && pedido.descuento != null ? pedido.descuento : row.dataset.descuento) || "0";
+  document.getElementById("editarEstado").value =
+    (pedido && pedido.estado) || "";
+  document.getElementById("editarNotas").value =
+    (pedido && pedido.notas) || (row.dataset.notas || "").replace(/&quot;/g, '"') || "";
+
+  let productos = "[]";
+  try {
+    productos = pedido
+      ? pedido.productos || []
+      : JSON.parse(row.dataset.productos || "[]");
+  } catch (e) {
+    productos = [];
+  }
+  document.getElementById("editarProductos").value = productos
+    .map((p) => `${p.nombre} | ${p.cantidad} | ${p.precio}`)
+    .join("\n");
+
+  const m = document.getElementById("mensajeEditarPedido");
+  if (m) {
+    m.innerHTML = "";
+    m.className = "";
+  }
+
+  recalcularTotalesEditar();
+  document.getElementById("modalEditarPedido").style.display = "flex";
+}
+
+function recalcularTotalesEditar() {
+  const textarea = document.getElementById("editarProductos");
+  const envio = parseFloat(document.getElementById("editarEnvio").value) || 0;
+  let descuentoPct =
+    parseFloat(document.getElementById("editarDescuento").value) || 0;
+  descuentoPct = Math.min(100, Math.max(0, descuentoPct));
+
+  let subtotalProductos = 0;
+  try {
+    const lineas = (textarea.value || "")
+      .split("\n")
+      .map((l) => l.trim())
+      .filter((l) => l);
+    lineas.forEach((linea) => {
+      const partes = linea.split("|").map((p) => p.trim());
+      const precio = parseFloat(partes[2] ?? partes[1]) || 0;
+      const cantidad = parseFloat(partes[1] ?? 1) || 1;
+      subtotalProductos += precio * cantidad;
+    });
+  } catch (e) {
+    subtotalProductos = 0;
+  }
+
+  const subtotalConEnvio = subtotalProductos + envio;
+  const descuentoMonto = subtotalConEnvio * (descuentoPct / 100);
+  const total = subtotalConEnvio - descuentoMonto;
+
+  document.getElementById("editarSubtotal").value =
+    formatearMoneda(subtotalConEnvio);
+  document.getElementById("editarTotal").value = formatearMoneda(total);
+}
+
+async function guardarPedidoEditado() {
+  const id = document.getElementById("editarPedidoId").value;
+  const msg = document.getElementById("mensajeEditarPedido");
+  const btn =
+    document.querySelector("#modalEditarPedido button[onclick*='guardarPedidoEditado']");
+
+  const cliente = document.getElementById("editarCliente").value.trim();
+  const telefono = document.getElementById("editarTelefono").value.trim();
+  const email = document.getElementById("editarEmail").value.trim();
+  const direccion = document.getElementById("editarDireccion").value.trim();
+  const lugarEntrega = document
+    .getElementById("editarLugarEntrega")
+    .value.trim();
+  const metodoPago = document.getElementById("editarMetodoPago").value;
+  const envio = parseFloat(document.getElementById("editarEnvio").value) || 0;
+  let descuentoPct =
+    parseFloat(document.getElementById("editarDescuento").value) || 0;
+  descuentoPct = Math.min(100, Math.max(0, descuentoPct));
+  const estado = document.getElementById("editarEstado").value;
+  const notas = document.getElementById("editarNotas").value.trim();
+
+  if (!cliente || !telefono) {
+    return mostrarMensaje(
+      msg,
+      "❌ Cliente y teléfono son obligatorios",
+      "error",
     );
+  }
+
+  let productos = [];
+  try {
+    const lineas = (document.getElementById("editarProductos").value || "")
+      .split("\n")
+      .map((l) => l.trim())
+      .filter((l) => l);
+    if (lineas.length === 0) {
+      return mostrarMensaje(msg, "❌ Agrega al menos un producto", "error");
+    }
+    productos = lineas.map((linea) => {
+      const partes = linea.split("|").map((p) => p.trim());
+      const nombre = partes[0];
+      const cantidad = parseInt(partes[1] ?? 1) || 1;
+      const precio = parseFloat(partes[2] ?? partes[1]) || 0;
+      return { nombre, cantidad, precio };
+    });
+  } catch (e) {
+    return mostrarMensaje(
+      msg,
+      "❌ Formato de productos inválido. Usa: Nombre | Cantidad | Precio",
+      "error",
+    );
+  }
+
+  const subtotalProductos = productos.reduce(
+    (s, p) => s + (Number(p.precio) || 0) * (Number(p.cantidad) || 0),
+    0,
+  );
+  const subtotalConEnvio = subtotalProductos + envio;
+  const descuentoMonto = subtotalConEnvio * (descuentoPct / 100);
+  const total = subtotalConEnvio - descuentoMonto;
+
+  try {
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = "Guardando...";
+    }
+
+    const { error } = await window.supabase
+      .from("pedidos")
+      .update({
+        cliente_nombre: cliente,
+        cliente_telefono: telefono,
+        cliente_email: email || null,
+        direccion_entrega: direccion || null,
+        lugar_entrega: lugarEntrega || null,
+        metodo_pago: metodoPago,
+        productos: productos,
+        costo_envio: envio,
+        descuento: descuentoPct,
+        total: total,
+        estado: estado,
+        notas: notas || null,
+      })
+      .eq("id", id);
+
+    if (error) throw error;
+
+    document.getElementById("modalEditarPedido").style.display = "none";
+
+    const activeFilter = document.querySelector(".filtro-pedido.active");
+    await cargarPedidos(activeFilter?.dataset?.estado || "todos");
+    cargarPedidosPendientes();
+    cargarPedidosParaTicket();
+
+    mostrarModalAlerta("✅ Pedido actualizado correctamente");
+  } catch (error) {
+    console.error("Error al guardar pedido editado:", error);
+    mostrarModalAlerta("❌ Error al guardar: " + error.message);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = "Guardar Cambios";
+    }
+  }
+}
+
+async function verDetallePedido(id) {
+  try {
+    const { data, error } = await window.supabase
+      .from("pedidos")
+      .select("*")
+      .eq("id", id)
+      .single();
+    if (error) throw error;
+    if (!data) return;
+
+    detallePedidoActual = data;
+
+    const envio = Number(data.costo_envio) || 0;
+    const descuentoPct = Number(data.descuento) || 0;
+    const subtotalProductos = (data.productos || []).reduce(
+      (s, x) => s + (Number(x.precio) || 0) * (Number(x.cantidad) || 0),
+      0,
+    );
+    const subtotalConEnvio = subtotalProductos + envio;
+    const descuentoMonto = subtotalConEnvio * (descuentoPct / 100);
+    const totalDetalle = subtotalConEnvio - descuentoMonto;
+
+    const productosHtml = (data.productos || [])
+      .map(
+        (x) =>
+          `<div style="display:flex; justify-content:space-between; gap:12px;"><span>${x.nombre} × ${x.cantidad}</span><span>${formatearMoneda(
+            (Number(x.precio) || 0) * (Number(x.cantidad) || 0),
+          )}</span></div>`,
+      )
+      .join("");
+
+    document.getElementById(
+      "contenidoDetallePedido",
+    ).innerHTML = `
+            <div style="display:flex; justify-content:space-between;"><strong>N° Pedido:</strong> <span>${
+              data.numero_pedido || "N/A"
+            }</span></div>
+            <div style="display:flex; justify-content:space-between;"><strong>Cliente:</strong> <span>${
+              data.cliente_nombre
+            }</span></div>
+            <div style="display:flex; justify-content:space-between;"><strong>Teléfono:</strong> <span>${
+              data.cliente_telefono || "—"
+            }</span></div>
+            <div style="display:flex; justify-content:space-between;"><strong>Correo:</strong> <span>${
+              data.cliente_email || "—"
+            }</span></div>
+            ${
+              data.direccion_entrega
+                ? `<div style="display:flex; justify-content:space-between;"><strong>Dirección:</strong> <span>${data.direccion_entrega}</span></div>`
+                : ""
+            }
+            ${
+              data.lugar_entrega
+                ? `<div style="display:flex; justify-content:space-between;"><strong>Lugar de entrega:</strong> <span>${data.lugar_entrega}</span></div>`
+                : ""
+            }
+            <hr style="border-color:var(--border); margin:12px 0;">
+            <div><strong>Productos:</strong></div>
+            ${productosHtml}
+            <hr style="border-color:var(--border); margin:12px 0;">
+            ${
+              envio > 0
+                ? `<div style="display:flex; justify-content:space-between;"><strong>Envío:</strong> <span>${formatearMoneda(
+                    envio,
+                  )}</span></div>`
+                : ""
+            }
+            <div style="display:flex; justify-content:space-between;"><strong>Subtotal:</strong> <span>${formatearMoneda(
+              subtotalConEnvio,
+            )}</span></div>
+            ${
+              descuentoMonto > 0
+                ? `<div style="display:flex; justify-content:space-between;"><strong>Descuento (${descuentoPct}%):</strong> <span style="color:#ffd166;">−${formatearMoneda(
+                    descuentoMonto,
+                  )}</span></div>`
+                : ""
+            }
+            <div style="display:flex; justify-content:space-between; font-size:1.1rem;"><strong>Total:</strong> <strong style="color:var(--accent);">${formatearMoneda(
+              totalDetalle,
+            )}</strong></div>
+            <div style="display:flex; justify-content:space-between; margin-top:6px;"><strong>Método de pago:</strong> <span>${
+              data.metodo_pago === "transferencia"
+                ? "Transferencia"
+                : data.metodo_pago || "—"
+            }</span></div>
+            <div style="display:flex; justify-content:space-between;"><strong>Estado:</strong> <span>${(
+              data.estado || ""
+            ).toUpperCase()}</span></div>
+            ${
+              data.notas
+                ? `<div style="display:flex; justify-content:space-between;"><strong>Notas:</strong> <span>${data.notas}</span></div>`
+                : ""
+            }
+            <div style="display:flex; justify-content:space-between;"><strong>Fecha:</strong> <span>${formatearFecha(
+              data.fecha_pedido,
+            )}</span></div>
+        `;
+
+    document.getElementById("editarPedidoIdHidden").value = id;
+    document.getElementById("modalVerDetallePedido").style.display = "flex";
   } catch (error) {
     console.error("Error:", error);
-    alert("❌ Error al cargar detalle");
+    mostrarModalAlerta("❌ Error al cargar detalle: " + error.message);
   }
+}
+
+function imprimirDetallePedidoActual() {
+  if (!detallePedidoActual) return;
+  generarTicketPedido(detallePedidoActual.id);
 }
 
 async function generarTicketPedido(id) {
@@ -1730,26 +2416,41 @@ async function generarTicketPedido(id) {
       .eq("id", id)
       .single();
     if (!data) return;
+
+    const envio = Number(data.costo_envio) || 0;
+    const descuentoPct = Number(data.descuento) || 0;
+    const subtotalProductos = (data.productos || []).reduce(
+      (s, x) => s + (Number(x.precio) || 0) * (Number(x.cantidad) || 0),
+      0,
+    );
+    const subtotal = subtotalProductos + envio;
+    const descuentoMonto = subtotal * (descuentoPct / 100);
+    const total = subtotal - descuentoMonto;
+
     const datosTicket = {
       cliente: data.cliente_nombre,
       telefono: data.cliente_telefono,
       direccion: data.direccion_entrega || "",
+      lugar_entrega: data.lugar_entrega || "",
       metodo_pago:
         data.metodo_pago === "transferencia" ? "Transferencia" : "Efectivo",
       items: data.productos,
-      subtotal: data.total,
-      total: data.total,
-      envio: 0,
+      subtotal: subtotal,
+      envio: envio,
+      descuento: descuentoPct,
+      total: total,
       fecha: data.fecha_pedido,
+      numero_pedido: data.numero_pedido || "",
+      estado: data.estado || "",
     };
-    window.open(
+    abrirVentanaCentrada(
       `ticket.html?pedido=${encodeURIComponent(JSON.stringify(datosTicket))}`,
-      "_blank",
-      "width=400,height=700"
+      400,
+      700,
     );
   } catch (error) {
     console.error("Error:", error);
-    alert("❌ Error al generar ticket");
+    mostrarModalAlerta("❌ Error al generar ticket");
   }
 }
 
@@ -1821,8 +2522,8 @@ async function cargarFinanzas() {
                                 ? "text-success"
                                 : "text-danger"
                             }">${
-                          f.tipo === "ingreso" ? "📈 Ingreso" : "📉 Gasto"
-                        }</span></td>
+                              f.tipo === "ingreso" ? "📈 Ingreso" : "📉 Gasto"
+                            }</span></td>
                             <td><small>${
                               f.categoria
                                 ? f.categoria.replace("_", " ")
@@ -1834,13 +2535,13 @@ async function cargarFinanzas() {
                                 ? "text-success"
                                 : "text-danger"
                             }">${
-                          f.tipo === "ingreso" ? "+" : "-"
-                        } ${formatearMoneda(f.monto)}</td>
+                              f.tipo === "ingreso" ? "+" : "-"
+                            } ${formatearMoneda(f.monto)}</td>
                             <td><button onclick="pedirEliminar('${
                               f.id
                             }','finanza')" class="btn btn-outline-danger btn-sm">🗑️</button></td>
                         </tr>
-                    `
+                    `,
                       )
                       .join("")}
                 </tbody>
@@ -1868,7 +2569,7 @@ function mostrarFormFinanza(data = null) {
     setValue("finDescripcion", data.descripcion);
     setValue("finMonto", data.monto);
     const submitBtn = document.querySelector(
-      '#formFinanza button[type="submit"]'
+      '#formFinanza button[type="submit"]',
     );
     if (submitBtn) submitBtn.textContent = "💾 Actualizar";
   } else {
@@ -1877,7 +2578,7 @@ function mostrarFormFinanza(data = null) {
     if (form) form.reset();
     setValue("finId", "");
     const submitBtn = document.querySelector(
-      '#formFinanza button[type="submit"]'
+      '#formFinanza button[type="submit"]',
     );
     if (submitBtn) submitBtn.textContent = "💾 Guardar";
   }
@@ -1942,6 +2643,118 @@ async function guardarFinanza(e) {
 // 6. TICKET - FUNCIONES COMPLETAS
 // ============================================
 
+// ============================================
+// PRECARGAR PEDIDO EXISTENTE EN EL TICKET
+// ============================================
+
+async function cargarPedidosParaTicket() {
+  const select = document.getElementById("ticketPedidoSelect");
+  if (!select) return;
+
+  if (!window.supabase || typeof window.supabase.from !== "function") {
+    setTimeout(cargarPedidosParaTicket, 500);
+    return;
+  }
+
+  try {
+    const { data, error } = await window.supabase
+      .from("pedidos")
+      .select(
+        "id, numero_pedido, cliente_nombre, cliente_telefono, direccion_entrega, productos, total, estado, metodo_pago, fecha_pedido, costo_envio, descuento, lugar_entrega",
+      )
+      .order("fecha_pedido", { ascending: false })
+      .limit(300);
+
+    if (error) throw error;
+
+    select.innerHTML =
+      '<option value="">Venta nueva (sin pedido existente)...</option>';
+
+    (data || []).forEach((p) => {
+      const opt = document.createElement("option");
+      opt.value = p.id;
+      opt.textContent = `${p.numero_pedido || "S/N"} - ${
+        p.cliente_nombre
+      } (${p.estado})`;
+      opt.dataset.pedido = JSON.stringify(p);
+      select.appendChild(opt);
+    });
+  } catch (error) {
+    console.error("Error cargando pedidos para el ticket:", error);
+    select.innerHTML = '<option value="">❌ Error al cargar pedidos</option>';
+  }
+}
+
+function actualizarBotonTicket() {
+  const btn = document.querySelector('#formTicketVenta button[type="submit"]');
+  if (!btn) return;
+  btn.innerHTML = pedidoTicketPrecargado
+    ? '<i class="fas fa-print"></i> 🖨️ Reimprimir Ticket (pedido)'
+    : '<i class="fas fa-cash-register"></i> 💵 Generar Ticket · Venta Nueva';
+}
+
+function limpiarFormularioTicket() {
+  pedidoTicketPrecargado = null;
+  ticketProductos = [];
+  document.getElementById("ticketCliente").value = "";
+  document.getElementById("ticketTelefono").value = "";
+  document.getElementById("ticketDireccion").value = "";
+  document.getElementById("ticketLugarEntrega").value = "";
+  document.getElementById("ticketEnvio").value = "0";
+  document.getElementById("ticketDescuento").value = "0";
+  // En venta nueva el producto vuelve a ser obligatorio.
+  const selProducto = document.getElementById("ticketProductoSelect");
+  if (selProducto) selProducto.setAttribute("required", "required");
+  actualizarListaTicket();
+  actualizarTotalesTicket();
+  actualizarBotonTicket();
+}
+
+function precargarPedidoEnTicket(pedido) {
+  pedidoTicketPrecargado = pedido;
+
+  document.getElementById("ticketCliente").value = pedido.cliente_nombre || "";
+  document.getElementById("ticketTelefono").value =
+    pedido.cliente_telefono || "";
+  document.getElementById("ticketDireccion").value =
+    pedido.direccion_entrega || "";
+  document.getElementById("ticketLugarEntrega").value =
+    pedido.lugar_entrega || "";
+  document.getElementById("ticketEnvio").value = pedido.costo_envio || 0;
+  document.getElementById("ticketDescuento").value = pedido.descuento || 0;
+
+  // Al precargar un pedido NO es obligatorio elegir producto (solo aplica
+  // a la venta nueva). El HTML tiene "required" en el select.
+  const selProducto = document.getElementById("ticketProductoSelect");
+  if (selProducto) selProducto.removeAttribute("required");
+
+  ticketProductos = (pedido.productos || []).map((p) => {
+    const match = productosDisponibles.find((d) => d.nombre === p.nombre);
+    return {
+      id: match ? match.id : null,
+      nombre: p.nombre,
+      precio: Number(p.precio) || 0,
+      cantidad: Number(p.cantidad) || 0,
+      stockOriginal: match ? match.stock : 0,
+    };
+  });
+
+  actualizarListaTicket();
+  actualizarTotalesTicket();
+  actualizarBotonTicket();
+
+  const msg = document.getElementById("mensajeTicket");
+  if (msg) {
+    mostrarMensaje(
+      msg,
+      `✅ Pedido ${pedido.numero_pedido || "S/N"} (${
+        pedido.estado
+      }) precargado. Solo se generará/reimprimirá el ticket, no se registrará otra venta.`,
+      "exito",
+    );
+  }
+}
+
 async function cargarProductosTicket() {
   const select = document.getElementById("ticketProductoSelect");
   if (!select) return;
@@ -1979,7 +2792,7 @@ async function cargarProductosTicket() {
     });
 
     console.log(
-      `✅ Productos para ticket cargados: ${productosConStock.length}`
+      `✅ Productos para ticket cargados: ${productosConStock.length}`,
     );
   } catch (error) {
     console.error("Error cargando productos para ticket:", error);
@@ -1994,7 +2807,7 @@ function agregarProductoTicket() {
   const productoId = select.value;
 
   if (!productoId) {
-    alert("❌ Selecciona un producto");
+    mostrarModalAlerta("❌ Selecciona un producto");
     return;
   }
 
@@ -2007,22 +2820,24 @@ function agregarProductoTicket() {
     "Precio:",
     precio,
     "Cantidad:",
-    cantidad
+    cantidad,
   );
 
   const producto = productosDisponibles.find((p) => p.id === productoId);
   if (!producto) {
-    alert("❌ Producto no encontrado");
+    mostrarModalAlerta("❌ Producto no encontrado");
     return;
   }
 
   if (cantidad < 1) {
-    alert("❌ La cantidad debe ser al menos 1");
+    mostrarModalAlerta("❌ La cantidad debe ser al menos 1");
     return;
   }
 
   if (cantidad > producto.stock) {
-    alert(`❌ Stock insuficiente. Disponible: ${producto.stock}`);
+    mostrarModalAlerta(
+      `❌ Stock insuficiente. Disponible: ${producto.stock}`,
+    );
     return;
   }
 
@@ -2032,7 +2847,9 @@ function agregarProductoTicket() {
   if (existente) {
     const nuevaCantidad = existente.cantidad + cantidad;
     if (nuevaCantidad > stockOriginal) {
-      alert(`❌ Stock insuficiente. Disponible: ${stockOriginal}`);
+      mostrarModalAlerta(
+        `❌ Stock insuficiente. Disponible: ${stockOriginal}`,
+      );
       return;
     }
     existente.cantidad = nuevaCantidad;
@@ -2091,7 +2908,7 @@ function actualizarListaTicket() {
             </div>
             <button onclick="eliminarProductoTicket(${index})" class="btn btn-danger btn-sm">✕</button>
         </div>
-    `
+    `,
     )
     .join("");
 }
@@ -2103,18 +2920,18 @@ function eliminarProductoTicket(index) {
   console.log("🗑️ Eliminando producto:", productoEliminado);
 
   const productoOriginal = productosDisponibles.find(
-    (p) => p.id === productoEliminado.id
+    (p) => p.id === productoEliminado.id,
   );
   if (productoOriginal) {
     productoOriginal.stock = productoEliminado.stockOriginal;
     console.log(
-      `✅ Stock restaurado a ${productoOriginal.nombre}: ${productoOriginal.stock}`
+      `✅ Stock restaurado a ${productoOriginal.nombre}: ${productoOriginal.stock}`,
     );
 
     const select = document.getElementById("ticketProductoSelect");
     if (select) {
       const option = select.querySelector(
-        `option[value="${productoOriginal.id}"]`
+        `option[value="${productoOriginal.id}"]`,
       );
       if (option) {
         const nuevoStock = productoOriginal.stock;
@@ -2123,7 +2940,7 @@ function eliminarProductoTicket(index) {
         option.textContent = `${productoOriginal.nombre} - $${precio} (Stock: ${nuevoStock})`;
         option.disabled = false;
         console.log(
-          `✅ Select actualizado: ${productoOriginal.nombre} - Stock: ${nuevoStock}`
+          `✅ Select actualizado: ${productoOriginal.nombre} - Stock: ${nuevoStock}`,
         );
       }
     }
@@ -2143,28 +2960,28 @@ function eliminarProductoTicket(index) {
 }
 
 function actualizarTotalesTicket() {
-  console.log("🔍 ticketProductos:", JSON.stringify(ticketProductos));
-
-  let subtotal = 0;
+  let subtotalProductos = 0;
   for (const p of ticketProductos) {
     const precio = Number(p.precio) || 0;
     const cantidad = Number(p.cantidad) || 0;
-    const totalItem = precio * cantidad;
-    subtotal += totalItem;
-    console.log(`📦 ${p.nombre}: $${precio} × ${cantidad} = $${totalItem}`);
+    subtotalProductos += precio * cantidad;
   }
 
   const envioInput = document.getElementById("ticketEnvio");
   const envio = Number(envioInput?.value) || 0;
-  const total = subtotal + envio;
+  const descuentoInput = document.getElementById("ticketDescuento");
+  let descuentoPct = Number(descuentoInput?.value) || 0;
+  descuentoPct = Math.min(100, Math.max(0, descuentoPct));
+
+  const subtotal = subtotalProductos + envio;
+  const descuentoMonto = subtotal * (descuentoPct / 100);
+  const total = subtotal - descuentoMonto;
 
   const subtotalInput = document.getElementById("ticketSubtotal");
   const totalInput = document.getElementById("ticketTotal");
 
   if (subtotalInput) subtotalInput.value = `$${subtotal.toFixed(2)}`;
   if (totalInput) totalInput.value = `$${total.toFixed(2)}`;
-
-  console.log("📊 Subtotal:", subtotal, "Envío:", envio, "Total:", total);
 }
 
 async function generarTicketVenta(e) {
@@ -2176,12 +2993,15 @@ async function generarTicketVenta(e) {
   const telefono = document.getElementById("ticketTelefono").value.trim();
   const direccion = document.getElementById("ticketDireccion").value.trim();
   const envio = parseFloat(document.getElementById("ticketEnvio").value) || 0;
+  let descuentoPct =
+    parseFloat(document.getElementById("ticketDescuento").value) || 0;
+  descuentoPct = Math.min(100, Math.max(0, descuentoPct));
 
   if (!cliente || !telefono) {
     return mostrarMensaje(
       msg,
       "❌ Cliente y teléfono son obligatorios",
-      "error"
+      "error",
     );
   }
 
@@ -2189,6 +3009,63 @@ async function generarTicketVenta(e) {
     return mostrarMensaje(msg, "❌ Agrega al menos un producto", "error");
   }
 
+  const subtotalProductosActual = ticketProductos.reduce(
+    (s, p) => s + (Number(p.precio) || 0) * (Number(p.cantidad) || 0),
+    0,
+  );
+  const subtotalActual = subtotalProductosActual + envio;
+  const descuentoMontoActual = subtotalActual * (descuentoPct / 100);
+  const totalActual = subtotalActual - descuentoMontoActual;
+
+  // ============================================
+  // MODO REIMPRESIÓN: pedido ya existente precargado.
+  // Solo se genera/imprime el ticket, sin tocar stock,
+  // sin crear otro pedido ni otro movimiento financiero.
+  // ============================================
+  if (pedidoTicketPrecargado) {
+    const datosTicket = {
+      cliente: cliente,
+      telefono: telefono,
+      direccion: direccion || "",
+      lugar_entrega: document.getElementById("ticketLugarEntrega").value || "",
+      metodo_pago:
+        pedidoTicketPrecargado.metodo_pago === "transferencia"
+          ? "Transferencia"
+          : "Efectivo",
+      items: ticketProductos.map((p) => ({
+        nombre: p.nombre,
+        precio: p.precio,
+        cantidad: p.cantidad,
+      })),
+      subtotal: subtotalActual,
+      envio: envio,
+      descuento: descuentoPct,
+      total: totalActual,
+      fecha: pedidoTicketPrecargado.fecha_pedido || new Date().toISOString(),
+      ticket_numero: `T-${Date.now().toString(36).toUpperCase()}`,
+      numero_pedido: pedidoTicketPrecargado.numero_pedido || "",
+      estado: pedidoTicketPrecargado.estado || "",
+    };
+
+    abrirVentanaCentrada(
+      `ticket.html?pedido=${encodeURIComponent(JSON.stringify(datosTicket))}`,
+      400,
+      700,
+    );
+
+    mostrarMensaje(
+      msg,
+      "✅ Ticket generado (no se registró otra venta).",
+      "exito",
+    );
+    return;
+  }
+
+  // ============================================
+  // MODO VENTA NUEVA: comportamiento original,
+  // valida stock, crea el pedido, descuenta inventario
+  // y registra el ingreso en finanzas.
+  // ============================================
   let subtotal = 0;
   const productosValidados = [];
 
@@ -2204,7 +3081,7 @@ async function generarTicketVenta(e) {
       return mostrarMensaje(
         msg,
         `❌ Error al verificar producto "${item.nombre}"`,
-        "error"
+        "error",
       );
     }
 
@@ -2212,7 +3089,7 @@ async function generarTicketVenta(e) {
       return mostrarMensaje(
         msg,
         `❌ Producto "${item.nombre}" no encontrado en la base de datos.`,
-        "error"
+        "error",
       );
     }
 
@@ -2220,7 +3097,7 @@ async function generarTicketVenta(e) {
       return mostrarMensaje(
         msg,
         `❌ Stock insuficiente para "${item.nombre}". Disponible: ${productoBD.stock}`,
-        "error"
+        "error",
       );
     }
 
@@ -2234,13 +3111,17 @@ async function generarTicketVenta(e) {
     subtotal += productoBD.precio * item.cantidad;
   }
 
-  const total = subtotal + envio;
+  const subtotalConEnvio = subtotal + envio;
+  const descuentoMonto = subtotalConEnvio * (descuentoPct / 100);
+  const total = subtotalConEnvio - descuentoMonto;
+  const numeroPedido = generarNumeroPedido();
 
   try {
     btn.disabled = true;
     btn.textContent = "Procesando...";
 
     const pedido = {
+      numero_pedido: numeroPedido,
       cliente_nombre: cliente,
       cliente_telefono: telefono,
       direccion_entrega: direccion || null,
@@ -2250,9 +3131,12 @@ async function generarTicketVenta(e) {
         cantidad: p.cantidad,
       })),
       total: total,
+      costo_envio: envio,
+      descuento: descuentoPct,
+      lugar_entrega: document.getElementById("ticketLugarEntrega").value || null,
       metodo_pago: "efectivo",
-      estado: "entregado",
-      notas: `Ticket generado desde el panel. Envío: $${envio.toFixed(2)}`,
+      estado: "vendido",
+      notas: `Ticket generado desde el panel.`,
     };
 
     const { data: pedidoData, error: pedidoError } = await window.supabase
@@ -2308,49 +3192,45 @@ async function generarTicketVenta(e) {
       cliente: cliente,
       telefono: telefono,
       direccion: direccion || "",
+      lugar_entrega: document.getElementById("ticketLugarEntrega").value || "",
       metodo_pago: "Efectivo",
       items: productosValidados.map((p) => ({
         nombre: p.nombre,
         precio: p.precio,
         cantidad: p.cantidad,
       })),
-      subtotal: subtotal,
+      subtotal: subtotalConEnvio,
       envio: envio,
+      descuento: descuentoPct,
       total: total,
       fecha: new Date().toISOString(),
       ticket_numero: `T-${Date.now().toString(36).toUpperCase()}`,
+      numero_pedido: numeroPedido,
+      estado: "vendido",
     };
 
-    window.open(
+    abrirVentanaCentrada(
       `ticket.html?pedido=${encodeURIComponent(JSON.stringify(datosTicket))}`,
-      "_blank",
-      "width=400,height=700"
+      400,
+      700,
     );
 
     mostrarMensaje(msg, "✅ ¡Venta registrada! Ticket generado.", "exito");
 
-    ticketProductos = [];
-    actualizarListaTicket();
-    actualizarTotalesTicket();
-
-    document.getElementById("ticketCliente").value = "";
-    document.getElementById("ticketTelefono").value = "";
-    document.getElementById("ticketDireccion").value = "";
-    document.getElementById("ticketEnvio").value = "0";
-    document.getElementById("ticketSubtotal").value = "$0.00";
-    document.getElementById("ticketTotal").value = "$0.00";
+    limpiarFormularioTicket();
 
     cargarProductos();
     cargarInventario();
     cargarPedidos();
     cargarFinanzas();
     cargarProductosTicket();
+    cargarPedidosParaTicket();
   } catch (error) {
     console.error("Error:", error);
     mostrarMensaje(msg, "❌ Error: " + error.message, "error");
   } finally {
     btn.disabled = false;
-    btn.textContent = "🖨️ Generar Ticket y Registrar Venta";
+    actualizarBotonTicket();
   }
 }
 
@@ -2365,6 +3245,10 @@ function pedirEliminar(id, tipo) {
     producto: "¿Eliminar este producto?",
     inventario: "¿Eliminar este movimiento?",
     finanza: "¿Eliminar este registro?",
+    pedido:
+      "¿Eliminar este pedido de forma PERMANENTE? Esta acción no se puede deshacer.",
+    "devolucion-pedido":
+      "¿Devolver estos productos al stock? El pedido pasará a estado 'Devuelto'.",
   };
   const modalMensaje = document.getElementById("modalMensaje");
   if (modalMensaje)
@@ -2372,6 +3256,14 @@ function pedirEliminar(id, tipo) {
 
   const modalElement = document.getElementById("modalConfirm");
   if (modalElement) modalElement.style.display = "flex";
+}
+
+function pedirEliminarPedido(id) {
+  pedirEliminar(id, "pedido");
+}
+
+function pedirDevolucionPedido(id) {
+  pedirEliminar(id, "devolucion-pedido");
 }
 
 async function confirmarEliminar() {
@@ -2426,6 +3318,52 @@ async function confirmarEliminar() {
         .from("finanzas")
         .delete()
         .eq("id", eliminarId);
+    } else if (eliminarTipo === "pedido") {
+      result = await window.supabase
+        .from("pedidos")
+        .delete()
+        .eq("id", eliminarId);
+    } else if (eliminarTipo === "devolucion-pedido") {
+      const { data: pedido, error: getError } = await window.supabase
+        .from("pedidos")
+        .select("*")
+        .eq("id", eliminarId)
+        .single();
+      if (getError) throw getError;
+      if (!pedido) throw new Error("Pedido no encontrado");
+
+      for (const item of pedido.productos || []) {
+        const { data: prodActual } = await window.supabase
+          .from("productos")
+          .select("id, stock")
+          .eq("nombre", item.nombre)
+          .maybeSingle();
+
+        if (prodActual) {
+          const nuevoStock =
+            (Number(prodActual.stock) || 0) + (Number(item.cantidad) || 0);
+          await window.supabase
+            .from("productos")
+            .update({ stock: nuevoStock })
+            .eq("id", prodActual.id);
+
+          await window.supabase.from("inventario").insert([
+            {
+              producto_id: prodActual.id,
+              tipo: "entrada",
+              cantidad: Number(item.cantidad) || 0,
+              descripcion: `Devolución - Pedido ${
+                pedido.numero_pedido || eliminarId
+              }`,
+            },
+          ]);
+        }
+      }
+
+      result = await window.supabase
+        .from("pedidos")
+        .update({ estado: "devuelto" })
+        .eq("id", eliminarId);
     }
     if (result.error) throw result.error;
 
@@ -2440,11 +3378,26 @@ async function confirmarEliminar() {
       cargarProductos();
     } else if (eliminarTipo === "finanza") {
       cargarFinanzas();
+    } else if (
+      eliminarTipo === "pedido" ||
+      eliminarTipo === "devolucion-pedido"
+    ) {
+      cargarPedidos();
+      cargarProductos();
+      cargarInventario();
     }
-    alert("✅ Eliminado correctamente");
+
+    const mensajesExito = {
+      pedido: "✅ Pedido eliminado",
+      "devolucion-pedido":
+        "✅ Stock devuelto correctamente. Pedido marcado como Devuelto.",
+    };
+    mostrarModalAlerta(
+      mensajesExito[eliminarTipo] || "✅ Eliminado correctamente",
+    );
   } catch (error) {
     console.error("Error:", error);
-    alert("❌ Error: " + error.message);
+    mostrarModalAlerta("❌ Error: " + error.message);
   }
   eliminarId = null;
   eliminarTipo = null;
@@ -2518,7 +3471,7 @@ function parsearFechaNoticiaAISO(texto) {
   if (!mes) return "";
   return `${anio}-${String(mes).padStart(2, "0")}-${String(dia).padStart(
     2,
-    "0"
+    "0",
   )}`;
 }
 
@@ -2529,7 +3482,7 @@ function formatearVigenciaCupon(fechaISO) {
   if (!y || !m || !d) return "";
   return `Válido hasta: ${String(d).padStart(2, "0")}/${String(m).padStart(
     2,
-    "0"
+    "0",
   )}/${y}`;
 }
 
@@ -2543,7 +3496,7 @@ function parsearVigenciaAISO(texto) {
   const anio = parseInt(match[3], 10);
   return `${anio}-${String(mes).padStart(2, "0")}-${String(dia).padStart(
     2,
-    "0"
+    "0",
   )}`;
 }
 
@@ -2637,7 +3590,7 @@ async function cargarCupones() {
                                 }')" class="btn btn-outline-danger btn-sm">🗑️</button>
                             </td>
                         </tr>
-                    `
+                    `,
                       )
                       .join("")}
                 </tbody>
@@ -2708,8 +3661,8 @@ async function cargarNoticias() {
                             <td><small>${n.fecha}</small></td>
                             <td><strong>${n.titulo}</strong></td>
                             <td><small>${n.descripcion.substring(0, 60)}${
-                          n.descripcion.length > 60 ? "..." : ""
-                        }</small></td>
+                              n.descripcion.length > 60 ? "..." : ""
+                            }</small></td>
                             <td>
                                 ${
                                   n.destacado
@@ -2733,7 +3686,7 @@ async function cargarNoticias() {
                                 }')" class="btn btn-outline-danger btn-sm">🗑️</button>
                             </td>
                         </tr>
-                    `
+                    `,
                       )
                       .join("")}
                 </tbody>
@@ -2764,7 +3717,7 @@ function mostrarFormCupon(data = null) {
     cuponEditando = data;
     document.getElementById("formCuponTitulo").textContent = "✏️ Editar Cupón";
     const submitBtn = document.querySelector(
-      '#formCupon button[type="submit"]'
+      '#formCupon button[type="submit"]',
     );
     if (submitBtn) submitBtn.textContent = "💾 Actualizar";
 
@@ -2775,7 +3728,7 @@ function mostrarFormCupon(data = null) {
     document.getElementById("cuponTag").value = data.tag || "";
     document.getElementById("cuponIcono").value = data.icono || "";
     document.getElementById("cuponVigenciaPicker").value = parsearVigenciaAISO(
-      data.vigencia
+      data.vigencia,
     );
     document.getElementById("cuponOrden").value = data.orden || 1;
     document.getElementById("cuponActivo").value = data.activo
@@ -2785,7 +3738,7 @@ function mostrarFormCupon(data = null) {
     cuponEditando = null;
     document.getElementById("formCuponTitulo").textContent = "➕ Agregar Cupón";
     const submitBtn = document.querySelector(
-      '#formCupon button[type="submit"]'
+      '#formCupon button[type="submit"]',
     );
     if (submitBtn) submitBtn.textContent = "💾 Guardar";
 
@@ -2814,7 +3767,7 @@ async function editarCupon(id) {
     if (data) mostrarFormCupon(data);
   } catch (error) {
     console.error("Error:", error);
-    alert("Error al cargar el cupón");
+    mostrarModalAlerta("Error al cargar el cupón");
   }
 }
 
@@ -2884,19 +3837,20 @@ async function guardarCupon(e) {
 }
 
 async function pedirEliminarCupon(id) {
-  if (!confirm("¿Eliminar este cupón permanentemente?")) return;
-  try {
-    const { error } = await window.supabase
-      .from("cupones")
-      .delete()
-      .eq("id", id);
-    if (error) throw error;
-    alert("✅ Cupón eliminado");
-    cargarCupones();
-  } catch (error) {
-    console.error("Error:", error);
-    alert("❌ Error al eliminar: " + error.message);
-  }
+  modalConfirmar("¿Eliminar este cupón permanentemente?", async function () {
+    try {
+      const { error } = await window.supabase
+        .from("cupones")
+        .delete()
+        .eq("id", id);
+      if (error) throw error;
+      mostrarModalAlerta("✅ Cupón eliminado");
+      cargarCupones();
+    } catch (error) {
+      console.error("Error:", error);
+      mostrarModalAlerta("❌ Error al eliminar: " + error.message);
+    }
+  });
 }
 
 // ============================================
@@ -2915,7 +3869,7 @@ function mostrarFormNoticia(data = null) {
     document.getElementById("formNoticiaTitulo").textContent =
       "✏️ Editar Noticia";
     const submitBtn = document.querySelector(
-      '#formNoticia button[type="submit"]'
+      '#formNoticia button[type="submit"]',
     );
     if (submitBtn) submitBtn.textContent = "💾 Actualizar";
 
@@ -2950,7 +3904,7 @@ function mostrarFormNoticia(data = null) {
     document.getElementById("formNoticiaTitulo").textContent =
       "➕ Agregar Noticia";
     const submitBtn = document.querySelector(
-      '#formNoticia button[type="submit"]'
+      '#formNoticia button[type="submit"]',
     );
     if (submitBtn) submitBtn.textContent = "💾 Guardar";
 
@@ -2983,7 +3937,7 @@ async function editarNoticia(id) {
     if (data) mostrarFormNoticia(data);
   } catch (error) {
     console.error("Error:", error);
-    alert("Error al cargar la noticia");
+    mostrarModalAlerta("Error al cargar la noticia");
   }
 }
 
@@ -3047,19 +4001,20 @@ async function guardarNoticia(e) {
 }
 
 async function pedirEliminarNoticia(id) {
-  if (!confirm("¿Eliminar esta noticia permanentemente?")) return;
-  try {
-    const { error } = await window.supabase
-      .from("noticias")
-      .delete()
-      .eq("id", id);
-    if (error) throw error;
-    alert("✅ Noticia eliminada");
-    cargarNoticias();
-  } catch (error) {
-    console.error("Error:", error);
-    alert("❌ Error al eliminar: " + error.message);
-  }
+  modalConfirmar("¿Eliminar esta noticia permanentemente?", async function () {
+    try {
+      const { error } = await window.supabase
+        .from("noticias")
+        .delete()
+        .eq("id", id);
+      if (error) throw error;
+      mostrarModalAlerta("✅ Noticia eliminada");
+      cargarNoticias();
+    } catch (error) {
+      console.error("Error:", error);
+      mostrarModalAlerta("❌ Error al eliminar: " + error.message);
+    }
+  });
 }
 
 // ============================================

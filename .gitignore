@@ -3,6 +3,9 @@ js/config.local.js
 .env
 .env.local
 
+# Carpeta de respaldo (NO SUBIR A GITHUB)
+_backup_before_mods/
+
 # Archivos del sistema
 .DS_Store
 Thumbs.db

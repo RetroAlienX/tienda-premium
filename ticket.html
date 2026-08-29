@@ -197,6 +197,22 @@
                 }
             }
         });
+
+        // Ventana SIEMPRE centrada (respaldo: algunos navegadores ignoran
+        // left/top en window.open y la abren pegada a la izquierda).
+        (function () {
+            try {
+                if (window.opener && window.moveTo && window.resizeTo && window.screen) {
+                    const ancho = 400;
+                    const alto = 700;
+                    window.resizeTo(ancho, alto);
+                    window.moveTo(
+                        Math.max(0, (window.screen.availWidth - ancho) / 2),
+                        Math.max(0, (window.screen.availHeight - alto) / 2)
+                    );
+                }
+            } catch (e) { /* el navegador bloqueó moveTo/resizeTo: no pasa nada */ }
+        })();
     </script>
 
 </body>
