@@ -58,6 +58,7 @@ function generarTicket(datos) {
             <div>${TIENDA.direccion}</div>
             <div>${TIENDA.telefono}</div>
             <div>${TIENDA.email}</div>
+            <div>${TIENDA.website}</div>
             <hr>
             <div><strong>TICKET: ${num}</strong></div>
             ${

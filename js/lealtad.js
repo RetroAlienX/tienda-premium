@@ -232,4 +232,3 @@ window.abrirModalLealtad = abrirModalLealtad;
 window.guardarLealtad = guardarLealtad;
 window.pedirEliminarLealtad = pedirEliminarLealtad;
 
-console.log("💎 Sistema de lealtad cargado (lealtad.js)");

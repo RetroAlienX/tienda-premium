@@ -6,6 +6,11 @@ js/config.local.js
 # Carpeta de respaldo (NO SUBIR A GITHUB)
 _backup_before_mods/
 
+# Archivos de instrucciones/SQL/templates (NO SUBIR A GITHUB)
+emailjs_template.html
+sql_13_puntos.sql
+sql_tabla_pagos.sql
+
 # Archivos del sistema
 .DS_Store
 Thumbs.db

@@ -27,7 +27,6 @@ let productos = [];
 
 if (typeof emailjs !== "undefined") {
   emailjs.init(EMAILJS_CONFIG.USER_ID);
-  console.log("✅ EmailJS inicializado");
 } else {
   console.warn("⚠️ EmailJS SDK no disponible todavía en catalog.js");
 }
@@ -134,7 +133,6 @@ async function cargarProductos() {
       if (error) throw error;
 
       productos = data || [];
-      console.log("✅ Productos cargados:", productos.length);
       mostrarProductos(productos);
       cargarSelectProductos(productos);
     } catch (error) {
@@ -459,7 +457,6 @@ async function enviarCorreoConfirmacion(
       to_email: pedido.cliente_email,
     };
 
-    console.log("📧 Enviando correo de CONFIRMACIÓN a:", params.to_email);
 
     const response = await emailjs.send(
       EMAILJS_CONFIG.SERVICE_ID,
@@ -467,7 +464,6 @@ async function enviarCorreoConfirmacion(
       params,
     );
 
-    console.log("✅ Correo enviado:", response);
     return true;
   } catch (error) {
     console.error("❌ Error al enviar correo (no crítico):", error);
@@ -518,7 +514,6 @@ async function enviarCorreoCancelacion(pedido, numeroPedido) {
       to_email: pedido.cliente_email,
     };
 
-    console.log("📧 Enviando correo de CANCELACIÓN a:", params.to_email);
 
     const response = await emailjs.send(
       EMAILJS_CONFIG.SERVICE_ID,
@@ -526,7 +521,6 @@ async function enviarCorreoCancelacion(pedido, numeroPedido) {
       params,
     );
 
-    console.log("✅ Correo de cancelación enviado:", response);
     return true;
   } catch (error) {
     console.error(
@@ -731,7 +725,6 @@ async function cargarCuponesDesdeDB() {
     currentSlide = 0;
     iniciarCarrusel();
 
-    console.log(`✅ Cupones cargados desde DB: ${totalSlides}`);
   } catch (error) {
     console.error("Error cargando cupones:", error);
     const track = document.getElementById("carouselTrack");
@@ -779,7 +772,6 @@ async function cargarNoticiasDesdeDB() {
       )
       .join("");
 
-    console.log(`✅ Noticias cargadas desde DB: ${data.length}`);
   } catch (error) {
     console.error("Error cargando noticias:", error);
     const container = document.getElementById("newsletterContent");
@@ -847,7 +839,6 @@ function iniciarCarrusel() {
   }
   carouselInterval = setInterval(siguienteSlide, slideInterval);
 
-  console.log("🔄 Carrusel de cupones iniciado con " + totalSlides + " slides");
 }
 
 // ============================================
@@ -939,7 +930,6 @@ function mostrarToastCupon(mensaje) {
 // ============================================
 
 document.addEventListener("DOMContentLoaded", function () {
-  console.log("📦 catalog.js cargado, esperando Supabase...");
   cargarProductos();
 
   // Cargar cupones y noticias desde Supabase
@@ -1202,4 +1192,3 @@ document.addEventListener("visibilitychange", function () {
   }
 });
 
-console.log("🎯 Sistema de cupones y noticias cargado en catalog.js");

@@ -35,7 +35,6 @@ const EMAILJS_CONFIG = {
 
 if (typeof emailjs !== "undefined") {
   emailjs.init(EMAILJS_CONFIG.USER_ID);
-  console.log("✅ EmailJS inicializado");
 } else {
   console.warn("⚠️ EmailJS SDK no disponible todavía en admin.js");
 }
@@ -203,19 +202,18 @@ async function cargarPedidosPendientes() {
     const { data, error } = await window.supabase
       .from("pedidos")
       .select(
-        "id, numero_pedido, cliente_nombre, cliente_telefono, cliente_email, productos, total, direccion_entrega, costo_envio, lugar_entrega, metodo_pago, descuento",
+        "id, numero_pedido, cliente_nombre, cliente_telefono, cliente_email, productos, total, direccion_entrega, costo_envio, lugar_entrega, metodo_pago, descuento, estado",
       )
-      .eq("estado", "pendiente")
       .order("fecha_pedido", { ascending: false });
 
     if (error) throw error;
 
     select.innerHTML =
-      '<option value="">Selecciona un pedido pendiente...</option>';
+      '<option value="">Selecciona un pedido...</option>';
 
     if (!data || data.length === 0) {
       select.innerHTML =
-        '<option value="">📋 No hay pedidos pendientes</option>';
+        '<option value="">📋 No hay pedidos registrados</option>';
       return;
     }
 
@@ -223,6 +221,20 @@ async function cargarPedidosPendientes() {
       const productosText = p.productos
         .map((x) => `${x.nombre} x${x.cantidad}`)
         .join(", ");
+      const estadoLabel =
+        p.estado === "pendiente"
+          ? "📋 Pendiente"
+          : p.estado === "confirmado"
+            ? "✅ Confirmado"
+            : p.estado === "vendido"
+              ? "💰 Vendido"
+              : p.estado === "entregado"
+                ? "📦 Entregado"
+                : p.estado === "cancelado"
+                  ? "❌ Cancelado"
+                  : p.estado === "devuelto"
+                    ? "↩️ Devuelto"
+                    : (p.estado || "—");
       select.innerHTML += `
                 <option value="${p.id}" 
                         data-cliente="${p.cliente_nombre}"
@@ -235,8 +247,9 @@ async function cargarPedidosPendientes() {
                         data-costoenvio="${p.costo_envio || 0}"
                         data-lugarentrega="${p.lugar_entrega || ""}"
                         data-descuento="${p.descuento || 0}"
+                        data-estado="${p.estado || ""}"
                         data-metodopago="${p.metodo_pago || ""}">
-                    ${p.numero_pedido} - ${p.cliente_nombre} (${productosText})
+                    ${p.numero_pedido} - ${p.cliente_nombre} · ${estadoLabel} (${productosText})
                 </option>
             `;
     });
@@ -522,7 +535,6 @@ async function enviarCorreoDesdeModal() {
       to_email: email,
     };
 
-    console.log("📧 Enviando correo a:", email);
 
     const response = await emailjs.send(
       EMAILJS_CONFIG.SERVICE_ID,
@@ -533,14 +545,12 @@ async function enviarCorreoDesdeModal() {
       },
     );
 
-    console.log("✅ Correo enviado:", response);
 
     if (pedidoId) {
       await window.supabase
         .from("pedidos")
         .update({ estado: "confirmado" })
         .eq("id", pedidoId);
-      console.log("✅ Pedido marcado como confirmado");
     }
 
     mensaje.innerHTML = `<span class="text-success">✅ Correo enviado a ${email}</span>`;
@@ -679,7 +689,6 @@ async function enviarCorreoManual(e) {
       to_email: email,
     };
 
-    console.log("📧 Enviando correo manual a:", email);
 
     await emailjs.send(
       EMAILJS_CONFIG.SERVICE_ID,
@@ -691,10 +700,17 @@ async function enviarCorreoManual(e) {
     );
 
     if (pedidoId) {
-      await window.supabase
-        .from("pedidos")
-        .update({ estado: "confirmado" })
-        .eq("id", pedidoId);
+      // Solo se "confirma" si el pedido sigue pendiente. Si seleccionaste uno
+      // ya confirmado/vendido/etc. se reenvía el correo sin cambiar su estado.
+      const estadoActual = document
+        .querySelector(`#selectPedidoEnvio option[value="${pedidoId}"]`)
+        ?.dataset.estado;
+      if (!estadoActual || estadoActual === "pendiente") {
+        await window.supabase
+          .from("pedidos")
+          .update({ estado: "confirmado" })
+          .eq("id", pedidoId);
+      }
     }
 
     mostrarMensaje(
@@ -755,7 +771,6 @@ async function ejecutarProcesarPedido(pedidoId, accion) {
     if (getError) throw getError;
 
     if (accion === "completar") {
-      console.log("📦 Descontando stock...");
       for (const item of pedido.productos) {
         const { data: producto, error: prodError } = await window.supabase
           .from("productos")
@@ -777,9 +792,6 @@ async function ejecutarProcesarPedido(pedidoId, accion) {
             .from("productos")
             .update({ stock: nuevoStock })
             .eq("id", producto.id);
-          console.log(
-            `✅ Stock de "${item.nombre}" actualizado: ${producto.stock} → ${nuevoStock}`,
-          );
 
           await window.supabase.from("inventario").insert([
             {
@@ -824,7 +836,6 @@ async function ejecutarProcesarPedido(pedidoId, accion) {
 // ============================================
 
 document.addEventListener("DOMContentLoaded", function () {
-  console.log("📦 Inicializando panel admin...");
 
   function cambiarTab(tabId) {
     document.querySelectorAll(".tab-content").forEach((t) => {
@@ -860,12 +871,12 @@ document.addEventListener("DOMContentLoaded", function () {
     }
     if (tabId === "lealtad" && typeof cargarLealtad === "function")
       cargarLealtad();
+    if (tabId === "pagos" && typeof cargarPagos === "function") cargarPagos();
   }
 
   document.querySelectorAll("[data-tab]").forEach((btn) => {
     btn.addEventListener("click", function () {
       const tab = this.dataset.tab;
-      console.log("📂 Cambiando a pestaña:", tab);
       cambiarTab(tab);
     });
   });
@@ -893,11 +904,34 @@ document.addEventListener("DOMContentLoaded", function () {
     agregarEventoRefrescar(
       "btnRefrescarLealtad",
       function () {
-        if (typeof cargarLealtad === "function") cargarLealtad();
+        if (typeof cargarLealtad === "function") return cargarLealtad();
       },
       "tab-lealtad",
     );
   }
+
+  if (document.getElementById("btnRefrescarPagos")) {
+    agregarEventoRefrescar(
+      "btnRefrescarPagos",
+      function () {
+        if (typeof cargarPagos === "function") return cargarPagos();
+      },
+      "tab-pagos",
+    );
+  }
+
+  document
+    .getElementById("btnAgregarPago")
+    ?.addEventListener("click", function () {
+      if (typeof abrirModalPago === "function") abrirModalPago();
+    });
+
+  // Cargar 2 pagos de ejemplo la primera vez si la tabla está vacía.
+  esperarSupabase(function () {
+    if (typeof cargarPagosDummySiVacio === "function") {
+      cargarPagosDummySiVacio();
+    }
+  });
 
   // ============================================
   // ESCÁNER DE CÓDIGO DE BARRAS
@@ -1141,7 +1175,6 @@ document.addEventListener("DOMContentLoaded", function () {
   esperarSupabase(function () {
     cambiarTab("productos");
   });
-  console.log("✅ Panel admin inicializado");
 });
 
 // ============================================
@@ -1154,7 +1187,6 @@ async function cargarProductos() {
 
   const tabProductos = document.getElementById("tab-productos");
   if (tabProductos && tabProductos.style.display === "none") {
-    console.log("ℹ️ Pestaña de productos no visible, omitiendo carga");
     return;
   }
 
@@ -1163,7 +1195,6 @@ async function cargarProductos() {
 
   try {
     if (!window.supabase || typeof window.supabase.from !== "function") {
-      console.log("⏳ Supabase no disponible todavía, reintentando...");
       setTimeout(cargarProductos, 500);
       return;
     }
@@ -1583,7 +1614,6 @@ async function cargarInventario() {
 
   const tabInventario = document.getElementById("tab-inventario");
   if (tabInventario && tabInventario.style.display === "none") {
-    console.log("ℹ️ Pestaña de inventario no visible, omitiendo carga");
     return;
   }
 
@@ -1717,7 +1747,6 @@ async function cargarPedidos(estado = "todos") {
 
   const tabPedidos = document.getElementById("tab-pedidos");
   if (tabPedidos && tabPedidos.style.display === "none") {
-    console.log("ℹ️ Pestaña de pedidos no visible, omitiendo carga");
     return;
   }
 
@@ -2095,6 +2124,41 @@ function cerrarModalConfirmarAccion() {
   confirmarAccionCallback = null;
 }
 
+// ============================================
+// LIMPIAR BASE DE DATOS DE UNA PESTAÑA
+// Borra TODOS los registros de la(s) tabla(s) indicada(s) tras confirmar.
+// ============================================
+async function limpiarTabla(tablas, descripcion, refrescar) {
+  const lista = Array.isArray(tablas) ? tablas : [tablas];
+  const nombres = lista
+    .map((t) => `<code>${t}</code>`)
+    .join(", ");
+
+  if (typeof modalConfirmar === "function") {
+    modalConfirmar(
+      `⚠️ Esto borrará de forma PERMANENTE todos los registros de las tablas ${nombres}. ${descripcion} Esta acción NO se puede deshacer. ¿Continuar?`,
+      async () => {
+        try {
+          for (const tabla of lista) {
+            const { error } = await window.supabase
+              .from(tabla)
+              .delete()
+              .neq("id", "00000000-0000-0000-0000-000000000000");
+            if (error) throw error;
+          }
+          mostrarModalAlerta(
+            `✅ Base de datos de ${nombres} limpiada. Los registros fueron eliminados.`,
+          );
+          if (typeof refrescar === "function") refrescar();
+        } catch (error) {
+          console.error("Error limpiando tabla:", error);
+          mostrarModalAlerta("❌ Error al limpiar: " + error.message);
+        }
+      },
+    );
+  }
+}
+
 async function abrirModalEditarPedido(id) {
   const row = document.querySelector(`tr[data-pedido-id="${id}"]`);
   if (!row) {
@@ -2464,7 +2528,6 @@ async function cargarFinanzas() {
 
   const tabFinanzas = document.getElementById("tab-finanzas");
   if (tabFinanzas && tabFinanzas.style.display === "none") {
-    console.log("ℹ️ Pestaña de finanzas no visible, omitiendo carga");
     return;
   }
 
@@ -2760,13 +2823,11 @@ async function cargarProductosTicket() {
   if (!select) return;
 
   if (!window.supabase || typeof window.supabase.from !== "function") {
-    console.log("⏳ Esperando a Supabase para cargar productos del ticket...");
     setTimeout(cargarProductosTicket, 500);
     return;
   }
 
   try {
-    console.log("🔄 Cargando productos para ticket...");
 
     const { data, error } = await window.supabase
       .from("productos")
@@ -2791,9 +2852,6 @@ async function cargarProductosTicket() {
       select.innerHTML += `<option value="${p.id}" data-stock="${p.stock}" data-precio="${precio}">${p.nombre} - $${precio} (Stock: ${p.stock})</option>`;
     });
 
-    console.log(
-      `✅ Productos para ticket cargados: ${productosConStock.length}`,
-    );
   } catch (error) {
     console.error("Error cargando productos para ticket:", error);
     select.innerHTML = '<option value="">❌ Error al cargar productos</option>';
@@ -2813,15 +2871,6 @@ function agregarProductoTicket() {
 
   const option = select.options[select.selectedIndex];
   const precio = Number(option?.dataset?.precio) || 0;
-
-  console.log(
-    "🔍 Producto seleccionado - ID:",
-    productoId,
-    "Precio:",
-    precio,
-    "Cantidad:",
-    cantidad,
-  );
 
   const producto = productosDisponibles.find((p) => p.id === productoId);
   if (!producto) {
@@ -2853,7 +2902,6 @@ function agregarProductoTicket() {
       return;
     }
     existente.cantidad = nuevaCantidad;
-    console.log("✅ Producto actualizado:", existente);
   } else {
     const nuevoProducto = {
       id: producto.id,
@@ -2863,7 +2911,6 @@ function agregarProductoTicket() {
       stockOriginal: stockOriginal,
     };
     ticketProductos.push(nuevoProducto);
-    console.log("✅ Producto agregado:", nuevoProducto);
   }
 
   producto.stock -= cantidad;
@@ -2917,16 +2964,12 @@ function eliminarProductoTicket(index) {
   const productoEliminado = ticketProductos[index];
   if (!productoEliminado) return;
 
-  console.log("🗑️ Eliminando producto:", productoEliminado);
 
   const productoOriginal = productosDisponibles.find(
     (p) => p.id === productoEliminado.id,
   );
   if (productoOriginal) {
     productoOriginal.stock = productoEliminado.stockOriginal;
-    console.log(
-      `✅ Stock restaurado a ${productoOriginal.nombre}: ${productoOriginal.stock}`,
-    );
 
     const select = document.getElementById("ticketProductoSelect");
     if (select) {
@@ -2939,9 +2982,6 @@ function eliminarProductoTicket(index) {
         option.dataset.stock = nuevoStock;
         option.textContent = `${productoOriginal.nombre} - $${precio} (Stock: ${nuevoStock})`;
         option.disabled = false;
-        console.log(
-          `✅ Select actualizado: ${productoOriginal.nombre} - Stock: ${nuevoStock}`,
-        );
       }
     }
   }
@@ -3520,7 +3560,6 @@ async function cargarCupones() {
 
   const tabPromociones = document.getElementById("tab-promociones");
   if (tabPromociones && tabPromociones.style.display === "none") {
-    console.log("ℹ️ Pestaña de promociones no visible, omitiendo carga");
     return;
   }
 
@@ -3616,7 +3655,6 @@ async function cargarNoticias() {
 
   const tabPromociones = document.getElementById("tab-promociones");
   if (tabPromociones && tabPromociones.style.display === "none") {
-    console.log("ℹ️ Pestaña de promociones no visible, omitiendo carga");
     return;
   }
 

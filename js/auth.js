@@ -30,12 +30,10 @@ async function verificarSesion() {
           error,
         } = await window.supabase.auth.getSession();
         if (error || !session) {
-          console.log("🔐 No hay sesión activa");
           window.location.href = "login.html";
           resolve(null);
           return;
         }
-        console.log("🔐 Sesión activa:", session.user.email);
         resolve(session.user);
       } catch (error) {
         console.error("❌ Error verificando sesión:", error);
@@ -122,14 +120,13 @@ function initEasterEgg() {
     if (clickCount >= 5) {
       clickCount = 0;
       if (localStorage.getItem("adminEmail")) {
-        window.open("admin.html", "_blank");
+        window.location.href = "admin.html";
       } else {
-        window.open("login.html", "_blank");
+        window.location.href = "login.html";
       }
     }
   });
 
-  console.log("✦ Easter egg activado: 5 clics en el logo → Admin");
 }
 
 document.addEventListener("DOMContentLoaded", function () {

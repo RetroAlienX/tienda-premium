@@ -534,6 +534,8 @@
             <button class="tab-btn" data-tab="promociones">🎯 Promociones</button>
             <button class="tab-btn" data-tab="lealtad"
                 title="Programa de lealtad: clientes con productos comprados y sus productos de regalo">💎 Lealtad</button>
+            <button class="tab-btn" data-tab="pagos"
+                title="Control de pagos y crédito: liquidar, cargar morosidad, cargos y quincenas pendientes">💳 Pagos</button>
         </div>
 
         <div id="tab-productos" class="tab-content active">
@@ -543,6 +545,10 @@
                     <div style="display: flex; gap: 10px; width: auto;">
                         <button id="btnRefrescarProductos" class="btn-premium-outline"
                             style="padding:10px 16px;font-size:0.75rem; width: auto;">🔄 Refrescar</button>
+                        <button class="btn-premium danger"
+                            onclick="limpiarTabla('productos', 'Esto incluye TODOS los productos del catálogo.', cargarProductos)"
+                            style="padding:10px 16px;font-size:0.75rem; width: auto; background:var(--regio-red); color:white; border:none;"
+                            title="⚠️ BORRA todos los productos del catálogo de forma permanente (pide confirmación).">🧹 Limpiar</button>
                         <button id="btnAgregarProducto" class="btn-premium"
                             style="padding:10px 16px;font-size:0.75rem; width: auto;"><i class="fas fa-plus"></i>
                             Agregar Producto</button>
@@ -580,6 +586,10 @@
                     <div style="display: flex; gap: 10px; width: auto;">
                         <button id="btnRefrescarInventario" class="btn-premium-outline"
                             style="padding:10px 16px;font-size:0.75rem; width: auto;">🔄 Refrescar</button>
+                        <button class="btn-premium danger"
+                            onclick="limpiarTabla('inventario', 'Esto borra el historial de movimientos de stock.', cargarInventario)"
+                            style="padding:10px 16px;font-size:0.75rem; width: auto; background:var(--regio-red); color:white; border:none;"
+                            title="⚠️ BORRA todos los movimientos de inventario de forma permanente (pide confirmación).">🧹 Limpiar</button>
                         <button id="btnAgregarMovimiento" class="btn-premium"
                             style="padding:10px 16px;font-size:0.75rem; width: auto;"><i class="fas fa-plus"></i>
                             Movimiento</button>
@@ -595,6 +605,10 @@
             <div class="admin-card">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
                     <h5>Gestión de Pedidos</h5>
+                    <button class="btn-premium danger"
+                        onclick="limpiarTabla('pedidos', 'Esto borra TODOS los pedidos registrados.', cargarPedidos)"
+                        style="padding:10px 16px;font-size:0.75rem; width: auto; background:var(--regio-red); color:white; border:none;"
+                        title="⚠️ BORRA todos los pedidos de forma permanente (pide confirmación).">🧹 Limpiar</button>
                     <button id="btnRefrescarPedidos" class="btn-premium-outline"
                         style="padding:10px 16px;font-size:0.75rem; width: auto;">🔄 Refrescar</button>
                 </div>
@@ -642,6 +656,10 @@
                     <div style="display: flex; gap: 10px; width: auto;">
                         <button id="btnRefrescarFinanzas" class="btn-premium-outline"
                             style="padding:10px 16px;font-size:0.75rem; width: auto;">🔄 Refrescar</button>
+                        <button class="btn-premium danger"
+                            onclick="limpiarTabla('finanzas', 'Esto borra TODOS los movimientos financieros.', cargarFinanzas)"
+                            style="padding:10px 16px;font-size:0.75rem; width: auto; background:var(--regio-red); color:white; border:none;"
+                            title="⚠️ BORRA todos los movimientos de finanzas de forma permanente (pide confirmación).">🧹 Limpiar</button>
                         <button id="btnAgregarFinanza" class="btn-premium"
                             style="padding:10px 16px;font-size:0.75rem; width: auto;"><i class="fas fa-plus"></i>
                             Registrar</button>
@@ -751,12 +769,19 @@
             <div class="admin-card">
                 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:15px;">
                     <h5 style="margin:0;">📧 Enviar Email al Cliente</h5>
-                    <button type="button" id="btnLimpiarEnvio" class="btn-premium-outline"
-                        style="padding:8px 16px;font-size:0.75rem; width:auto;">🧹 Limpiar Campos</button>
+                    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                        <button type="button" id="btnLimpiarEnvio" class="btn-premium-outline"
+                            style="padding:8px 16px;font-size:0.75rem; width:auto;"
+                            title="Solo limpia los campos del formulario (no borra la base de datos).">🧹 Limpiar Campos</button>
+                        <button type="button" class="btn-premium danger"
+                            onclick="limpiarTabla('pedidos', 'Esto borra TODOS los pedidos registrados.', cargarPedidosPendientes)"
+                            style="padding:8px 16px;font-size:0.75rem; width:auto; background:var(--regio-red); color:white; border:none;"
+                            title="⚠️ BORRA todos los pedidos de la base de datos de forma permanente (pide confirmación).">🧹 Limpiar BD</button>
+                    </div>
                 </div>
                 <form id="formEnvioCorreo">
                     <select id="selectPedidoEnvio" class="input-luxury">
-                        <option value="">Selecciona un pedido pendiente...</option>
+                        <option value="">Selecciona un pedido (todos los estados)...</option>
                     </select>
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                         <input type="email" id="correoCliente" class="input-luxury" placeholder="Correo" readonly>
@@ -806,6 +831,10 @@
                 <div
                     style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:20px;">
                     <h5>🎯 Cupones del Carrusel</h5>
+                    <button class="btn-premium danger"
+                        onclick="limpiarTabla(['cupones','noticias'], 'Borra TODOS los cupones y noticias.', function(){ cargarCupones(); cargarNoticias(); })"
+                        style="padding:10px 16px;font-size:0.75rem; width:auto; background:var(--regio-red); color:white; border:none;"
+                        title="⚠️ BORRA todos los cupones y noticias de forma permanente (pide confirmación).">🧹 Limpiar</button>
                     <button id="btnAgregarCupon" class="btn-premium"
                         style="padding:10px 16px;font-size:0.75rem; width:auto;">
                         <i class="fas fa-plus"></i> Agregar Cupón
@@ -1038,6 +1067,10 @@
                 <div style="display: flex; gap: 10px; width: auto;">
                     <button id="btnRefrescarLealtad" class="btn-premium-outline"
                         style="padding:10px 16px;font-size:0.75rem; width: auto;">🔄 Refrescar</button>
+                    <button class="btn-premium danger"
+                        onclick="limpiarTabla('lealtad', 'Borra TODOS los clientes del programa de lealtad.', cargarLealtad)"
+                        style="padding:10px 16px;font-size:0.75rem; width: auto; background:var(--regio-red); color:white; border:none;"
+                        title="⚠️ BORRA todos los clientes del programa de lealtad de forma permanente (pide confirmación).">🧹 Limpiar</button>
                     <button id="btnAgregarLealtad" class="btn-premium"
                         style="padding:10px 16px;font-size:0.75rem; width: auto;"><i class="fas fa-plus"></i>
                         Agregar Cliente</button>
@@ -1049,6 +1082,64 @@
             </label>
             <div id="listaLealtad" class="table-responsive">
                 <div style="text-align:center; padding:40px; color:var(--text-silver);">Cargando...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB PAGOS -->
+    <div id="tab-pagos" class="tab-content" style="display:none;">
+        <div class="admin-card">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h5>💳 Control de Pagos</h5>
+                <div style="display: flex; gap: 10px; width: auto;">
+                    <button id="btnRefrescarPagos" class="btn-premium-outline"
+                        style="padding:10px 16px;font-size:0.75rem; width: auto;"
+                        title="Vuelve a cargar la lista de pagos desde la base de datos.">🔄 Refrescar</button>
+                    <button class="btn-premium danger"
+                        onclick="limpiarTabla('pagos', 'Borra TODOS los registros de pagos.', cargarPagos)"
+                        style="padding:10px 16px;font-size:0.75rem; width: auto; background:var(--regio-red); color:white; border:none;"
+                        title="⚠️ BORRA todos los pagos de forma permanente (pide confirmación).">🧹 Limpiar</button>
+                    <button id="btnAgregarPago" class="btn-premium"
+                        style="padding:10px 16px;font-size:0.75rem; width: auto;"
+                        title="Registra un nuevo pago/crédito a un cliente."><i class="fas fa-plus"></i>
+                        Agregar Pago</button>
+                </div>
+            </div>
+            <label style="display:block; font-size:0.7rem; color:var(--text-silver); margin:12px 0 6px; line-height:1.5;">
+                Controla los pagos a plazos de tus clientes: <strong>liquidar</strong> (salda el adeudo),
+                <strong>cargar morosidad</strong> (aumenta el adeudo en <strong>$50 MXN</strong> y suma una quincena
+                pendiente), <strong>añadir cargo</strong> (recargo extra) o <strong>deducir cargo</strong>
+                (abono que baja el adeudo). Pasa el cursor sobre cada botón para ver qué hace.
+            </label>
+            <div id="listaPagos" class="table-responsive">
+                <div style="text-align:center; padding:40px; color:var(--text-silver);">Cargando...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL PAGO -->
+    <div id="modalPago" class="modal-box">
+        <div class="modal-content" style="max-width:520px;">
+            <h5 style="font-weight:400; margin-bottom:20px;" id="pagoModalTitulo">💳 Agregar Pago</h5>
+            <input type="hidden" id="pagoId">
+            <div id="mensajePago" style="margin-bottom:12px;"></div>
+            <input type="text" id="pagoCliente" class="input-luxury" placeholder="Nombre del cliente *"
+                title="Nombre del cliente que tiene este crédito/pago.">
+            <input type="number" id="pagoMonto" class="input-luxury" placeholder="Monto del adeudo *" step="0.01" min="0"
+                title="Cantidad total que el cliente debe pagar.">
+            <input type="number" id="pagoQuincenasTotales" class="input-luxury" placeholder="Quincenas totales *" min="1"
+                step="1" title="Número total de quincenas acordadas para cubrir el pago.">
+            <input type="number" id="pagoQuincenasPendientes" class="input-luxury"
+                placeholder="Quincenas pendientes *" min="0" step="1"
+                title="Cuántas quincenas faltan por pagar. Empieza igual que las totales.">
+            <label style="display:block; font-size:0.7rem; color:var(--text-silver); margin-bottom:6px;">
+                La morosidad suma $50 MXN y una quincena pendiente por cada aviso. Los cargos extras se suman al adeudo.
+            </label>
+            <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:20px;">
+                <button type="button" class="btn-premium-outline" style="width: auto;"
+                    onclick="document.getElementById('modalPago').style.display='none';">Cancelar</button>
+                <button type="button" class="btn-premium" style="width: auto;" onclick="guardarPago()"><i
+                        class="fas fa-save"></i> Guardar</button>
             </div>
         </div>
     </div>
@@ -1243,6 +1334,7 @@
     <script src="js/auth.js"></script>
     <script src="js/admin.js"></script>
     <script src="js/lealtad.js"></script>
+    <script src="js/pagos.js"></script>
 
     <script>
         // NOTA: el cambio de pestañas (tabs) ya lo maneja por completo
