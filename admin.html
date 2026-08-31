@@ -536,6 +536,39 @@
             white-space: nowrap;
             margin: 0;
         }
+
+        /* Emoji picker */
+        #emojiPopup {
+            position: fixed;
+            z-index: 10000;
+            background: var(--bg-card, #161616);
+            border: 1px solid #333;
+            border-radius: 12px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
+            padding: 10px;
+            max-width: 320px;
+            max-height: 240px;
+            overflow-y: auto;
+        }
+        .emoji-opt {
+            background: none;
+            border: none;
+            font-size: 1.4rem;
+            line-height: 1;
+            padding: 6px;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        .emoji-opt:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        .emoji-title {
+            font-size: 0.6rem;
+            color: var(--text-dim, #888);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin: 8px 0 4px;
+        }
     </style>
 </head>
 
@@ -1056,16 +1089,21 @@
                 <label style="display:block; font-size:0.7rem; color:var(--text-silver); margin:-8px 0 6px;">
                     Un solo emoji que se muestra como imagen/ícono del cupón.
                 </label>
-                <input type="text" id="cuponIcono" class="input-luxury" placeholder="Icono (ej: 🎁) *" required>
+                <div style="display:flex; gap:8px; align-items:center;">
+                    <input type="text" id="cuponIcono" class="input-luxury" placeholder="Icono (ej: 🎁) *" required
+                        style="flex:1;" title="Un solo emoji como imagen del cupón. Toca el botón de emojis para elegirlo.">
+                    <button type="button" id="btnEmojiCupon" class="btn-premium-outline"
+                        style="padding:10px 14px;font-size:1rem; flex:0 0 auto;" title="Elegir un emoji">😀</button>
+                </div>
                 <label style="display:block; font-size:0.7rem; color:var(--text-silver); margin-bottom:6px;">Vigencia
                     (hasta qué fecha es válido el cupón)</label>
                 <input type="date" id="cuponVigenciaPicker" class="input-luxury" required>
                 <label style="display:block; font-size:0.7rem; color:var(--text-silver); margin-bottom:6px;">
-                    Orden en el que aparece dentro del carrusel de cupones (1 = primero, 2 = segundo, etc.). Ya se
+                    Orden en el que aparece dentro del carrusel de cupones (0 = primero, 1 = segundo, etc.). Ya se
                     sugiere el siguiente número disponible, pero lo puedes cambiar.
                 </label>
-                <input type="number" id="cuponOrden" class="input-luxury" placeholder="Orden (1, 2, 3...)" min="1"
-                    required>
+                <input type="number" id="cuponOrden" class="input-luxury" placeholder="Orden (0, 1, 2...)" min="0"
+                    title="Orden en el que aparece. Acepta 0 y números positivos." required>
                 <label style="display:block; font-size:0.7rem; color:var(--text-silver); margin-bottom:6px;">
                     Inactivo = se guarda pero no se muestra en el sitio público.
                 </label>
@@ -1110,11 +1148,11 @@
                     <option value="true">⭐ Destacado</option>
                 </select>
                 <label style="display:block; font-size:0.7rem; color:var(--text-silver); margin-bottom:6px;">
-                    Orden en el que aparece dentro de la lista de noticias (1 = primero, 2 = segundo, etc.). Ya se
+                    Orden en el que aparece dentro de la lista de noticias (0 = primero, 1 = segundo, etc.). Ya se
                     sugiere el siguiente número disponible, pero lo puedes cambiar.
                 </label>
-                <input type="number" id="noticiaOrden" class="input-luxury" placeholder="Orden (1, 2, 3...)" min="1"
-                    required>
+                <input type="number" id="noticiaOrden" class="input-luxury" placeholder="Orden (0, 1, 2...)" min="0"
+                    title="Orden en el que aparece. Acepta 0 y números positivos." required>
                 <label style="display:block; font-size:0.7rem; color:var(--text-silver); margin-bottom:6px;">
                     Inactivo = se guarda pero no se muestra en el sitio público.
                 </label>
@@ -1150,10 +1188,10 @@
                 <input type="number" id="lugarCosto" class="input-luxury" placeholder="Costo de envío *" step="0.01"
                     min="0" required title="Cuánto cuesta enviar a ese lugar en pesos.">
                 <label style="display:block; font-size:0.7rem; color:var(--text-silver); margin-bottom:6px;">
-                    Orden en el que aparece (1 = primero).
+                    Orden en el que aparece (0 = primero).
                 </label>
-                <input type="number" id="lugarOrden" class="input-luxury" placeholder="Orden (1, 2, 3...)" min="1"
-                    required>
+                <input type="number" id="lugarOrden" class="input-luxury" placeholder="Orden (0, 1, 2...)" min="0"
+                    title="Orden en el que aparece. Acepta 0 y números positivos." required>
                 <div style="display:flex; gap:10px; margin-top:10px;">
                     <button type="submit" class="btn-premium" style="width:100%;"><i class="fas fa-save"></i>
                         Guardar</button>
@@ -1178,8 +1216,12 @@
                 <label style="display:block; font-size:0.7rem; color:var(--text-silver); margin-bottom:6px;">
                     Ícono o emoji de la marca (ej: 💪).
                 </label>
-                <input type="text" id="marcaIcono" class="input-luxury" placeholder="Ícono (emoji)" maxlength="4"
-                    title="Un emoji para representar la marca.">
+                <div style="display:flex; gap:8px; align-items:center;">
+                    <input type="text" id="marcaIcono" class="input-luxury" placeholder="Ícono (emoji)" maxlength="8"
+                        title="Un emoji para representar la marca. Toca el botón de emojis para elegirlo." style="flex:1;">
+                    <button type="button" id="btnEmojiMarca" class="btn-premium-outline"
+                        style="padding:10px 14px;font-size:1rem; flex:0 0 auto;" title="Elegir un emoji">😀</button>
+                </div>
                 <label style="display:block; font-size:0.7rem; color:var(--text-silver); margin-bottom:6px;">
                     Categoría (ej: Ropa Deportiva, Suplementos).
                 </label>
@@ -1191,10 +1233,10 @@
                 <input type="text" id="marcaDescripcion" class="input-luxury"
                     placeholder="Descripción de la marca (opcional)">
                 <label style="display:block; font-size:0.7rem; color:var(--text-silver); margin-bottom:6px;">
-                    Orden en el que aparece (1 = primero).
+                    Orden en el que aparece (0 = primero).
                 </label>
-                <input type="number" id="marcaOrden" class="input-luxury" placeholder="Orden (1, 2, 3...)" min="1"
-                    required>
+                <input type="number" id="marcaOrden" class="input-luxury" placeholder="Orden (0, 1, 2...)" min="0"
+                    title="Orden en el que aparece. Acepta 0 y números positivos." required>
                 <div style="display:flex; gap:10px; margin-top:10px;">
                     <button type="submit" class="btn-premium" style="width:100%;"><i class="fas fa-save"></i>
                         Guardar</button>
@@ -1462,6 +1504,8 @@
         </div>
     </div>
 
+    <div id="emojiPopup" style="display:none;"></div>
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 
@@ -1501,6 +1545,77 @@
 
         window.mostrarModal = mostrarModal;
         window.ocultarModal = ocultarModal;
+
+        // ============================================
+        // EMOJI PICKER (para campos de ícono)
+        // ============================================
+        var EMOJIS = [
+            ['General', ['😀', '😄', '😁', '😆', '😍', '😎', '🤩', '😊', '🥳', '🙌', '👍', '🔥', '💪', '✨', '🌟', '⭐', '🎉', '🎊', '🎁', '🎯']],
+            ['Deporte', ['🏋️', '🏃', '⚽', '🏀', '🏈', '⚾', '🎾', '🏐', '🥊', '🚴', '⛹️', '🏊', '🚣', '🥇', '🥈', '🥉', '🎽', '🧘']],
+            ['Ropa', ['👕', '👖', '👟', '👠', '👗', '🧢', '🧥', '🧦', '👜', '🎒', '💍', '⌚', '🧴', '💄']],
+            ['Comida', ['🍕', '🍔', '🌮', '🍟', '🍩', '🍫', '🍿', '🥤', '☕', '🧃', '🍪', '🎂', '🍬']],
+            ['Juguetes', ['🧸', '🎮', '🕹️', '🎲', '🧩', '🤖', '🚗', '✈️', '🚀', '⛵', '🛴', '🪁']],
+            ['Otros', ['📦', '🛍️', '💳', '💵', '🏷️', '📱', '💻', '🖥️', '🔋', '🧰', '🏠', '🌎', '🛒']]
+        ];
+
+        var emojiPopupTarget = null;
+
+        function abrirEmojiPicker(btn, inputId) {
+            var popup = document.getElementById('emojiPopup');
+            if (!popup) return;
+            emojiPopupTarget = document.getElementById(inputId);
+
+            var html = '';
+            EMOJIS.forEach(function (g) {
+                html += '<div class="emoji-title">' + g[0] + '</div>';
+                g[1].forEach(function (e) {
+                    html += '<button type="button" class="emoji-opt" data-emoji="' + e + '">' + e + '</button>';
+                });
+            });
+            popup.innerHTML = html;
+
+            var rect = btn.getBoundingClientRect();
+            popup.style.left = Math.min(rect.left, window.innerWidth - 330) + 'px';
+            popup.style.top = (rect.bottom + 6) + 'px';
+            popup.style.display = 'block';
+
+            var opts = popup.querySelectorAll('.emoji-opt');
+            opts.forEach(function (o) {
+                o.addEventListener('click', function () {
+                    if (emojiPopupTarget) emojiPopupTarget.value = this.getAttribute('data-emoji');
+                    popup.style.display = 'none';
+                    emojiPopupTarget = null;
+                });
+            });
+        }
+
+        function cerrarEmojiPicker() {
+            var popup = document.getElementById('emojiPopup');
+            if (popup) popup.style.display = 'none';
+            emojiPopupTarget = null;
+        }
+
+        document.addEventListener('click', function (e) {
+            if (e.target.closest('#emojiPopup')) return;
+            if (e.target.closest('button[data-emoji-trigger]')) return;
+            cerrarEmojiPicker();
+        });
+
+        document.addEventListener('DOMContentLoaded', function () {
+            var btnCupon = document.getElementById('btnEmojiCupon');
+            var btnMarca = document.getElementById('btnEmojiMarca');
+            [['btnEmojiCupon', 'cuponIcono'], ['btnEmojiMarca', 'marcaIcono']].forEach(function (par) {
+                var b = document.getElementById(par[0]);
+                if (b) {
+                    b.setAttribute('data-emoji-trigger', '1');
+                    b.addEventListener('click', function (e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        abrirEmojiPicker(b, par[1]);
+                    });
+                }
+            });
+        });
     </script>
 
 </body>

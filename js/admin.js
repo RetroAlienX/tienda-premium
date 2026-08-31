@@ -3863,7 +3863,7 @@ function mostrarFormCupon(data = null) {
       data.vigencia,
     );
     document.getElementById("cuponDescuento").value = data.descuento ?? 10;
-    document.getElementById("cuponOrden").value = data.orden || 1;
+    document.getElementById("cuponOrden").value = data.orden ?? 1;
     document.getElementById("cuponActivo").value = data.activo
       ? "true"
       : "false";
@@ -3923,7 +3923,10 @@ async function guardarCupon(e) {
     tag: document.getElementById("cuponTag").value.trim(),
     icono: document.getElementById("cuponIcono").value.trim(),
     vigencia: formatearVigenciaCupon(vigenciaISO),
-    orden: parseInt(document.getElementById("cuponOrden").value) || 1,
+    orden: (() => {
+      const o = parseInt(document.getElementById("cuponOrden").value, 10);
+      return isNaN(o) ? ultimoTotalCupones + 1 : o;
+    })(),
     activo: document.getElementById("cuponActivo").value === "true",
   };
 
@@ -4015,7 +4018,7 @@ function mostrarFormNoticia(data = null) {
     document.getElementById("noticiaDestacado").value = data.destacado
       ? "true"
       : "false";
-    document.getElementById("noticiaOrden").value = data.orden || 1;
+    document.getElementById("noticiaOrden").value = data.orden ?? 1;
     document.getElementById("noticiaActivo").value = data.activo
       ? "true"
       : "false";
@@ -4094,7 +4097,10 @@ async function guardarNoticia(e) {
     descripcion: document.getElementById("noticiaDescripcion").value.trim(),
     fecha: fechaFinal,
     destacado: document.getElementById("noticiaDestacado").value === "true",
-    orden: parseInt(document.getElementById("noticiaOrden").value) || 1,
+    orden: (() => {
+      const o = parseInt(document.getElementById("noticiaOrden").value, 10);
+      return isNaN(o) ? ultimoTotalNoticias + 1 : o;
+    })(),
     activo: document.getElementById("noticiaActivo").value === "true",
   };
 
@@ -4293,7 +4299,10 @@ async function guardarLugar(e) {
   const datos = {
     lugar: document.getElementById("lugarNombre").value.trim(),
     costo: parseFloat(document.getElementById("lugarCosto").value) || 0,
-    orden: parseInt(document.getElementById("lugarOrden").value) || 1,
+    orden: (() => {
+      const o = parseInt(document.getElementById("lugarOrden").value, 10);
+      return isNaN(o) ? ultimoTotalLugares + 1 : o;
+    })(),
   };
 
   if (!datos.lugar) {
@@ -4546,7 +4555,10 @@ async function guardarMarca(e) {
     icono: (document.getElementById("marcaIcono").value || "🏷️").trim(),
     categoria: document.getElementById("marcaCategoria").value.trim(),
     descripcion: document.getElementById("marcaDescripcion").value.trim(),
-    orden: parseInt(document.getElementById("marcaOrden").value) || 1,
+    orden: (() => {
+      const o = parseInt(document.getElementById("marcaOrden").value, 10);
+      return isNaN(o) ? ultimoTotalMarcas + 1 : o;
+    })(),
   };
 
   if (!datos.nombre) {
