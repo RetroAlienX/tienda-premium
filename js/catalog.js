@@ -467,10 +467,8 @@ async function enviarCorreoConfirmacion(
           ? formatearMoneda((subtotalProd + envioPedido) * (pct / 100))
           : "";
       })(),
-      dia_entrega: pedido.dia_entrega
-        ? new Date(pedido.dia_entrega + "T00:00:00").toLocaleDateString("es-MX")
-        : "Por confirmar",
-      hora_entrega: pedido.hora_entrega || "Por confirmar",
+      dia_entrega: formatearDiaEntrega(pedido.dia_entrega),
+      hora_entrega: formatearHoraEntrega(pedido.hora_entrega),
       total: formatearMoneda(total),
       metodo_pago: "Transferencia Bancaria",
       direccion:
@@ -1081,9 +1079,9 @@ function calcularFechasEntrega() {
 }
 
 function formatoFechaLatam(fecha) {
-  return `${String(fecha.getDate()).padStart(2, "0")}/${String(
-    fecha.getMonth() + 1,
-  ).padStart(2, "0")}/${fecha.getFullYear()}`;
+  return `${String(fecha.getDate()).padStart(2, "0")}/${
+    MESES_ES[fecha.getMonth()]
+  }/${fecha.getFullYear()}`;
 }
 
 function poblarDiasEntrega() {
@@ -1485,9 +1483,9 @@ document.addEventListener("DOMContentLoaded", function () {
           document.getElementById("modalLugarEntregaInfo").textContent =
             `${lugarEntrega} · Envío ${formatearMoneda(costoEnvio)}`;
           document.getElementById("modalDiaEntregaInfo").textContent =
-            diaEntrega ? new Date(diaEntrega + "T00:00:00").toLocaleDateString("es-MX") : "—";
+            diaEntrega ? formatearDiaEntrega(diaEntrega) : "—";
           document.getElementById("modalHoraEntregaInfo").textContent =
-            horaEntrega || "—";
+            horaEntrega ? formatearHoraEntrega(horaEntrega) : "—";
           document.getElementById("modalTotalInfo").textContent =
             formatearMoneda(total);
           document.getElementById("modalMetodoPagoInfo").textContent =

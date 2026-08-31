@@ -32,6 +32,42 @@ function formatearFecha(fecha) {
   });
 }
 
+const MESES_ES = [
+  "enero",
+  "febrero",
+  "marzo",
+  "abril",
+  "mayo",
+  "junio",
+  "julio",
+  "agosto",
+  "septiembre",
+  "octubre",
+  "noviembre",
+  "diciembre",
+];
+
+function formatearDiaEntrega(diaStr) {
+  if (!diaStr) return "Por confirmar";
+  const d = new Date(diaStr + "T00:00:00");
+  if (isNaN(d.getTime())) return diaStr;
+  return `${String(d.getDate()).padStart(2, "0")}/${
+    MESES_ES[d.getMonth()]
+  }/${d.getFullYear()}`;
+}
+
+function formatearHoraEntrega(horaStr) {
+  if (!horaStr) return "Por confirmar";
+  const partes = String(horaStr).split(":");
+  const h = parseInt(partes[0], 10);
+  const m = parseInt(partes[1], 10);
+  if (isNaN(h)) return horaStr;
+  const sufijo = h >= 12 ? "PM" : "AM";
+  const h12 = h % 12 || 12;
+  const min = isNaN(m) ? "00" : String(m).padStart(2, "0");
+  return `${h12}:${min} ${sufijo}`;
+}
+
 function generarNumeroPedido() {
   const fecha = new Date();
   const año = fecha.getFullYear().toString().slice(-2);
