@@ -63,7 +63,7 @@ async function cargarPagos() {
                         <th style="text-align:center; white-space:nowrap; width:90px;" title="Cuántas quincenas faltan por cubrir.">Q. pendientes</th>
                         <th style="text-align:center; white-space:nowrap; width:80px;" title="Cargos extras acumulados por morosidad/recargos.">Cargos</th>
                         <th style="text-align:center; white-space:nowrap;">Estado</th>
-                        <th style="text-align:center; white-space:nowrap; min-width:560px;">Acciones</th>
+                        <th style="text-align:center; white-space:nowrap; min-width:640px;">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -89,7 +89,8 @@ async function cargarPagos() {
                             <td style="text-align:center; white-space:nowrap;">${estadoPagoLabel(
                               r.estado,
                             )}</td>
-                            <td style="white-space:nowrap; text-align:center;">
+                            <td style="white-space:nowrap; text-align:left;">
+                                <div class="acciones-pago">
                                 <button onclick="liquidarPago('${
                                   r.id
                                 }')" class="btn btn-success btn-sm btn-accion" title="Liquidar: salda el adeudo a $0, quincenas pendientes a 0 y marca como Liquidado.">💰 Liquidar</button>
@@ -108,6 +109,7 @@ async function cargarPagos() {
                                 <button onclick="pedirEliminarPago('${
                                   r.id
                                 }')" class="btn btn-outline-danger btn-sm btn-accion" title="Eliminar este registro de pagos.">🗑️</button>
+                                </div>
                             </td>
                         </tr>
                     `,

@@ -522,14 +522,19 @@
         }
 
         /* Botones de acciones (tab Pagos) ajustados al texto */
+        .acciones-pago {
+            display: flex;
+            flex-wrap: nowrap;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 8px;
+        }
         .btn-accion {
             font-size: 0.7rem;
-            padding: 4px 8px;
+            padding: 5px 10px;
             line-height: 1;
-            margin-left: 4px;
-        }
-        .btn-accion:first-child {
-            margin-left: 0;
+            white-space: nowrap;
+            flex: 0 0 auto;
         }
     </style>
 </head>
@@ -573,7 +578,7 @@
                         <button class="btn-premium danger"
                             onclick="limpiarTabla('productos', 'Esto incluye TODOS los productos del catálogo.', cargarProductos)"
                             style="padding:10px 16px;font-size:0.75rem; width: auto; background:var(--regio-red); color:white; border:none;"
-                            title="⚠️ BORRA todos los productos del catálogo de forma permanente (pide confirmación).">🧹 Limpiar</button>
+                            title="⚠️ BORRA todos los productos del catálogo de forma permanente (pide confirmación).">🧹 Limpiar base de datos</button>
                         <button id="btnAgregarProducto" class="btn-premium"
                             style="padding:10px 16px;font-size:0.75rem; width: auto;"><i class="fas fa-plus"></i>
                             Agregar Producto</button>
@@ -614,7 +619,7 @@
                         <button class="btn-premium danger"
                             onclick="limpiarTabla('inventario', 'Esto borra el historial de movimientos de stock.', cargarInventario)"
                             style="padding:10px 16px;font-size:0.75rem; width: auto; background:var(--regio-red); color:white; border:none;"
-                            title="⚠️ BORRA todos los movimientos de inventario de forma permanente (pide confirmación).">🧹 Limpiar</button>
+                            title="⚠️ BORRA todos los movimientos de inventario de forma permanente (pide confirmación).">🧹 Limpiar base de datos</button>
                         <button id="btnAgregarMovimiento" class="btn-premium"
                             style="padding:10px 16px;font-size:0.75rem; width: auto;"><i class="fas fa-plus"></i>
                             Movimiento</button>
@@ -633,7 +638,7 @@
                     <button class="btn-premium danger"
                         onclick="limpiarTabla('pedidos', 'Esto borra TODOS los pedidos registrados.', cargarPedidos)"
                         style="padding:10px 16px;font-size:0.75rem; width: auto; background:var(--regio-red); color:white; border:none;"
-                        title="⚠️ BORRA todos los pedidos de forma permanente (pide confirmación).">🧹 Limpiar</button>
+                        title="⚠️ BORRA todos los pedidos de forma permanente (pide confirmación).">🧹 Limpiar base de datos</button>
                     <button id="btnRefrescarPedidos" class="btn-premium-outline"
                         style="padding:10px 16px;font-size:0.75rem; width: auto;">🔄 Refrescar</button>
                 </div>
@@ -684,7 +689,7 @@
                         <button class="btn-premium danger"
                             onclick="limpiarTabla('finanzas', 'Esto borra TODOS los movimientos financieros.', cargarFinanzas)"
                             style="padding:10px 16px;font-size:0.75rem; width: auto; background:var(--regio-red); color:white; border:none;"
-                            title="⚠️ BORRA todos los movimientos de finanzas de forma permanente (pide confirmación).">🧹 Limpiar</button>
+                            title="⚠️ BORRA todos los movimientos de finanzas de forma permanente (pide confirmación).">🧹 Limpiar base de datos</button>
                         <button id="btnAgregarFinanza" class="btn-premium"
                             style="padding:10px 16px;font-size:0.75rem; width: auto;"><i class="fas fa-plus"></i>
                             Registrar</button>
@@ -700,8 +705,12 @@
             <div class="admin-card">
                 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:15px;">
                     <h5 style="margin:0;">🧾 Ticket · Impresión | Reimpresión | Venta Directa</h5>
-                    <button type="button" id="btnLimpiarTicket" class="btn-premium-outline"
-                        style="padding:8px 16px;font-size:0.75rem; width:auto;">🧹 Limpiar Campos</button>
+                    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                        <button id="btnRefrescarTicket" class="btn-premium-outline"
+                            style="padding:8px 16px;font-size:0.75rem; width:auto;">🔄 Refrescar</button>
+                        <button type="button" id="btnLimpiarTicket" class="btn-premium-outline"
+                            style="padding:8px 16px;font-size:0.75rem; width:auto;">🧹 Limpiar Campos</button>
+                    </div>
                 </div>
 
                 <label style="display:block; font-size:0.7rem; color:var(--text-silver); margin-bottom:6px;">
@@ -786,13 +795,15 @@
                 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:15px;">
                     <h5 style="margin:0;">📧 Enviar Email al Cliente</h5>
                     <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                        <button id="btnRefrescarEnvio" class="btn-premium-outline"
+                            style="padding:8px 16px;font-size:0.75rem; width:auto;">🔄 Refrescar</button>
                         <button type="button" id="btnLimpiarEnvio" class="btn-premium-outline"
                             style="padding:8px 16px;font-size:0.75rem; width:auto;"
                             title="Solo limpia los campos del formulario (no borra la base de datos).">🧹 Limpiar Campos</button>
                         <button type="button" class="btn-premium danger"
                             onclick="limpiarTabla('pedidos', 'Esto borra TODOS los pedidos registrados.', cargarPedidosPendientes)"
                             style="padding:8px 16px;font-size:0.75rem; width:auto; background:var(--regio-red); color:white; border:none;"
-                            title="⚠️ BORRA todos los pedidos de la base de datos de forma permanente (pide confirmación).">🧹 Limpiar BD</button>
+                            title="⚠️ BORRA todos los pedidos de la base de datos de forma permanente (pide confirmación).">🧹 Limpiar base de datos</button>
                     </div>
                 </div>
                 <form id="formEnvioCorreo">
@@ -847,14 +858,18 @@
                 <div
                     style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:20px;">
                     <h5>🎯 Cupones del Carrusel</h5>
-                    <button class="btn-premium danger"
-                        onclick="limpiarTabla(['cupones','noticias'], 'Borra TODOS los cupones y noticias.', function(){ cargarCupones(); cargarNoticias(); })"
-                        style="padding:10px 16px;font-size:0.75rem; width:auto; background:var(--regio-red); color:white; border:none;"
-                        title="⚠️ BORRA todos los cupones y noticias de forma permanente (pide confirmación).">🧹 Limpiar</button>
-                    <button id="btnAgregarCupon" class="btn-premium"
-                        style="padding:10px 16px;font-size:0.75rem; width:auto;">
-                        <i class="fas fa-plus"></i> Agregar Cupón
-                    </button>
+                    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                        <button id="btnRefrescarPromociones" class="btn-premium-outline"
+                            style="padding:10px 16px;font-size:0.75rem; width:auto;">🔄 Refrescar</button>
+                        <button class="btn-premium danger"
+                            onclick="limpiarTabla(['cupones','noticias'], 'Borra TODOS los cupones y noticias.', function(){ cargarCupones(); cargarNoticias(); })"
+                            style="padding:10px 16px;font-size:0.75rem; width:auto; background:var(--regio-red); color:white; border:none;"
+                            title="⚠️ BORRA todos los cupones y noticias de forma permanente (pide confirmación).">🧹 Limpiar base de datos</button>
+                        <button id="btnAgregarCupon" class="btn-premium"
+                            style="padding:10px 16px;font-size:0.75rem; width:auto;">
+                            <i class="fas fa-plus"></i> Agregar Cupón
+                        </button>
+                    </div>
                 </div>
                 <div id="listaCupones" class="table-responsive">
                     <div style="text-align:center; padding:40px; color:var(--text-silver);">Cargando...</div>
@@ -1141,7 +1156,7 @@
                     <button class="btn-premium danger"
                         onclick="limpiarTabla('lealtad', 'Borra TODOS los clientes del programa de lealtad.', cargarLealtad)"
                         style="padding:10px 16px;font-size:0.75rem; width: auto; background:var(--regio-red); color:white; border:none;"
-                        title="⚠️ BORRA todos los clientes del programa de lealtad de forma permanente (pide confirmación).">🧹 Limpiar</button>
+                        title="⚠️ BORRA todos los clientes del programa de lealtad de forma permanente (pide confirmación).">🧹 Limpiar base de datos</button>
                     <button id="btnAgregarLealtad" class="btn-premium"
                         style="padding:10px 16px;font-size:0.75rem; width: auto;"><i class="fas fa-plus"></i>
                         Agregar Cliente</button>
@@ -1169,7 +1184,7 @@
                     <button class="btn-premium danger"
                         onclick="limpiarTabla('pagos', 'Borra TODOS los registros de pagos.', cargarPagos)"
                         style="padding:10px 16px;font-size:0.75rem; width: auto; background:var(--regio-red); color:white; border:none;"
-                        title="⚠️ BORRA todos los pagos de forma permanente (pide confirmación).">🧹 Limpiar</button>
+                        title="⚠️ BORRA todos los pagos de forma permanente (pide confirmación).">🧹 Limpiar base de datos</button>
                     <button id="btnAgregarPago" class="btn-premium"
                         style="padding:10px 16px;font-size:0.75rem; width: auto;"
                         title="Registra un nuevo pago/crédito a un cliente."><i class="fas fa-plus"></i>

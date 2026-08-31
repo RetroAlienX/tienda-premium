@@ -933,6 +933,37 @@ document.addEventListener("DOMContentLoaded", function () {
     );
   }
 
+  if (document.getElementById("btnRefrescarTicket")) {
+    agregarEventoRefrescar(
+      "btnRefrescarTicket",
+      function () {
+        limpiarFormularioTicket();
+        const sel = document.getElementById("ticketPedidoSelect");
+        if (sel) sel.value = "";
+        cargarProductosTicket();
+        cargarPedidosParaTicket();
+      },
+      "tab-ticket",
+    );
+  }
+
+  if (document.getElementById("btnRefrescarEnvio")) {
+    agregarEventoRefrescar("btnRefrescarEnvio", cargarPedidosPendientes, "tab-envios");
+  }
+
+  if (document.getElementById("btnRefrescarPromociones")) {
+    agregarEventoRefrescar(
+      "btnRefrescarPromociones",
+      function () {
+        if (typeof cargarCupones === "function") cargarCupones();
+        if (typeof cargarNoticias === "function") cargarNoticias();
+        if (typeof cargarLugaresEntregaAdmin === "function")
+          cargarLugaresEntregaAdmin();
+      },
+      "tab-promociones",
+    );
+  }
+
   document
     .getElementById("btnAgregarPago")
     ?.addEventListener("click", function () {
