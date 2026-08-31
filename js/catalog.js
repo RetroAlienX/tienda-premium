@@ -229,6 +229,7 @@ function hacerPedido(id) {
 📍 Dirección: ¿A dónde te lo enviamos?
 💳 Pago: Solo por transferencia bancaria
 📍 Entrega: Los sábados y domingos, horario de 8:00 AM a 4:00 PM
+📅 Nota: Si realizas tu pedido en viernes después de las 10:00 PM, se entregará hasta el siguiente fin de semana (próximo sábado o domingo) por disponibilidad de horario.
 🎟️ Cupón: ¿Tienes algún cupón? Indícanos el código
 ✅ ¡Gracias!`;
 
