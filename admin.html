@@ -348,6 +348,39 @@
             border: 1px solid #ff9500 !important;
         }
 
+        /* ============================================
+           CONTROL DE PAGOS: botones de Acciones con texto
+           (Liquidar, Cargar Morosidad, Añadir Cargo, Abono...).
+           La regla ".table .btn" de arriba fuerza 36x36px fijos
+           pensada para botones de un solo ícono (como en otras
+           tablas); con texto adentro eso recorta las etiquetas y
+           hace que se vean encimadas. Aquí se vuelve a un tamaño
+           automático según el texto, con salto de línea y espacio
+           parejo entre cada botón, sin tocar los colores/estados
+           que ya funcionan bien. */
+        #listaPagos .btn {
+            width: auto !important;
+            height: auto !important;
+            min-width: 0 !important;
+            padding: 6px 10px !important;
+            white-space: nowrap !important;
+            font-size: 0.68rem !important;
+            gap: 4px !important;
+        }
+
+        #listaPagos td:last-child,
+        #listaPagos td:last-child>div {
+            display: flex !important;
+            flex-wrap: wrap !important;
+            gap: 6px !important;
+            align-items: center !important;
+            justify-content: center !important;
+        }
+
+        #listaPagos td:last-child {
+            min-width: 300px;
+        }
+
         .btn-premium {
             background: var(--bg-input);
             color: var(--text-main);
@@ -515,6 +548,7 @@
             -webkit-appearance: none;
             margin: 0;
         }
+
         #ticketEnvio,
         #ticketDescuento {
             -moz-appearance: textfield;
@@ -529,6 +563,7 @@
             justify-content: center;
             gap: 14px;
         }
+
         .btn-accion {
             font-size: 0.72rem;
             padding: 6px 12px;
@@ -550,6 +585,7 @@
             max-height: 240px;
             overflow-y: auto;
         }
+
         .emoji-opt {
             background: none;
             border: none;
@@ -559,9 +595,11 @@
             border-radius: 8px;
             cursor: pointer;
         }
+
         .emoji-opt:hover {
             background: rgba(255, 255, 255, 0.1);
         }
+
         .emoji-title {
             font-size: 0.6rem;
             color: var(--text-dim, #888);
@@ -587,7 +625,8 @@
 
         <div class="admin-nav">
             <button class="tab-btn active" data-tab="productos"
-                title="Catálogo de productos que se venden en la tienda (precio, imagen, categoría)">📦 Productos · Panel Venta</button>
+                title="Catálogo de productos que se venden en la tienda (precio, imagen, categoría)">📦 Productos ·
+                Panel Venta</button>
             <button class="tab-btn" data-tab="pedidos">🛒 Pedidos</button>
             <button class="tab-btn" data-tab="inventario"
                 title="Movimientos de stock: entradas y salidas de cada producto">📊 Inventario</button>
@@ -596,9 +635,11 @@
             <button class="tab-btn" data-tab="finanzas">💰 Finanzas</button>
             <button class="tab-btn" data-tab="promociones">🎯 Promociones</button>
             <button class="tab-btn" data-tab="lealtad"
-                title="Programa de lealtad: clientes con productos comprados y sus productos de regalo">💎 Lealtad</button>
+                title="Programa de lealtad: clientes con productos comprados y sus productos de regalo">💎
+                Lealtad</button>
             <button class="tab-btn" data-tab="pagos"
-                title="Control de pagos y crédito: liquidar, cargar morosidad, cargos y quincenas pendientes">💳 Pagos</button>
+                title="Control de pagos y crédito: liquidar, cargar morosidad, cargos y quincenas pendientes">💳
+                Pagos</button>
         </div>
 
         <div id="tab-productos" class="tab-content active">
@@ -611,7 +652,8 @@
                         <button class="btn-premium danger"
                             onclick="limpiarTabla('productos', 'Esto incluye TODOS los productos del catálogo.', cargarProductos)"
                             style="padding:10px 16px;font-size:0.75rem; width: auto; background:var(--regio-red); color:white; border:none;"
-                            title="⚠️ BORRA todos los productos del catálogo de forma permanente (pide confirmación).">🧹 Limpiar base de datos</button>
+                            title="⚠️ BORRA todos los productos del catálogo de forma permanente (pide confirmación).">🧹
+                            Limpiar base de datos</button>
                         <button id="btnAgregarProducto" class="btn-premium"
                             style="padding:10px 16px;font-size:0.75rem; width: auto;"><i class="fas fa-plus"></i>
                             Agregar Producto</button>
@@ -652,7 +694,8 @@
                         <button class="btn-premium danger"
                             onclick="limpiarTabla('inventario', 'Esto borra el historial de movimientos de stock.', cargarInventario)"
                             style="padding:10px 16px;font-size:0.75rem; width: auto; background:var(--regio-red); color:white; border:none;"
-                            title="⚠️ BORRA todos los movimientos de inventario de forma permanente (pide confirmación).">🧹 Limpiar base de datos</button>
+                            title="⚠️ BORRA todos los movimientos de inventario de forma permanente (pide confirmación).">🧹
+                            Limpiar base de datos</button>
                         <button id="btnAgregarMovimiento" class="btn-premium"
                             style="padding:10px 16px;font-size:0.75rem; width: auto;"><i class="fas fa-plus"></i>
                             Movimiento</button>
@@ -674,7 +717,8 @@
                         <button class="btn-premium danger"
                             onclick="limpiarTabla('pedidos', 'Esto borra TODOS los pedidos registrados.', cargarPedidos)"
                             style="padding:10px 16px;font-size:0.75rem; width: auto; background:var(--regio-red); color:white; border:none;"
-                            title="⚠️ BORRA todos los pedidos de forma permanente (pide confirmación).">🧹 Limpiar base de datos</button>
+                            title="⚠️ BORRA todos los pedidos de forma permanente (pide confirmación).">🧹 Limpiar base
+                            de datos</button>
                     </div>
                 </div>
                 <div style="display: flex; gap: 10px; flex-wrap: wrap; margin: 15px 0; align-items:center;">
@@ -724,7 +768,8 @@
                         <button class="btn-premium danger"
                             onclick="limpiarTabla('finanzas', 'Esto borra TODOS los movimientos financieros.', cargarFinanzas)"
                             style="padding:10px 16px;font-size:0.75rem; width: auto; background:var(--regio-red); color:white; border:none;"
-                            title="⚠️ BORRA todos los movimientos de finanzas de forma permanente (pide confirmación).">🧹 Limpiar base de datos</button>
+                            title="⚠️ BORRA todos los movimientos de finanzas de forma permanente (pide confirmación).">🧹
+                            Limpiar base de datos</button>
                         <button id="btnAgregarFinanza" class="btn-premium"
                             style="padding:10px 16px;font-size:0.75rem; width: auto;"><i class="fas fa-plus"></i>
                             Registrar</button>
@@ -738,7 +783,8 @@
 
         <div id="tab-ticket" class="tab-content" style="display:none;">
             <div class="admin-card">
-                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:15px;">
+                <div
+                    style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:15px;">
                     <h5 style="margin:0;">🧾 Ticket · Impresión | Reimpresión | Venta Directa</h5>
                     <div style="display:flex; gap:10px; flex-wrap:wrap;">
                         <button id="btnRefrescarTicket" class="btn-premium-outline"
@@ -766,8 +812,7 @@
                     </div>
                     <input type="text" id="ticketDireccion" class="input-luxury" placeholder="Dirección"
                         title="Dirección de entrega (opcional). Se imprime en el ticket solo si se llena.">
-                    <select id="ticketLugarEntrega" class="input-luxury"
-                        onchange="aplicarCostoLugarTicket(this)"
+                    <select id="ticketLugarEntrega" class="input-luxury" onchange="aplicarCostoLugarTicket(this)"
                         title="Lugar de entrega seleccionado por el cliente (opcional).">
                         <option value="" selected>Selecciona tu lugar de entrega...</option>
                     </select>
@@ -785,10 +830,9 @@
                         style="width:100%; margin-bottom:12px;"
                         title="Agrega el producto y cantidad seleccionados a la lista de la venta."><i
                             class="fas fa-plus"></i> Agregar Producto</button>
-                    <p
-                        style="font-size:0.7rem; color:var(--text-silver); margin:-2px 0 12px; line-height:1.5;">
+                    <p style="font-size:0.7rem; color:var(--text-silver); margin:-2px 0 12px; line-height:1.5;">
                         <strong>Así funciona:</strong> 1) elige producto y cantidad y pulsa <em>Agregar
-                        Producto</em> → 2) llena <em>Costo de envío</em> y <em>Descuento %</em> (opcionales)
+                            Producto</em> → 2) llena <em>Costo de envío</em> y <em>Descuento %</em> (opcionales)
                         → 3) el <strong>Subtotal</strong> = productos + envío y el <strong>Total</strong> =
                         subtotal − descuento. Si seleccionas un pedido de arriba, solo se reimprime su ticket.
                     </p>
@@ -802,8 +846,8 @@
                         <input type="number" id="ticketEnvio" class="input-luxury" step="0.01" min="0"
                             placeholder="Costo de envío en $ (opcional)"
                             title="Costo de envío en pesos (opcional). Se suma al subtotal y se imprime en el ticket solo si es mayor a $0.">
-                        <input type="number" id="ticketDescuento" class="input-luxury" step="0.01" min="0"
-                            max="100" placeholder="Descuento en % (opcional)"
+                        <input type="number" id="ticketDescuento" class="input-luxury" step="0.01" min="0" max="100"
+                            placeholder="Descuento en % (opcional)"
                             title="Descuento en PORCENTAJE (0-100), opcional. Se aplica sobre el subtotal (productos + envío).">
                     </div>
                     <label style="display:block; font-size:0.7rem; color:var(--text-silver); margin:-8px 0 6px;">
@@ -827,18 +871,21 @@
 
         <div id="tab-envios" class="tab-content" style="display:none;">
             <div class="admin-card">
-                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:15px;">
+                <div
+                    style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:15px;">
                     <h5 style="margin:0;">📧 Enviar Email al Cliente</h5>
                     <div style="display:flex; gap:10px; flex-wrap:wrap;">
                         <button id="btnRefrescarEnvio" class="btn-premium-outline"
                             style="padding:8px 16px;font-size:0.75rem; width:auto;">🔄 Refrescar</button>
                         <button type="button" id="btnLimpiarEnvio" class="btn-premium-outline"
                             style="padding:8px 16px;font-size:0.75rem; width:auto;"
-                            title="Solo limpia los campos del formulario (no borra la base de datos).">🧹 Limpiar Campos</button>
+                            title="Solo limpia los campos del formulario (no borra la base de datos).">🧹 Limpiar
+                            Campos</button>
                         <button type="button" class="btn-premium danger"
                             onclick="limpiarTabla('pedidos', 'Esto borra TODOS los pedidos registrados.', cargarPedidosPendientes)"
                             style="padding:8px 16px;font-size:0.75rem; width:auto; background:var(--regio-red); color:white; border:none;"
-                            title="⚠️ BORRA todos los pedidos de la base de datos de forma permanente (pide confirmación).">🧹 Limpiar base de datos</button>
+                            title="⚠️ BORRA todos los pedidos de la base de datos de forma permanente (pide confirmación).">🧹
+                            Limpiar base de datos</button>
                     </div>
                 </div>
                 <form id="formEnvioCorreo">
@@ -866,11 +913,13 @@
                         <input type="text" id="envioLugarCorreo" class="input-luxury" placeholder="Envío (lugar)"
                             readonly>
                         <input type="number" id="envioCorreo" class="input-luxury" placeholder="Costo de envío *"
-                            step="0.01" required title="Costo de envío en pesos. Se llena con el costo del lugar de entrega.">
+                            step="0.01" required
+                            title="Costo de envío en pesos. Se llena con el costo del lugar de entrega.">
                     </div>
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                        <input type="number" id="descuentoCorreo" class="input-luxury" placeholder="Descuento % (opcional)"
-                            step="0.01" min="0" max="100" title="Descuento en PORCENTAJE (0-100), se aplica sobre subtotal.">
+                        <input type="number" id="descuentoCorreo" class="input-luxury"
+                            placeholder="Descuento % (opcional)" step="0.01" min="0" max="100"
+                            title="Descuento en PORCENTAJE (0-100), se aplica sobre subtotal.">
                         <input type="text" id="mensajeAdicionalCorreo" class="input-luxury"
                             placeholder="Mensaje adicional (opcional)">
                     </div>
@@ -899,7 +948,8 @@
                         <button class="btn-premium danger"
                             onclick="limpiarTabla(['cupones','noticias'], 'Borra TODOS los cupones y noticias.', function(){ cargarCupones(); cargarNoticias(); })"
                             style="padding:10px 16px;font-size:0.75rem; width:auto; background:var(--regio-red); color:white; border:none;"
-                            title="⚠️ BORRA todos los cupones y noticias de forma permanente (pide confirmación).">🧹 Limpiar base de datos</button>
+                            title="⚠️ BORRA todos los cupones y noticias de forma permanente (pide confirmación).">🧹
+                            Limpiar base de datos</button>
                         <button id="btnAgregarCupon" class="btn-premium"
                             style="padding:10px 16px;font-size:0.75rem; width:auto;">
                             <i class="fas fa-plus"></i> Agregar Cupón
@@ -980,7 +1030,8 @@
                     <strong>¿Dónde subir la imagen?</strong> Usa un host gratuito como
                     imgur.com o postimages.org (o Subir a Drive y hacerla pública). Copia el enlace
                     DIRECTO (termina en .jpg, .png, .webp) y pégalo aquí. Si la liga no termina en
-                    una extensión de imagen, la tarjeta mostrará el ícono 📦.</p>
+                    una extensión de imagen, la tarjeta mostrará el ícono 📦.
+                </p>
                 <input type="text" id="prodTienda" class="input-luxury" placeholder="Tienda de origen (ej: USA)"
                     title="Opcional. De dónde se trae el producto, solo como referencia interna.">
                 <select id="prodCategoria" class="input-luxury"
@@ -1079,8 +1130,8 @@
                 <label style="display:block; font-size:0.7rem; color:var(--text-silver); margin:-8px 0 6px;">
                     Porcentaje de descuento que aplicará el cupón (ej: 10 = 10% de descuento).
                 </label>
-                <input type="number" id="cuponDescuento" class="input-luxury" placeholder="Descuento % (ej: 10)"
-                    min="0" max="100" required>
+                <input type="number" id="cuponDescuento" class="input-luxury" placeholder="Descuento % (ej: 10)" min="0"
+                    max="100" required>
                 <label style="display:block; font-size:0.7rem; color:var(--text-silver); margin:-8px 0 6px;">
                     Etiqueta pequeña que se muestra sobre el cupón en el carrusel (ej: 🔥 NUEVO, ⭐ EXCLUSIVO, 💎
                     VIP).
@@ -1091,7 +1142,8 @@
                 </label>
                 <div style="display:flex; gap:8px; align-items:center;">
                     <input type="text" id="cuponIcono" class="input-luxury" placeholder="Icono (ej: 🎁) *" required
-                        style="flex:1;" title="Un solo emoji como imagen del cupón. Toca el botón de emojis para elegirlo.">
+                        style="flex:1;"
+                        title="Un solo emoji como imagen del cupón. Toca el botón de emojis para elegirlo.">
                     <button type="button" id="btnEmojiCupon" class="btn-premium-outline"
                         style="padding:10px 14px;font-size:1rem; flex:0 0 auto;" title="Elegir un emoji">😀</button>
                 </div>
@@ -1218,7 +1270,8 @@
                 </label>
                 <div style="display:flex; gap:8px; align-items:center;">
                     <input type="text" id="marcaIcono" class="input-luxury" placeholder="Ícono (emoji)" maxlength="8"
-                        title="Un emoji para representar la marca. Toca el botón de emojis para elegirlo." style="flex:1;">
+                        title="Un emoji para representar la marca. Toca el botón de emojis para elegirlo."
+                        style="flex:1;">
                     <button type="button" id="btnEmojiMarca" class="btn-premium-outline"
                         style="padding:10px 14px;font-size:1rem; flex:0 0 auto;" title="Elegir un emoji">😀</button>
                 </div>
@@ -1259,7 +1312,8 @@
                     <button class="btn-premium danger"
                         onclick="limpiarTabla('lealtad', 'Borra TODOS los clientes del programa de lealtad.', cargarLealtad)"
                         style="padding:10px 16px;font-size:0.75rem; width: auto; background:var(--regio-red); color:white; border:none;"
-                        title="⚠️ BORRA todos los clientes del programa de lealtad de forma permanente (pide confirmación).">🧹 Limpiar base de datos</button>
+                        title="⚠️ BORRA todos los clientes del programa de lealtad de forma permanente (pide confirmación).">🧹
+                        Limpiar base de datos</button>
                     <button id="btnAgregarLealtad" class="btn-premium"
                         style="padding:10px 16px;font-size:0.75rem; width: auto;"><i class="fas fa-plus"></i>
                         Agregar Cliente</button>
@@ -1287,14 +1341,16 @@
                     <button class="btn-premium danger"
                         onclick="limpiarTabla('pagos', 'Borra TODOS los registros de pagos.', cargarPagos)"
                         style="padding:10px 16px;font-size:0.75rem; width: auto; background:var(--regio-red); color:white; border:none;"
-                        title="⚠️ BORRA todos los pagos de forma permanente (pide confirmación).">🧹 Limpiar base de datos</button>
+                        title="⚠️ BORRA todos los pagos de forma permanente (pide confirmación).">🧹 Limpiar base de
+                        datos</button>
                     <button id="btnAgregarPago" class="btn-premium"
                         style="padding:10px 16px;font-size:0.75rem; width: auto;"
                         title="Registra un nuevo pago/crédito a un cliente."><i class="fas fa-plus"></i>
                         Agregar Pago</button>
                 </div>
             </div>
-            <label style="display:block; font-size:0.7rem; color:var(--text-silver); margin:12px 0 6px; line-height:1.5;">
+            <label
+                style="display:block; font-size:0.7rem; color:var(--text-silver); margin:12px 0 6px; line-height:1.5;">
                 Controla los pagos a plazos de tus clientes: <strong>liquidar</strong> (salda el adeudo),
                 <strong>cargar morosidad</strong> (aumenta el adeudo en <strong>$50 MXN</strong> y suma una quincena
                 pendiente), <strong>añadir cargo</strong> (recargo extra) o <strong>deducir cargo</strong>
@@ -1314,13 +1370,12 @@
             <div id="mensajePago" style="margin-bottom:12px;"></div>
             <input type="text" id="pagoCliente" class="input-luxury" placeholder="Nombre del cliente *"
                 title="Nombre del cliente que tiene este crédito/pago.">
-            <input type="number" id="pagoMonto" class="input-luxury" placeholder="Monto del adeudo *" step="0.01" min="0"
-                title="Cantidad total que el cliente debe pagar.">
-            <input type="number" id="pagoQuincenasTotales" class="input-luxury" placeholder="Quincenas totales *" min="1"
-                step="1" title="Número total de quincenas acordadas para cubrir el pago.">
-            <input type="number" id="pagoQuincenasPendientes" class="input-luxury"
-                placeholder="Quincenas pendientes *" min="0" step="1"
-                title="Cuántas quincenas faltan por pagar. Empieza igual que las totales.">
+            <input type="number" id="pagoMonto" class="input-luxury" placeholder="Monto del adeudo *" step="0.01"
+                min="0" title="Cantidad total que el cliente debe pagar.">
+            <input type="number" id="pagoQuincenasTotales" class="input-luxury" placeholder="Quincenas totales *"
+                min="1" step="1" title="Número total de quincenas acordadas para cubrir el pago.">
+            <input type="number" id="pagoQuincenasPendientes" class="input-luxury" placeholder="Quincenas pendientes *"
+                min="0" step="1" title="Cuántas quincenas faltan por pagar. Empieza igual que las totales.">
             <label style="display:block; font-size:0.7rem; color:var(--text-silver); margin-bottom:6px;">
                 La morosidad suma $50 MXN y una quincena pendiente por cada aviso. Los cargos extras se suman al adeudo.
             </label>
@@ -1381,7 +1436,8 @@
             <h5 style="color:var(--regio-red); font-weight:400; font-size:1.4rem;">⚠️ ¿Estás seguro?</h5>
             <p id="modalConfirmarAccionMensaje" style="color:var(--text-silver); margin-top:10px;"></p>
             <div style="display:flex; gap:10px; justify-content:center; margin-top:20px;">
-                <button id="modalConfirmarAccionCancel" class="btn-premium-outline" style="width: auto;">Cancelar</button>
+                <button id="modalConfirmarAccionCancel" class="btn-premium-outline"
+                    style="width: auto;">Cancelar</button>
                 <button id="modalConfirmarAccionOk" class="btn-premium danger"
                     style="background:var(--regio-red); color:white; border:none; width: auto;">Confirmar</button>
             </div>
