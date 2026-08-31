@@ -238,7 +238,8 @@ function hacerPedido(id) {
 🎟️ *Cupones:* si aplicaste uno, tu descuento ya está calculado sobre productos + envío.
 💳 *Pago:* si tu pedido no se paga dentro de los 3 días posteriores a la compra, se cancelará automáticamente.
 ⏳ *Cancelación:* puedes solicitar la cancelación dentro de los 3 días posteriores a tu compra. Después de ese periodo no es posible cancelar el pedido.
-🚚 *Entrega:* contamos con 15 minutos de tolerancia para recibir tu pedido. Si no es posible la entrega, se reprograma con un nuevo cargo de envío. Un segundo intento fallido devuelve la mercancía a nuestro stock. 📅 *Nota:* los pedidos realizados en viernes después de las 10:00 PM se entregan hasta el siguiente fin de semana por disponibilidad de horario.
+🚚 *Entrega:* contamos con 15 minutos de tolerancia para recibir tu pedido. Si no es posible la entrega, se reprograma con un nuevo cargo de envío. Un segundo intento fallido devuelve la mercancía a nuestro stock.
+📅 *Nota:* los pedidos realizados en viernes después de las 10:00 PM se entregan hasta el siguiente fin de semana por disponibilidad de horario.
 📦 *Permanencia:* reservamos tus productos durante 1 semana completa. Si dentro de ese plazo no se completa la entrega (por no poder recibir o no acudir al punto acordado), el pedido se dará por concluido, los productos regresarán a stock y el pago realizado no será reembolsable. 💰`;
 
   window.open(
