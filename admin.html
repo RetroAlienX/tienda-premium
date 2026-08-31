@@ -506,6 +506,20 @@
                 padding: 10px 14px;
             }
         }
+
+        /* Quitar las flechas de incremento/decremento en Envío y Descuento del tab Ticket */
+        #ticketEnvio::-webkit-outer-spin-button,
+        #ticketEnvio::-webkit-inner-spin-button,
+        #ticketDescuento::-webkit-outer-spin-button,
+        #ticketDescuento::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        #ticketEnvio,
+        #ticketDescuento {
+            -moz-appearance: textfield;
+            appearance: textfield;
+        }
     </style>
 </head>
 

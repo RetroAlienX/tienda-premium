@@ -58,12 +58,12 @@ async function cargarPagos() {
                 <thead>
                     <tr>
                         <th>Cliente</th>
-                        <th style="text-align:center;" title="Cantidad total que el cliente debe cubrir.">Adeudo actual</th>
-                        <th style="text-align:center;" title="Total de quincenas acordadas para este pago.">Quincenas totales</th>
-                        <th style="text-align:center;" title="Cuántas quincenas faltan por cubrir.">Quincenas pendientes</th>
-                        <th style="text-align:center;" title="Cargos extras acumulados por morosidad/recargos.">Cargos</th>
-                        <th style="text-align:center;">Estado</th>
-                        <th style="text-align:center; min-width:240px;">Acciones</th>
+                        <th style="text-align:center; white-space:nowrap;" title="Cantidad total que el cliente debe cubrir.">Adeudo actual</th>
+                        <th style="text-align:center; white-space:nowrap; width:90px;" title="Total de quincenas acordadas para este pago.">Q. totales</th>
+                        <th style="text-align:center; white-space:nowrap; width:90px;" title="Cuántas quincenas faltan por cubrir.">Q. pendientes</th>
+                        <th style="text-align:center; white-space:nowrap; width:80px;" title="Cargos extras acumulados por morosidad/recargos.">Cargos</th>
+                        <th style="text-align:center; white-space:nowrap;">Estado</th>
+                        <th style="text-align:center; white-space:nowrap; min-width:560px;">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -77,37 +77,37 @@ async function cargarPagos() {
                             <td style="text-align:center;"><span style="color:var(--accent); font-weight:600; white-space:nowrap;">${formatearMoneda(
                               Number(r.monto_actual) || 0,
                             )}</span></td>
-                            <td style="text-align:center;">${
+                            <td style="text-align:center; white-space:nowrap;">${
                               r.quincenas_totales ?? 0
                             }</td>
-                            <td style="text-align:center;"><span style="font-weight:600;">${
+                            <td style="text-align:center; white-space:nowrap;"><span style="font-weight:600;">${
                               r.quincenas_pendientes ?? 0
                             }</span></td>
-                            <td style="text-align:center;"><span style="color:#ffd166;">${formatearMoneda(
+                            <td style="text-align:center; white-space:nowrap;"><span style="color:#ffd166;">${formatearMoneda(
                               Number(r.cargos) || 0,
                             )}</span></td>
-                            <td style="text-align:center;">${estadoPagoLabel(
+                            <td style="text-align:center; white-space:nowrap;">${estadoPagoLabel(
                               r.estado,
                             )}</td>
                             <td style="white-space:nowrap; text-align:center;">
                                 <button onclick="liquidarPago('${
                                   r.id
-                                }')" class="btn btn-success btn-sm" title="Liquidar: salda el adeudo a $0, quincenas pendientes a 0 y marca como Liquidado.">💰 Liquidar</button>
+                                }')" class="btn btn-success btn-sm" style="white-space:nowrap;" title="Liquidar: salda el adeudo a $0, quincenas pendientes a 0 y marca como Liquidado.">💰 Liquidar</button>
                                 <button onclick="cargarMorosidadPago('${
                                   r.id
-                                }')" class="btn btn-warning btn-sm" title="Cargar morosidad: aumenta el adeudo en $50 MXN y suma una quincena pendiente.">⏱️ +$50 Mora</button>
+                                }')" class="btn btn-warning btn-sm" style="white-space:nowrap;" title="Cargar morosidad: aumenta el adeudo en $50 MXN y suma una quincena pendiente.">⏱️ +$50 Mora</button>
                                 <button onclick="abrirCargoPago('${
                                   r.id
-                                }', true)" class="btn btn-info btn-sm" title="Añadir cargo: suma un recargo extra al adeudo.">＋ Cargo</button>
+                                }', true)" class="btn btn-info btn-sm" style="white-space:nowrap;" title="Añadir cargo: suma un recargo extra al adeudo.">＋ Cargo</button>
                                 <button onclick="abrirCargoPago('${
                                   r.id
-                                }', false)" class="btn btn-outline-info btn-sm" title="Deducir cargo: resta un abono del adeudo.">− Abono</button>
+                                }', false)" class="btn btn-outline-info btn-sm" style="white-space:nowrap;" title="Deducir cargo: resta un abono del adeudo.">− Abono</button>
                                 <button onclick="abrirModalPago('${
                                   r.id
-                                }')" class="btn btn-outline-warning btn-sm" title="Editar los datos de este pago.">✏️</button>
+                                }')" class="btn btn-outline-warning btn-sm" style="white-space:nowrap;" title="Editar los datos de este pago.">✏️</button>
                                 <button onclick="pedirEliminarPago('${
                                   r.id
-                                }')" class="btn btn-outline-danger btn-sm" title="Eliminar este registro de pagos.">🗑️</button>
+                                }')" class="btn btn-outline-danger btn-sm" style="white-space:nowrap;" title="Eliminar este registro de pagos.">🗑️</button>
                             </td>
                         </tr>
                     `,

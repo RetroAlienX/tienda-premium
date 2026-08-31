@@ -1175,6 +1175,26 @@ document.addEventListener("DOMContentLoaded", function () {
 
   const formLugar = document.getElementById("formLugar");
   if (formLugar) formLugar.addEventListener("submit", guardarLugar);
+
+  // Envío y Descuento del tab Ticket: solo ingresar números manualmente
+  // (sin flechas de incremento/decremento ni negativos).
+  ["ticketEnvio", "ticketDescuento"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener("keydown", function (ev) {
+      if (ev.key === "ArrowUp" || ev.key === "ArrowDown") {
+        ev.preventDefault();
+      }
+    });
+    el.addEventListener("wheel", function (ev) {
+      ev.preventDefault();
+    });
+    el.addEventListener("input", function (ev) {
+      const elv = ev.target;
+      if (elv.value !== "" && parseFloat(elv.value) < 0) elv.value = "0";
+    });
+  });
+
   const formCupon = document.getElementById("formCupon");
   if (formCupon) formCupon.addEventListener("submit", guardarCupon);
 
