@@ -58,7 +58,6 @@ function generarTicket(datos) {
             <div>${TIENDA.direccion}</div>
             <div>${TIENDA.telefono}</div>
             <div>${TIENDA.email}</div>
-            <div>${TIENDA.website}</div>
             <hr>
             <div><strong>TICKET: ${num}</strong></div>
             ${
@@ -91,8 +90,10 @@ function generarTicket(datos) {
     const cant = item.cantidad || 1;
     html += `
             <div class="ticket-item">
-                <span>${item.nombre}</span>
-                <span>×${cant}</span>
+                <span class="ticket-item-nombre">${item.nombre}</span>
+                <span class="ticket-item-detalle">$${item.precio.toFixed(
+                  2,
+                )} x${cant}</span>
                 <span>$${(item.precio * cant).toFixed(2)}</span>
             </div>
         `;
@@ -140,7 +141,6 @@ function generarTicket(datos) {
         <div class="ticket-footer">
             <div class="thanks">¡GRACIAS POR TU COMPRA! 🖤</div>
             <div style="font-size:9px;margin-top:6px;line-height:1.4;color:#555;">Nota: los cambios y devoluciones están sujetos a las políticas de Route66 JV Market. Conserva este ticket como comprobante de compra.</div>
-            <div>${TIENDA.website}</div>
             <div style="font-size:10px;margin-top:8px;">* Comprobante de compra *</div>
             <div style="font-size:14px;letter-spacing:2px;margin-top:5px;">${Array(
               20,

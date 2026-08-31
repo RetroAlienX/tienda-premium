@@ -19,7 +19,8 @@
         /* MODALES */
         #modalConfirmacionPedido,
         #modalCancelacionPedido,
-        #modalConfirmarCancelacion {
+        #modalConfirmarCancelacion,
+        #modalAviso {
             display: none;
             position: fixed;
             top: 0;
@@ -535,9 +536,17 @@
                         </div>
                         <div class="col-12">
                             <select id="metodoPago" class="input-luxury" required>
-                                <option value="">Método de pago...</option>
-                                <option value="transferencia">Transferencia</option>
-                                <option value="efectivo">Efectivo</option>
+                                <option value="transferencia" selected>Transferencia (único método disponible)</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <select id="diaEntrega" class="input-luxury" required>
+                                <option value="" disabled selected>Selecciona tu día de entrega...</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <select id="horaEntrega" class="input-luxury" required>
+                                <option value="" disabled selected>Selecciona tu horario de entrega...</option>
                             </select>
                         </div>
                         <div class="col-12">
@@ -545,9 +554,10 @@
                                 placeholder="Dirección completa de entrega *" required></textarea>
                         </div>
                         <div class="col-12">
-                            <input type="text" id="cuponCliente" class="input-luxury"
-                                title="Opcional: si tienes un código de cupón vigente, escríbelo aquí."
-                                placeholder="🎟️ ¿Tienes un cupón? Escribe el código (Opcional)">
+                            <select id="cuponCliente" class="input-luxury"
+                                title="Opcional: elige un cupón de los disponibles para aplicar su descuento.">
+                                <option value="">🎟️ Sin cupón</option>
+                            </select>
                         </div>
                         <div class="col-12">
                             <textarea id="notasPedido" class="input-luxury" rows="1"
@@ -709,12 +719,38 @@
             <div class="info-row"><strong>Dirección:</strong> <span id="modalDireccionCliente"></span></div>
             <div class="info-row"><strong>Producto:</strong> <span id="modalProductoInfo"></span></div>
             <div class="info-row"><strong>Lugar de entrega:</strong> <span id="modalLugarEntregaInfo"></span></div>
+            <div class="info-row"><strong>Día de entrega:</strong> <span id="modalDiaEntregaInfo"></span></div>
+            <div class="info-row"><strong>Horario de entrega:</strong> <span id="modalHoraEntregaInfo"></span></div>
             <div class="info-row"><strong>Total:</strong> <span id="modalTotalInfo"
                     style="color: var(--regio-green); font-weight: 700;"></span></div>
             <div class="info-row"><strong>Método de pago:</strong> <span id="modalMetodoPagoInfo"></span></div>
             <p id="modalMensajeEnvio"
                 style="margin-top: 15px; font-size: 0.85rem; color: var(--text-silver); text-align: center;">
                 📧 Guarda tu número de pedido. Revisa tu correo para más detalles.
+            </p>
+            <hr style="border:none; border-top:1px solid var(--border); margin:14px 0;">
+            <p
+                style="margin:0 0 8px 0; font-size:0.8rem; color:var(--text-silver); text-align:left; line-height:1.55;">
+                💳 Una vez realices tu compra, te contactaremos por WhatsApp y/o correo registrado para compartirte
+                los datos de la cuenta bancaria para realizar tu pago. Una vez pagado, envíanos tu comprobante de pago
+                vía WhatsApp o a nuestro correo electrónico y te confirmaremos tu día y horario de entrega previamente
+                seleccionado. Un vendedor te contactará solo para confirmar y asegurarse de que estés al día con tu
+                pedido.
+            </p>
+            <p
+                style="margin:0 0 8px 0; font-size:0.78rem; color:var(--text-silver); text-align:left; line-height:1.5;">
+                ⏳ <strong>Cancelación:</strong> tienes un periodo de cancelación de <strong>3 días</strong> a partir
+                de tu compra. Después de ese periodo ya no es posible cancelar tu pedido. Te lo hacemos saber con
+                anticipación para que estés tranquilo.
+            </p>
+            <p
+                style="margin:0; font-size:0.78rem; color:var(--text-silver); text-align:left; line-height:1.5;">
+                🚚 <strong>Políticas de entrega:</strong> si al momento de tu entrega no estás disponible, te
+                esperamos hasta <strong>15 minutos</strong>; después se reprograma la entrega y se cobra el envío de
+                nuevo. Un <strong>segundo intento de entrega fallido</strong> significa que la mercancía regresa al
+                stock y se pierde la compra. <strong>Permanencia:</strong> los productos solo permanecen
+                <strong>una semana completa</strong> en nuestro stock; de no completarse la entrega en ese plazo la
+                compra se pierde y el stock se mueve por políticas de la tienda.
             </p>
             <button class="btn-cerrar-modal" id="cerrarModalConfirmacion">Cerrar y copiar mi información</button>
         </div>
@@ -745,6 +781,17 @@
                 📧 Se ha enviado un correo de cancelación a tu correo y al administrador.
             </p>
             <button class="btn-cerrar-modal" id="cerrarModalCancelacion">Cerrar</button>
+        </div>
+    </div>
+
+    <!-- MODAL DE AVISO (STOCK / ERRORES / VENCIMIENTO) -->
+    <div id="modalAviso">
+        <div class="modal-content-box">
+            <h3 id="modalAvisoTitulo" style="text-align:center;">⚠️ Aviso</h3>
+            <p id="modalAvisoMensaje"
+                style="margin:10px 0 0 0; font-size:0.9rem; color:var(--text-silver); text-align:center; line-height:1.5;">
+            </p>
+            <button class="btn-cerrar-modal" id="cerrarModalAviso">Entendido</button>
         </div>
     </div>
 
@@ -785,9 +832,9 @@
             if (adminClicks >= 5) {
                 adminClicks = 0;
                 if (localStorage.getItem('adminEmail')) {
-                    window.location.href = 'admin.html';
+                    window.open('admin.html', '_blank');
                 } else {
-                    window.location.href = 'login.html';
+                    window.open('login.html', '_blank');
                 }
             }
         });

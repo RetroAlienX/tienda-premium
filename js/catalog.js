@@ -227,7 +227,8 @@ function hacerPedido(id) {
 💰 Precio: ${formatearMoneda(p.precio)}
 🔢 Cantidad: ¿Cuántas unidades necesitas?
 📍 Dirección: ¿A dónde te lo enviamos?
-💳 Pago: ¿Transferencia o pago contra entrega?
+💳 Pago: Solo por transferencia bancaria
+📍 Entrega: Los sábados y domingos, horario de 8:00 AM a 3:00 PM
 🎟️ Cupón: ¿Tienes algún cupón? Indícanos el código
 ✅ ¡Gracias!`;
 
@@ -443,17 +444,24 @@ async function enviarCorreoConfirmacion(
       productos: pedido.productos.map((p) => ({
         nombre: p.nombre,
         cantidad: p.cantidad,
+        precio_unitario: formatearMoneda(p.precio),
         precio: formatearMoneda(p.precio * p.cantidad),
       })),
-      subtotal: formatearMoneda(subtotalProd),
+      subtotal_productos: formatearMoneda(subtotalProd),
+      subtotal: formatearMoneda(subtotalProd + envioPedido),
       envio: envioPedido > 0 ? formatearMoneda(envioPedido) : "",
+      descuento: pedido.descuento ? Number(pedido.descuento) : 0,
+      cupon: pedido.cupon || "",
+      dia_entrega: pedido.dia_entrega
+        ? new Date(pedido.dia_entrega + "T00:00:00").toLocaleDateString("es-MX")
+        : "Por confirmar",
+      hora_entrega: pedido.hora_entrega || "Por confirmar",
       total: formatearMoneda(total),
-      metodo_pago:
-        metodoPago === "transferencia"
-          ? "Transferencia Bancaria"
-          : "Efectivo contra entrega",
+      metodo_pago: "Transferencia Bancaria",
       direccion:
         direccion || "No especificada (te contactaremos para coordinar envío)",
+      politicas:
+        TEXTO_CANCELACION_3DIAS + " " + TEXTO_POLITICAS_ENTREGA,
       to_email: pedido.cliente_email,
     };
 
@@ -929,14 +937,142 @@ function mostrarToastCupon(mensaje) {
 // FORMULARIO DE PEDIDO DIRECTO
 // ============================================
 
+// ============================================
+// AVISO MODAL REUTILIZABLE (stock / vencimiento / avisos)
+// ============================================
+function mostrarModalAviso(titulo, mensaje) {
+  const modal = document.getElementById("modalAviso");
+  if (!modal) {
+    alert(titulo + "\n\n" + mensaje);
+    return;
+  }
+  document.getElementById("modalAvisoTitulo").textContent = titulo;
+  document.getElementById("modalAvisoMensaje").textContent = mensaje;
+  modal.style.display = "flex";
+}
+
+// ============================================
+// CUPONES ACTIVOS (para el combobox y el descuento)
+// ============================================
+let cuponesActivos = [];
+
+async function cargarCuponesActivos() {
+  try {
+    const { data, error } = await window.supabase
+      .from("cupones")
+      .select("codigo, titulo, descuento, vigencia, activo")
+      .eq("activo", true)
+     .order("orden", { ascending: true });
+
+    if (error) throw error;
+    cuponesActivos = data || [];
+    rellenarSelectCupones();
+  } catch (err) {
+    console.warn("⚠️ No se pudieron cargar cupones activos:", err.message);
+    cuponesActivos = [];
+  }
+}
+
+function rellenarSelectCupones() {
+  const sel = document.getElementById("cuponCliente");
+  if (!sel) return;
+  sel.innerHTML = '<option value="">🎟️ Sin cupón</option>';
+  (cuponesActivos || []).forEach((c) => {
+    const desc = Number(c.descuento) || 0;
+    sel.innerHTML += `<option value="${c.codigo}" data-descuento="${desc}">${c.codigo} — ${desc}% de descuento</option>`;
+  });
+}
+
+// ============================================
+// FECHAS DE ENTREGA (sábado/domingo) con cierre viernes 10pm
+// ============================================
+function calcularFechasEntrega() {
+  const hoy = new Date();
+  const dia = hoy.getDay(); // 0=dom ... 6=sáb
+  const hora = hoy.getHours() + hoy.getMinutes() / 60;
+
+  const sabado = new Date(hoy);
+  sabado.setHours(0, 0, 0, 0);
+  let diasParaSabado = (6 - dia + 7) % 7;
+
+  if (dia === 6) {
+    diasParaSabado = 7; // hoy es sábado -> siguiente fin de semana
+  } else if (dia === 5 && hora >= 22) {
+    diasParaSabado += 7; // viernes después de las 10pm -> siguiente fin de semana
+  }
+
+  sabado.setDate(sabado.getDate() + diasParaSabado);
+  const domingo = new Date(sabado);
+  domingo.setDate(domingo.getDate() + 1);
+
+  return { sabado, domingo };
+}
+
+function formatoFechaLatam(fecha) {
+  return `${String(fecha.getDate()).padStart(2, "0")}/${String(
+    fecha.getMonth() + 1,
+  ).padStart(2, "0")}/${fecha.getFullYear()}`;
+}
+
+function poblarDiasEntrega() {
+  const sel = document.getElementById("diaEntrega");
+  if (!sel) return;
+  const { sabado, domingo } = calcularFechasEntrega();
+  const sabadoISO = sabado.toISOString().slice(0, 10);
+  const domingoISO = domingo.toISOString().slice(0, 10);
+  sel.innerHTML = `
+    <option value="" disabled selected>Selecciona tu día de entrega...</option>
+    <option value="${sabadoISO}">Sábado ${formatoFechaLatam(sabado)}</option>
+    <option value="${domingoISO}">Domingo ${formatoFechaLatam(domingo)}</option>
+  `;
+}
+
+function poblarHorariosEntrega() {
+  const sel = document.getElementById("horaEntrega");
+  if (!sel) return;
+  sel.innerHTML = '<option value="" disabled selected>Selecciona tu horario de entrega...</option>';
+  // Horarios de 8:00 AM a 3:00 PM (solo mañana/media mañana)
+  for (let h = 8; h <= 15; h++) {
+    const ampm = h >= 12 ? (h === 12 ? "PM" : "PM") : "AM";
+    const hora12 = h > 12 ? h - 12 : h;
+    const hora12m = h === 0 ? 12 : hora12;
+    sel.innerHTML += `<option value="${h}:00:00">${hora12m}:00 ${ampm}</option>`;
+  }
+}
+
+// ============================================
+// POLÍTICAS DE ENTREGA Y PERMANENCIA (texto reutilizable)
+// ============================================
+const TEXTO_POLITICAS_ENTREGA =
+  "🚚 Políticas de entrega: te esperamos hasta 15 minutos en tu entrega; si no estás, se reprograma y se cobra el envío de nuevo. Un segundo intento de entrega fallido significa que la mercancía regresa al stock y se pierde la compra. Permanencia: los productos solo permanecen una semana completa en nuestro stock; de no completarse la entrega en ese plazo la compra se pierde y el stock se mueve por políticas de la tienda.";
+const TEXTO_CANCELACION_3DIAS =
+  "⏳ Tienes un periodo de cancelación de 3 días a partir de tu compra. Después de ese periodo el pedido ya no puede cancelarse.";
+
 document.addEventListener("DOMContentLoaded", function () {
   cargarProductos();
+
+  // Llenar día/horario de entrega automáticamente según el reloj
+  poblarDiasEntrega();
+  poblarHorariosEntrega();
 
   // Cargar cupones y noticias desde Supabase
   setTimeout(() => {
     cargarCuponesDesdeDB();
     cargarNoticiasDesdeDB();
   }, 500);
+
+  esperarSupabase(function () {
+    cargarCuponesActivos();
+  });
+
+  // Botón de cierre del modal de aviso
+  const cerrarAviso = document.getElementById("cerrarModalAviso");
+  if (cerrarAviso) {
+    cerrarAviso.addEventListener("click", function () {
+      const m = document.getElementById("modalAviso");
+      if (m) m.style.display = "none";
+    });
+  }
 
   document.querySelectorAll(".filtro-btn").forEach((b) => {
     b.addEventListener("click", () => filtrarProductos(b.dataset.filtro));
@@ -1007,7 +1143,25 @@ document.addEventListener("DOMContentLoaded", function () {
         : 0;
 
       const notas = document.getElementById("notasPedido").value.trim();
-      const cupon = document.getElementById("cuponCliente")?.value.trim() || "";
+      const diaEntrega = document.getElementById("diaEntrega")?.value || "";
+      const horaEntrega = document.getElementById("horaEntrega")?.value || "";
+      const cuponCodigo =
+        document.getElementById("cuponCliente")?.value.trim() || "";
+      // Resolver el cupón seleccionado -> obtener su % de descuento
+      let cuponObjeto = null;
+      let descuentoCupon = 0;
+      if (cuponCodigo) {
+        const selCupon = document.getElementById("cuponCliente");
+        const optCupon = selCupon
+          ? selCupon.options[selCupon.selectedIndex]
+          : null;
+        const descData = optCupon ? Number(optCupon.dataset.descuento) : 0;
+        const proc = cuponesActivos.find((c) => c.codigo === cuponCodigo);
+        cuponObjeto = proc || { codigo: cuponCodigo };
+        descuentoCupon =
+          (proc && Number(proc.descuento)) || descData || 0;
+        descuentoCupon = Math.min(100, Math.max(0, descuentoCupon));
+      }
 
       const telefonoValidado = validarTelefono(telefonoRaw);
       if (!telefonoValidado.valido) {
@@ -1045,10 +1199,9 @@ document.addEventListener("DOMContentLoaded", function () {
       }
 
       if (producto.stock === 0) {
-        mostrarMensaje(
-          mensaje,
-          `❌ El producto "${producto.nombre}" no tiene stock disponible.`,
-          "error",
+        mostrarModalAviso(
+          "❌ Sin stock",
+          `Lo sentimos, el producto "${producto.nombre}" agotó su mercancía. Te invitamos a elegir otro producto. 🙏`,
         );
         return;
       }
@@ -1063,10 +1216,9 @@ document.addEventListener("DOMContentLoaded", function () {
       }
 
       if (cantidad > producto.stock) {
-        mostrarMensaje(
-          mensaje,
-          `❌ No hay stock suficiente. Solo tenemos ${producto.stock} unidades disponibles.`,
-          "error",
+        mostrarModalAviso(
+          "❌ No hay stock suficiente",
+          `Lo sentimos, solo tenemos ${producto.stock} unidades disponibles de "${producto.nombre}". Por favor reduce la cantidad. 🙏`,
         );
         return;
       }
@@ -1080,8 +1232,41 @@ document.addEventListener("DOMContentLoaded", function () {
         return;
       }
 
+      if (!diaEntrega || !horaEntrega) {
+        mostrarMensaje(
+          mensaje,
+          "❌ Selecciona tu día y horario de entrega.",
+          "error",
+        );
+        return;
+      }
+
+      // Validación: un mismo cupón no puede usarse 2 veces con el mismo correo
+      if (cuponCodigo && window.supabase) {
+        try {
+          const { data: usado, error: errUso } = await window.supabase
+            .from("cupon_usos")
+            .select("id")
+            .eq("correo", email)
+            .eq("cupon", cuponCodigo)
+            .maybeSingle();
+          if (!errUso && usado) {
+            mostrarModalAviso(
+              "🎟️ Cupón ya utilizado",
+              `Lo sentimos, el cupón ${cuponCodigo} ya fue usado con el correo ${email}. Cada cupón solo puede usarse una vez por persona. 🙏`,
+            );
+            return;
+          }
+        } catch (e) {
+          console.warn("⚠️ No se pudo validar el cupón por correo:", e.message);
+        }
+      }
+
       // Total = productos + costo de envío del lugar seleccionado
-      const total = producto.precio * cantidad + costoEnvio;
+      const subtotalProductos = producto.precio * cantidad;
+      const subtotal = subtotalProductos + costoEnvio;
+      const descuentoMonto = subtotal * (descuentoCupon / 100);
+      const total = subtotal - descuentoMonto;
       const numeroPedido = generarNumeroPedido();
 
       const pedido = {
@@ -1096,13 +1281,17 @@ document.addEventListener("DOMContentLoaded", function () {
             cantidad: cantidad,
           },
         ],
-        total: total,
+        total: Math.round(total * 100) / 100,
+        subtotal: Math.round(subtotal * 100) / 100,
         costo_envio: costoEnvio,
         lugar_entrega: lugarEntrega,
+        dia_entrega: diaEntrega || null,
+        hora_entrega: horaEntrega || null,
         metodo_pago: metodoPago,
         direccion_entrega: direccion || null,
         notas: notas || null,
-        cupon: cupon || null,
+        cupon: cuponCodigo || null,
+        descuento: descuentoCupon,
         estado: "pendiente",
       };
 
@@ -1118,6 +1307,13 @@ document.addEventListener("DOMContentLoaded", function () {
           .from("pedidos")
           .insert([pedido]);
         if (error) throw error;
+
+        // Registrar el uso del cupón (una vez por correo)
+        if (cuponCodigo) {
+          await window.supabase
+            .from("cupon_usos")
+            .insert([{ correo: email, cupon: cuponCodigo }]);
+        }
 
         await enviarCorreoConfirmacion(
           pedido,
@@ -1141,10 +1337,14 @@ document.addEventListener("DOMContentLoaded", function () {
             `${producto.nombre} × ${cantidad}`;
           document.getElementById("modalLugarEntregaInfo").textContent =
             `${lugarEntrega} · Envío ${formatearMoneda(costoEnvio)}`;
+          document.getElementById("modalDiaEntregaInfo").textContent =
+            diaEntrega ? new Date(diaEntrega + "T00:00:00").toLocaleDateString("es-MX") : "—";
+          document.getElementById("modalHoraEntregaInfo").textContent =
+            horaEntrega || "—";
           document.getElementById("modalTotalInfo").textContent =
             formatearMoneda(total);
           document.getElementById("modalMetodoPagoInfo").textContent =
-            metodoPago === "transferencia" ? "Transferencia" : "Efectivo";
+            "Transferencia";
           modal.style.display = "flex";
         }
 
@@ -1152,6 +1352,9 @@ document.addEventListener("DOMContentLoaded", function () {
         const selectProductos = document.getElementById("productoSelect");
         if (selectProductos) selectProductos.value = "";
         cargarSelectProductos(productos);
+        cargarCuponesActivos();
+        poblarDiasEntrega();
+        poblarHorariosEntrega();
       } catch (error) {
         console.error("Error:", error);
         mostrarMensaje(

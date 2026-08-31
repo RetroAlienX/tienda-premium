@@ -837,6 +837,17 @@ async function ejecutarProcesarPedido(pedidoId, accion) {
 
 document.addEventListener("DOMContentLoaded", function () {
 
+  // No permitir valores negativos en ningún campo numérico (item 21)
+  document.addEventListener("input", function (ev) {
+    const el = ev.target;
+    if (el && el.tagName === "INPUT" && el.type === "number") {
+      const min = parseFloat(el.min);
+      if (!isNaN(min) && el.value !== "" && parseFloat(el.value) < min) {
+        el.value = min;
+      }
+    }
+  });
+
   function cambiarTab(tabId) {
     document.querySelectorAll(".tab-content").forEach((t) => {
       t.classList.remove("active");
@@ -1872,9 +1883,11 @@ async function cargarPedidos(estado = "todos") {
 
                         let estadoHtml;
                         if (p.estado === "vendido") {
-                          estadoHtml = `<span class="badge bg-success" title="Venta completada: el stock ya se descontó. Usa el botón de Devolución (↩️) si necesitas regresarlo.">💰 Vendido</span>`;
+                          estadoHtml = `<span class="badge bg-success" style="white-space:nowrap;" title="Venta completada: el stock ya se descontó. Usa el botón de Devolución (↩️) si necesitas regresarlo.">💰 Vendido</span>`;
                         } else if (p.estado === "devuelto") {
-                          estadoHtml = `<span class="badge bg-secondary" title="El stock de este pedido ya fue regresado al inventario.">↩️ Devuelto</span>`;
+                          estadoHtml = `<span class="badge bg-secondary" style="white-space:nowrap;" title="El stock de este pedido ya fue regresado al inventario.">↩️ Devuelto</span>`;
+                        } else if (p.estado === "entregado") {
+                          estadoHtml = `<span class="badge bg-dark" style="white-space:nowrap; border:1px solid var(--accent); color:var(--accent);" title="Producto entregado al cliente.">📦 Entregado</span>`;
                         } else {
                           estadoHtml = `
                                 <select onchange="cambiarEstadoPedido('${
@@ -1996,7 +2009,6 @@ async function cargarPedidos(estado = "todos") {
                                       p.estado === "pendiente"
                                         ? `
                                         <button onclick="procesarPedido('${p.id}', 'procesar')" class="btn btn-info-custom btn-sm" title="Procesar Pedido: pasa a Confirmado">✅</button>
-                                        <button onclick="abrirModalCorreo('${p.id}')" class="btn btn-primary-custom btn-sm" title="Enviar Correo de confirmación al cliente">📧</button>
                                     `
                                         : ""
                                     }
@@ -2004,12 +2016,14 @@ async function cargarPedidos(estado = "todos") {
                                       p.estado === "confirmado"
                                         ? `
                                         <button onclick="procesarPedido('${p.id}', 'completar')" class="btn btn-success btn-sm" title="Marcar como Vendido: descuenta el stock. Es la ÚNICA acción que descuenta stock.">💰</button>
+                                        <button onclick="cambiarEstadoPedido('${p.id}','entregado')" class="btn btn-outline-success btn-sm" title="Marcar como Entregado (producto entregado al cliente)">📦</button>
                                     `
                                         : ""
                                     }
                                     ${
                                       p.estado === "vendido"
                                         ? `
+                                        <button onclick="cambiarEstadoPedido('${p.id}','entregado')" class="btn btn-outline-success btn-sm" title="Marcar como Entregado (producto entregado al cliente)">📦</button>
                                         <button onclick="pedirDevolucionPedido('${p.id}')" class="btn btn-outline-warning btn-sm" title="Devolución: regresa el stock de estos productos al inventario">↩️</button>
                                     `
                                         : ""
@@ -3591,6 +3605,7 @@ async function cargarCupones() {
                         <th>Tag</th>
                         <th>Título</th>
                         <th>Código</th>
+                        <th>Descuento</th>
                         <th>Vigencia</th>
                         <th>Estado</th>
                         <th>Acciones</th>
@@ -3612,6 +3627,9 @@ async function cargarCupones() {
                             <td><code style="background:var(--bg-input);padding:2px 8px;border-radius:4px;font-size:12px;">${
                               c.codigo
                             }</code></td>
+                            <td><span class="badge bg-info" style="color:#0a0a0a;">${
+                              c.descuento ?? 0
+                            }%</span></td>
                             <td><small>${c.vigencia}</small></td>
                             <td>
                                 <span class="badge ${
@@ -3768,6 +3786,7 @@ function mostrarFormCupon(data = null) {
     document.getElementById("cuponVigenciaPicker").value = parsearVigenciaAISO(
       data.vigencia,
     );
+    document.getElementById("cuponDescuento").value = data.descuento ?? 10;
     document.getElementById("cuponOrden").value = data.orden || 1;
     document.getElementById("cuponActivo").value = data.activo
       ? "true"
@@ -3783,6 +3802,7 @@ function mostrarFormCupon(data = null) {
     document.getElementById("formCupon").reset();
     document.getElementById("cuponId").value = "";
     document.getElementById("cuponActivo").value = "true";
+    document.getElementById("cuponDescuento").value = 10;
     // Sugerimos el siguiente número de orden disponible; se puede cambiar.
     document.getElementById("cuponOrden").value = ultimoTotalCupones + 1;
   }
@@ -3823,6 +3843,7 @@ async function guardarCupon(e) {
     titulo: document.getElementById("cuponTitulo").value.trim(),
     descripcion: document.getElementById("cuponDescripcion").value.trim(),
     codigo: document.getElementById("cuponCodigo").value.trim(),
+    descuento: parseInt(document.getElementById("cuponDescuento").value) || 0,
     tag: document.getElementById("cuponTag").value.trim(),
     icono: document.getElementById("cuponIcono").value.trim(),
     vigencia: formatearVigenciaCupon(vigenciaISO),

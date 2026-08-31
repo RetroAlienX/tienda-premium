@@ -31,6 +31,9 @@ async function cargarPagos() {
   const container = document.getElementById("listaPagos");
   if (!container) return;
 
+  container.innerHTML =
+    '<div class="text-center text-dim py-3"><span class="spinner-border spinner-border-sm me-1"></span>Cargando...</div>';
+
   if (!window.supabase || typeof window.supabase.from !== "function") {
     setTimeout(cargarPagos, 500);
     return;
