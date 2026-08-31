@@ -515,8 +515,15 @@ async function enviarCorreoCancelacion(pedido, numeroPedido) {
       productos: pedido.productos.map((p) => ({
         nombre: p.nombre,
         cantidad: p.cantidad,
+        precio_unitario: formatearMoneda(p.precio),
         precio: formatearMoneda(p.precio * p.cantidad),
       })),
+      subtotal_productos: formatearMoneda(
+        (pedido.productos || []).reduce(
+          (s, p) => s + (Number(p.precio) || 0) * (Number(p.cantidad) || 0),
+          0,
+        ),
+      ),
       subtotal: formatearMoneda(
         (pedido.productos || []).reduce(
           (s, p) => s + (Number(p.precio) || 0) * (Number(p.cantidad) || 0),
