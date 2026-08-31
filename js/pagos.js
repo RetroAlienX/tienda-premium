@@ -92,22 +92,22 @@ async function cargarPagos() {
                             <td style="white-space:nowrap; text-align:center;">
                                 <button onclick="liquidarPago('${
                                   r.id
-                                }')" class="btn btn-success btn-sm" style="white-space:nowrap;" title="Liquidar: salda el adeudo a $0, quincenas pendientes a 0 y marca como Liquidado.">💰 Liquidar</button>
+                                }')" class="btn btn-success btn-sm btn-accion" title="Liquidar: salda el adeudo a $0, quincenas pendientes a 0 y marca como Liquidado.">💰 Liquidar</button>
                                 <button onclick="cargarMorosidadPago('${
                                   r.id
-                                }')" class="btn btn-warning btn-sm" style="white-space:nowrap;" title="Cargar morosidad: aumenta el adeudo en $50 MXN y suma una quincena pendiente.">⏱️ +$50 Mora</button>
+                                }')" class="btn btn-warning btn-sm btn-accion" title="Cargar morosidad: aumenta el adeudo en $50 MXN y suma una quincena pendiente.">⏱️ +$50 Mora</button>
                                 <button onclick="abrirCargoPago('${
                                   r.id
-                                }', true)" class="btn btn-info btn-sm" style="white-space:nowrap;" title="Añadir cargo: suma un recargo extra al adeudo.">＋ Cargo</button>
+                                }', true)" class="btn btn-info btn-sm btn-accion" title="Añadir cargo: suma un recargo extra al adeudo.">＋ Cargo</button>
                                 <button onclick="abrirCargoPago('${
                                   r.id
-                                }', false)" class="btn btn-outline-info btn-sm" style="white-space:nowrap;" title="Deducir cargo: resta un abono del adeudo.">− Abono</button>
+                                }', false)" class="btn btn-outline-info btn-sm btn-accion" title="Deducir cargo: resta un abono del adeudo.">− Abono</button>
                                 <button onclick="abrirModalPago('${
                                   r.id
-                                }')" class="btn btn-outline-warning btn-sm" style="white-space:nowrap;" title="Editar los datos de este pago.">✏️</button>
+                                }')" class="btn btn-outline-warning btn-sm btn-accion" title="Editar los datos de este pago.">✏️</button>
                                 <button onclick="pedirEliminarPago('${
                                   r.id
-                                }')" class="btn btn-outline-danger btn-sm" style="white-space:nowrap;" title="Eliminar este registro de pagos.">🗑️</button>
+                                }')" class="btn btn-outline-danger btn-sm btn-accion" title="Eliminar este registro de pagos.">🗑️</button>
                             </td>
                         </tr>
                     `,

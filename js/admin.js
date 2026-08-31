@@ -2815,8 +2815,8 @@ function limpiarFormularioTicket() {
   document.getElementById("ticketTelefono").value = "";
   document.getElementById("ticketDireccion").value = "";
   document.getElementById("ticketLugarEntrega").value = "";
-  document.getElementById("ticketEnvio").value = "0";
-  document.getElementById("ticketDescuento").value = "0";
+  document.getElementById("ticketEnvio").value = "";
+  document.getElementById("ticketDescuento").value = "";
   // En venta nueva el producto vuelve a ser obligatorio.
   const selProducto = document.getElementById("ticketProductoSelect");
   if (selProducto) selProducto.setAttribute("required", "required");
