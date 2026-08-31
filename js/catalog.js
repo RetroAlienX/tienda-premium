@@ -1138,21 +1138,31 @@ const LUGARES_FALLBACK = [
 async function cargarLugaresEntrega() {
   const sel = document.getElementById("lugarEntrega");
   if (!sel) return;
-  let lugares = LUGARES_FALLBACK;
-  try {
-    if (window.supabase && typeof window.supabase.from === "function") {
-      const { data, error } = await window.supabase
-        .from("lugares_entrega")
-        .select("lugar, costo")
-        .order("orden", { ascending: true });
-      if (!error && data && data.length) lugares = data;
+
+  const obtenerLugares = async () => {
+    let lugares = [];
+    try {
+      if (window.supabase && typeof window.supabase.from === "function") {
+        const { data, error } = await window.supabase
+          .from("lugares_entrega")
+          .select("lugar, costo")
+          .order("orden", { ascending: true });
+        if (!error && data && data.length) lugares = data;
+      }
+    } catch (e) {
+      lugares = [];
     }
-  } catch (e) {
-    lugares = LUGARES_FALLBACK;
-  }
+    return lugares;
+  };
+
+  await new Promise((resolve) => esperarSupabase(resolve));
+
+  const lugares = await obtenerLugares();
+  const lista = lugares && lugares.length ? lugares : LUGARES_FALLBACK;
+
   sel.innerHTML =
     '<option value="" disabled selected>Selecciona tu lugar de entrega...</option>';
-  lugares.forEach((l) => {
+  lista.forEach((l) => {
     const costo = Number(l.costo) || 0;
     sel.innerHTML += `<option value="${l.lugar}" data-costo="${costo}">${l.lugar} — ${formatearMoneda(
       costo,

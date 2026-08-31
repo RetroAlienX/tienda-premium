@@ -525,9 +525,11 @@
                             </select>
                         </div>
                         <div class="col-12">
-                            <select id="metodoPago" class="input-luxury" required>
-                                <option value="transferencia" selected>Transferencia (único método disponible)</option>
-                            </select>
+                            <input type="hidden" id="metodoPago" value="transferencia">
+                            <div class="input-luxury" style="display:flex; align-items:center; justify-content:space-between; pointer-events:none; cursor:default;">
+                                <span style="font-size:0.95rem;">💳 Método de pago</span>
+                                <strong style="color:var(--regio-green);">Transferencia</strong>
+                            </div>
                         </div>
                         <div class="col-12">
                             <select id="diaEntrega" class="input-luxury" required>
