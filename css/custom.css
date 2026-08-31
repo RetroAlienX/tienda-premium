@@ -1501,6 +1501,27 @@ select.input-luxury option {
 }
 
 /* ============================================
+   POLÍTICAS - LUXURY
+   ============================================ */
+.section-politicas {
+  padding: 80px 0 70px;
+  background: var(--bg-dark);
+}
+
+.politica-card {
+  padding: 18px 22px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.politica-card:hover {
+  border-color: var(--text-silver);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.2);
+}
+
+/* ============================================
    FOOTER - LUXURY
    ============================================ */
 

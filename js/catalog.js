@@ -1105,9 +1105,9 @@ function poblarHorariosEntrega() {
 // POLÍTICAS DE ENTREGA Y PERMANENCIA (texto reutilizable)
 // ============================================
 const TEXTO_POLITICAS_ENTREGA =
-  "🚚 Políticas de entrega: te esperamos hasta 15 minutos en tu entrega; si no estás, se reprograma y se cobra el envío de nuevo. Un segundo intento de entrega fallido significa que la mercancía regresa al stock y se pierde la compra. Permanencia: los productos solo permanecen una semana completa en nuestro stock; de no completarse la entrega en ese plazo la compra se pierde y el stock se mueve por políticas de la tienda.";
+  "🚚 Entrega: contamos con 15 minutos de tolerancia para recibir tu pedido. Si no es posible la entrega, se reprograma con un nuevo cargo de envío. Un segundo intento fallido devuelve la mercancía a stock.";
 const TEXTO_CANCELACION_3DIAS =
-  "⏳ Tienes un periodo de cancelación de 3 días a partir de tu compra. Después de ese periodo el pedido ya no puede cancelarse.";
+  "⏳ Puedes solicitar la cancelación dentro de los 3 días posteriores a tu compra. Después de ese periodo el pedido ya no puede cancelarse.";
 
 // ============================================
 // LUGARES DE ENTREGA (desde Supabase, con respaldo local)
@@ -1490,6 +1490,19 @@ document.addEventListener("DOMContentLoaded", function () {
     cerrarModalBtn.addEventListener("click", function () {
       const modal = document.getElementById("modalConfirmacionPedido");
       if (modal) modal.style.display = "none";
+    });
+  }
+
+  const linkVerPoliticas = document.getElementById("linkVerPoliticas");
+  if (linkVerPoliticas) {
+    linkVerPoliticas.addEventListener("click", function (e) {
+      e.preventDefault();
+      const modal = document.getElementById("modalConfirmacionPedido");
+      if (modal) modal.style.display = "none";
+      const seccionPoliticas = document.getElementById("politicas");
+      if (seccionPoliticas) {
+        seccionPoliticas.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
     });
   }
 
