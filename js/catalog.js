@@ -422,7 +422,7 @@ async function enviarCorreoConfirmacion(
       await new Promise((resolve, reject) => {
         const script = document.createElement("script");
         script.src =
-          "https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js";
+          "https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js";
         script.onload = resolve;
         script.onerror = reject;
         document.head.appendChild(script);
@@ -489,7 +489,7 @@ async function enviarCorreoCancelacion(pedido, numeroPedido) {
       await new Promise((resolve, reject) => {
         const script = document.createElement("script");
         script.src =
-          "https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js";
+          "https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js";
         script.onload = resolve;
         script.onerror = reject;
         document.head.appendChild(script);

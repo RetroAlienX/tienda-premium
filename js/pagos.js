@@ -199,6 +199,8 @@ async function guardarPago() {
       "error",
     );
   }
+  // Las quincenas pendientes nunca pueden superar las totales.
+  const qPend = Math.min(Math.max(0, qPendientes), qTotales);
 
   try {
     if (pagoEditando) {
@@ -208,7 +210,7 @@ async function guardarPago() {
           cliente,
           monto_actual: monto,
           quincenas_totales: qTotales,
-          quincenas_pendientes: qPendientes,
+          quincenas_pendientes: qPend,
           updated_at: new Date().toISOString(),
         })
         .eq("id", pagoEditando);
@@ -219,7 +221,7 @@ async function guardarPago() {
           cliente,
           monto_actual: monto,
           quincenas_totales: qTotales,
-          quincenas_pendientes: qPendientes > 0 ? qPendientes : qTotales,
+          quincenas_pendientes: qPend > 0 ? qPend : qTotales,
           cargos: 0,
           estado: "activo",
         },
@@ -279,12 +281,16 @@ async function cargarMorosidadPago(id) {
             .single();
           if (error) throw error;
           const nuevoMonto = (Number(data.monto_actual) || 0) + CARGO_MOROSIDAD;
+          const nuevasPendientes = Math.min(
+            (Number(data.quincenas_pendientes) || 0) + 1,
+            Number(data.quincenas_totales) || 0,
+          );
           const { error: upError } = await window.supabase
             .from("pagos")
             .update({
               monto_actual: nuevoMonto,
               cargos: (Number(data.cargos) || 0) + CARGO_MOROSIDAD,
-              quincenas_pendientes: (Number(data.quincenas_pendientes) || 0) + 1,
+              quincenas_pendientes: nuevasPendientes,
               updated_at: new Date().toISOString(),
             })
             .eq("id", id);

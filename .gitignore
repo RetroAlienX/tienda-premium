@@ -15,6 +15,7 @@ sql_columnas_pedidos.sql
 sql_lugares.sql
 sql_marcas.sql
 sql_fix_pagos_cliente.sql
+sql_completo.sql
 
 # Archivos del sistema
 .DS_Store
