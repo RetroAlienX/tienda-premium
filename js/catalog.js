@@ -228,7 +228,7 @@ function hacerPedido(id) {
 🔢 Cantidad: ¿Cuántas unidades necesitas?
 📍 Dirección: ¿A dónde te lo enviamos?
 💳 Pago: Solo por transferencia bancaria
-📍 Entrega: Los sábados y domingos, horario de 8:00 AM a 3:00 PM
+📍 Entrega: Los sábados y domingos, horario de 8:00 AM a 4:00 PM
 🎟️ Cupón: ¿Tienes algún cupón? Indícanos el código
 ✅ ¡Gracias!`;
 
