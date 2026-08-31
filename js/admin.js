@@ -874,11 +874,13 @@ document.addEventListener("DOMContentLoaded", function () {
     if (tabId === "ticket") {
       cargarProductosTicket();
       cargarPedidosParaTicket();
+      cargarLugaresTicketAdmin();
     }
     if (tabId === "envios") cargarPedidosPendientes();
     if (tabId === "promociones") {
       cargarCupones();
       cargarNoticias();
+      cargarLugaresEntregaAdmin();
     }
     if (tabId === "lealtad" && typeof cargarLealtad === "function")
       cargarLealtad();
@@ -1169,7 +1171,10 @@ document.addEventListener("DOMContentLoaded", function () {
   addEventListenerSafe("btnAgregarNoticia", "click", () =>
     mostrarFormNoticia(),
   );
+  addEventListenerSafe("btnAgregarLugar", "click", () => mostrarFormLugar());
 
+  const formLugar = document.getElementById("formLugar");
+  if (formLugar) formLugar.addEventListener("submit", guardarLugar);
   const formCupon = document.getElementById("formCupon");
   if (formCupon) formCupon.addEventListener("submit", guardarCupon);
 
@@ -1848,7 +1853,7 @@ async function cargarPedidos(estado = "todos") {
                         <th style="white-space:nowrap;" title="Subtotal: productos + envío (antes de descuento).">Subtotal</th>
                         <th style="white-space:nowrap;">Total</th>
                         <th style="white-space:nowrap;">Estado</th>
-                        <th style="white-space:nowrap; min-width:220px;">Acciones</th>
+                        <th style="white-space:nowrap; min-width:320px;">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -1859,7 +1864,9 @@ async function cargarPedidos(estado = "todos") {
                             (x) =>
                               `<span class="item"><span class="nombre">${
                                 x.nombre
-                              }</span> <span class="cant">×${
+                              }</span> <span class="cant">${
+                                Number(x.precio) || 0
+                              } × ${
                                 x.cantidad
                               }</span> <span class="precio">${formatearMoneda(
                                 x.precio * x.cantidad,
@@ -2016,14 +2023,14 @@ async function cargarPedidos(estado = "todos") {
                                       p.estado === "confirmado"
                                         ? `
                                         <button onclick="procesarPedido('${p.id}', 'completar')" class="btn btn-success btn-sm" title="Marcar como Vendido: descuenta el stock. Es la ÚNICA acción que descuenta stock.">💰</button>
-                                        <button onclick="cambiarEstadoPedido('${p.id}','entregado')" class="btn btn-outline-success btn-sm" title="Marcar como Entregado (producto entregado al cliente)">📦</button>
+                                        <button onclick="pedirMarcarEntregado('${p.id}')" class="btn btn-outline-success btn-sm" title="Marcar como Entregado (producto entregado al cliente)">📦</button>
                                     `
                                         : ""
                                     }
                                     ${
                                       p.estado === "vendido"
                                         ? `
-                                        <button onclick="cambiarEstadoPedido('${p.id}','entregado')" class="btn btn-outline-success btn-sm" title="Marcar como Entregado (producto entregado al cliente)">📦</button>
+                                        <button onclick="pedirMarcarEntregado('${p.id}')" class="btn btn-outline-success btn-sm" title="Marcar como Entregado (producto entregado al cliente)">📦</button>
                                         <button onclick="pedirDevolucionPedido('${p.id}')" class="btn btn-outline-warning btn-sm" title="Devolución: regresa el stock de estos productos al inventario">↩️</button>
                                     `
                                         : ""
@@ -2100,6 +2107,15 @@ async function cambiarEstadoPedido(id, estado) {
     console.error("Error:", error);
     mostrarModalAlerta("❌ Error al actualizar estado");
   }
+}
+
+function pedirMarcarEntregado(id) {
+  modalConfirmar(
+    "📦 ¿Deseas marcar este pedido como ENTREGADO? El producto ya fue entregado al cliente.",
+    function () {
+      cambiarEstadoPedido(id, "entregado");
+    },
+  );
 }
 
 let detallePedidoActual = null;
@@ -2400,7 +2416,9 @@ async function verDetallePedido(id) {
     const productosHtml = (data.productos || [])
       .map(
         (x) =>
-          `<div style="display:flex; justify-content:space-between; gap:12px;"><span>${x.nombre} × ${x.cantidad}</span><span>${formatearMoneda(
+          `<div style="display:flex; justify-content:space-between; gap:12px;"><span>${x.nombre} — ${formatearMoneda(
+            Number(x.precio) || 0,
+          )} × ${x.cantidad}</span><span>${formatearMoneda(
             (Number(x.precio) || 0) * (Number(x.cantidad) || 0),
           )}</span></div>`,
       )
@@ -4077,9 +4095,256 @@ async function pedirEliminarNoticia(id) {
 }
 
 // ============================================
-// 9. EXPONER FUNCIONES AL WINDOW
+// CRUD - LUGARES DE ENTREGA / COSTOS DE ENVÍO
 // ============================================
-window.eliminarProductoTicket = eliminarProductoTicket;
+
+let ultimoTotalLugares = 0;
+let lugarEditando = null;
+
+async function cargarLugaresEntregaAdmin() {
+  const container = document.getElementById("listaLugares");
+  if (!container) return;
+
+  const tabPromociones = document.getElementById("tab-promociones");
+  if (tabPromociones && tabPromociones.style.display === "none") return;
+
+  container.innerHTML =
+    '<div class="text-center text-dim py-3">Cargando...</div>';
+
+  try {
+    const { data, error } = await window.supabase
+      .from("lugares_entrega")
+      .select("*")
+      .order("orden", { ascending: true });
+    if (error) throw error;
+
+    if (!data || !data.length) {
+      ultimoTotalLugares = 0;
+      container.innerHTML =
+        '<p class="text-center text-dim py-3">🚚 No hay lugares de entrega registrados</p>';
+      return;
+    }
+    ultimoTotalLugares = data.length;
+
+    container.innerHTML = `
+        <table class="table table-dark table-hover table-sm">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Lugar</th>
+                    <th style="text-align:center;">Costo de envío</th>
+                    <th style="text-align:center;">Orden</th>
+                    <th style="text-align:center;">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${data
+                  .map(
+                    (l, i) => `
+                    <tr>
+                        <td>${i + 1}</td>
+                        <td><strong>${l.lugar}</strong></td>
+                        <td style="text-align:center;"><span style="color:var(--accent); font-weight:600; white-space:nowrap;">${formatearMoneda(
+                          Number(l.costo) || 0,
+                        )}</span></td>
+                        <td style="text-align:center;">${l.orden ?? 0}</td>
+                        <td style="text-align:center; white-space:nowrap;">
+                            <button onclick="editarLugar('${l.id}')" class="btn btn-outline-warning btn-sm">✏️</button>
+                            <button onclick="pedirEliminarLugar('${l.id}')" class="btn btn-outline-danger btn-sm">🗑️</button>
+                        </td>
+                    </tr>
+                `,
+                  )
+                  .join("")}
+            </tbody>
+        </table>
+        <div style="margin-top:10px; color:var(--text-dim); font-size:0.75rem;">
+            <i class="fas fa-info-circle"></i> Estos lugares/costos se usan en el formulario público y en el tab Ticket.
+        </div>
+    `;
+  } catch (error) {
+    console.error("Error cargando lugares:", error);
+    container.innerHTML =
+      '<p class="text-danger text-center">❌ Error al cargar lugares</p>';
+  }
+}
+
+function mostrarFormLugar(data = null) {
+  const container = document.getElementById("formLugarContainer");
+  if (!container) return;
+  container.style.display = "flex";
+  container.scrollIntoView({ behavior: "smooth" });
+
+  if (data) {
+    lugarEditando = data;
+    document.getElementById("formLugarTitulo").textContent =
+      "✏️ Editar Lugar de Entrega";
+    const submitBtn = document.querySelector(
+      '#formLugar button[type="submit"]',
+    );
+    if (submitBtn) submitBtn.textContent = "💾 Actualizar";
+
+    document.getElementById("lugarId").value = data.id;
+    document.getElementById("lugarNombre").value = data.lugar || "";
+    document.getElementById("lugarCosto").value = data.costo ?? 0;
+    document.getElementById("lugarOrden").value = data.orden ?? 1;
+  } else {
+    lugarEditando = null;
+    document.getElementById("formLugarTitulo").textContent =
+      "➕ Agregar Lugar de Entrega";
+    const submitBtn = document.querySelector(
+      '#formLugar button[type="submit"]',
+    );
+    if (submitBtn) submitBtn.textContent = "💾 Guardar";
+
+    document.getElementById("formLugar").reset();
+    document.getElementById("lugarId").value = "";
+    document.getElementById("lugarOrden").value = ultimoTotalLugares + 1;
+  }
+}
+
+function ocultarFormLugar() {
+  const container = document.getElementById("formLugarContainer");
+  if (container) container.style.display = "none";
+  lugarEditando = null;
+}
+
+async function editarLugar(id) {
+  try {
+    const { data, error } = await window.supabase
+      .from("lugares_entrega")
+      .select("*")
+      .eq("id", id)
+      .single();
+    if (error) throw error;
+    if (data) mostrarFormLugar(data);
+  } catch (error) {
+    console.error("Error:", error);
+    mostrarModalAlerta("Error al cargar el lugar");
+  }
+}
+
+async function guardarLugar(e) {
+  e.preventDefault();
+  const msg = document.getElementById("mensajeLugar");
+  const btn = e.target.querySelector('button[type="submit"]');
+
+  const id = document.getElementById("lugarId").value || null;
+  const esEdicion = id && id !== "";
+
+  const datos = {
+    lugar: document.getElementById("lugarNombre").value.trim(),
+    costo: parseFloat(document.getElementById("lugarCosto").value) || 0,
+    orden: parseInt(document.getElementById("lugarOrden").value) || 1,
+  };
+
+  if (!datos.lugar) {
+    if (msg) mostrarMensaje(msg, "❌ El nombre del lugar es obligatorio", "error");
+    return;
+  }
+
+  try {
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = "Guardando...";
+    }
+
+    let result;
+    if (esEdicion) {
+      result = await window.supabase
+        .from("lugares_entrega")
+        .update(datos)
+        .eq("id", id);
+    } else {
+      result = await window.supabase.from("lugares_entrega").insert([datos]);
+    }
+
+    if (result.error) throw result.error;
+
+    if (msg) mostrarMensaje(msg, "✅ Lugar guardado correctamente", "exito");
+    ocultarFormLugar();
+    cargarLugaresEntregaAdmin();
+    cargarLugaresTicketAdmin();
+  } catch (error) {
+    console.error("Error:", error);
+    if (msg) mostrarMensaje(msg, "❌ " + error.message, "error");
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = esEdicion ? "💾 Actualizar" : "💾 Guardar";
+    }
+  }
+}
+
+function pedirEliminarLugar(id) {
+  modalConfirmar("¿Eliminar este lugar de entrega permanentemente?", async function () {
+    try {
+      const { error } = await window.supabase
+        .from("lugares_entrega")
+        .delete()
+        .eq("id", id);
+      if (error) throw error;
+      mostrarModalAlerta("✅ Lugar eliminado");
+      cargarLugaresEntregaAdmin();
+      cargarLugaresTicketAdmin();
+    } catch (error) {
+      console.error("Error:", error);
+      mostrarModalAlerta("❌ Error al eliminar: " + error.message);
+    }
+  });
+}
+
+// Llena el select de lugar de entrega del tab Ticket con lugares + costos
+async function cargarLugaresTicketAdmin() {
+  const sel = document.getElementById("ticketLugarEntrega");
+  if (!sel) return;
+  let lugares = [];
+  try {
+    if (window.supabase && typeof window.supabase.from === "function") {
+      const { data, error } = await window.supabase
+        .from("lugares_entrega")
+        .select("lugar, costo")
+        .order("orden", { ascending: true });
+      if (!error && data) lugares = data;
+    }
+  } catch (e) {
+    lugares = [];
+  }
+  sel.innerHTML =
+    '<option value="" selected>Selecciona tu lugar de entrega...</option>';
+  if (!lugares.length) {
+    lugares = [
+      { lugar: "Punto de entrega", costo: 0 },
+      { lugar: "San Nicolas", costo: 100 },
+      { lugar: "Apodaca", costo: 80 },
+      { lugar: "Escobedo", costo: 100 },
+      { lugar: "Monterrey", costo: 150 },
+      { lugar: "Cienega de Flores", costo: 100 },
+      { lugar: "Zuazua", costo: 130 },
+      { lugar: "Marin", costo: 130 },
+      { lugar: "San Pedro", costo: 150 },
+      { lugar: "Garcia", costo: 150 },
+    ];
+  }
+  lugares.forEach((l) => {
+    const costo = Number(l.costo) || 0;
+    sel.innerHTML += `<option value="${l.lugar}" data-costo="${costo}">${l.lugar} — ${formatearMoneda(
+      costo,
+    )}</option>`;
+  });
+}
+
+// Escribe el costo en ticketEnvio al cambiar el lugar en el tab Ticket
+function aplicarCostoLugarTicket(sel) {
+  const opt = sel.options[sel.selectedIndex];
+  const costo = opt ? Number(opt.dataset.costo) || 0 : 0;
+  const envio = document.getElementById("ticketEnvio");
+  if (envio && opt && opt.value !== "") envio.value = costo;
+}
+
+// ============================================
+// 9. EXPONER FUNCIONES AL WINDOW
+// ============================================window.eliminarProductoTicket = eliminarProductoTicket;
 window.agregarProductoTicket = agregarProductoTicket;
 window.cargarProductosTicket = cargarProductosTicket;
 window.verProductosSinStock = verProductosSinStock;
@@ -4119,3 +4384,12 @@ window.mostrarFormNoticia = mostrarFormNoticia;
 window.ocultarFormNoticia = ocultarFormNoticia;
 window.guardarCupon = guardarCupon;
 window.guardarNoticia = guardarNoticia;
+window.editarLugar = editarLugar;
+window.pedirEliminarLugar = pedirEliminarLugar;
+window.mostrarFormLugar = mostrarFormLugar;
+window.ocultarFormLugar = ocultarFormLugar;
+window.guardarLugar = guardarLugar;
+window.cargarLugaresEntregaAdmin = cargarLugaresEntregaAdmin;
+window.cargarLugaresTicketAdmin = cargarLugaresTicketAdmin;
+window.aplicarCostoLugarTicket = aplicarCostoLugarTicket;
+window.pedirMarcarEntregado = pedirMarcarEntregado;

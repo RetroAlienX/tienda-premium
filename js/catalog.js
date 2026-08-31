@@ -1030,13 +1030,18 @@ function poblarDiasEntrega() {
 function poblarHorariosEntrega() {
   const sel = document.getElementById("horaEntrega");
   if (!sel) return;
-  sel.innerHTML = '<option value="" disabled selected>Selecciona tu horario de entrega...</option>';
-  // Horarios de 8:00 AM a 3:00 PM (solo mañana/media mañana)
-  for (let h = 8; h <= 15; h++) {
-    const ampm = h >= 12 ? (h === 12 ? "PM" : "PM") : "AM";
-    const hora12 = h > 12 ? h - 12 : h;
-    const hora12m = h === 0 ? 12 : hora12;
-    sel.innerHTML += `<option value="${h}:00:00">${hora12m}:00 ${ampm}</option>`;
+  sel.innerHTML = '<option value="" disabled selected>Selecciona tu rango horario de entrega...</option>';
+  // Rangos de 1 hora, de 8:00 AM a 4:00 PM (máximo)
+  for (let h = 8; h < 16; h++) {
+    const inicio = new Date(2000, 0, 1, h, 0);
+    const fin = new Date(2000, 0, 1, h + 1, 0);
+    const fmt = (d) =>
+      `${d.getHours() % 12 === 0 ? 12 : d.getHours() % 12}:00 ${
+        d.getHours() >= 12 ? "PM" : "AM"
+      }`;
+    sel.innerHTML += `<option value="${String(h).padStart(2, "0")}:00:00">${fmt(
+      inicio,
+    )} – ${fmt(fin)}</option>`;
   }
 }
 
@@ -1048,12 +1053,66 @@ const TEXTO_POLITICAS_ENTREGA =
 const TEXTO_CANCELACION_3DIAS =
   "⏳ Tienes un periodo de cancelación de 3 días a partir de tu compra. Después de ese periodo el pedido ya no puede cancelarse.";
 
+// ============================================
+// LUGARES DE ENTREGA (desde Supabase, con respaldo local)
+// ============================================
+const LUGARES_FALLBACK = [
+  { lugar: "Punto de entrega", costo: 0 },
+  { lugar: "San Nicolas", costo: 100 },
+  { lugar: "Apodaca", costo: 80 },
+  { lugar: "Escobedo", costo: 100 },
+  { lugar: "Monterrey", costo: 150 },
+  { lugar: "Cienega de Flores", costo: 100 },
+  { lugar: "Zuazua", costo: 130 },
+  { lugar: "Marin", costo: 130 },
+  { lugar: "San Pedro", costo: 150 },
+  { lugar: "Garcia", costo: 150 },
+];
+
+async function cargarLugaresEntrega() {
+  const sel = document.getElementById("lugarEntrega");
+  if (!sel) return;
+  let lugares = LUGARES_FALLBACK;
+  try {
+    if (window.supabase && typeof window.supabase.from === "function") {
+      const { data, error } = await window.supabase
+        .from("lugares_entrega")
+        .select("lugar, costo")
+        .order("orden", { ascending: true });
+      if (!error && data && data.length) lugares = data;
+    }
+  } catch (e) {
+    lugares = LUGARES_FALLBACK;
+  }
+  sel.innerHTML =
+    '<option value="" disabled selected>Selecciona tu lugar de entrega...</option>';
+  lugares.forEach((l) => {
+    const costo = Number(l.costo) || 0;
+    sel.innerHTML += `<option value="${l.lugar}" data-costo="${costo}">${l.lugar} — ${formatearMoneda(
+      costo,
+    )}</option>`;
+  });
+}
+
+
 document.addEventListener("DOMContentLoaded", function () {
   cargarProductos();
+
+  // No permitir valores negativos en ningún campo numérico (punto 9)
+  document.addEventListener("input", function (ev) {
+    const el = ev.target;
+    if (el && el.tagName === "INPUT" && el.type === "number") {
+      const min = parseFloat(el.min);
+      if (!isNaN(min) && el.value !== "" && parseFloat(el.value) < min) {
+        el.value = min;
+      }
+    }
+  });
 
   // Llenar día/horario de entrega automáticamente según el reloj
   poblarDiasEntrega();
   poblarHorariosEntrega();
+  cargarLugaresEntrega();
 
   // Cargar cupones y noticias desde Supabase
   setTimeout(() => {

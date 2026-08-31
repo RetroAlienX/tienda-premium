@@ -698,18 +698,9 @@
                     <input type="text" id="ticketDireccion" class="input-luxury" placeholder="Dirección"
                         title="Dirección de entrega (opcional). Se imprime en el ticket solo si se llena.">
                     <select id="ticketLugarEntrega" class="input-luxury"
+                        onchange="aplicarCostoLugarTicket(this)"
                         title="Lugar de entrega seleccionado por el cliente (opcional).">
                         <option value="" selected>Selecciona tu lugar de entrega...</option>
-                        <option value="Punto de entrega">Punto de entrega (proporcionado por vendedor)</option>
-                        <option value="San Nicolas">San Nicolás</option>
-                        <option value="Apodaca">Apodaca</option>
-                        <option value="Escobedo">Escobedo</option>
-                        <option value="Monterrey">Monterrey</option>
-                        <option value="Cienega de Flores">Ciénega de Flores</option>
-                        <option value="Zuazua">Zuazua</option>
-                        <option value="Marin">Marín</option>
-                        <option value="San Pedro">San Pedro</option>
-                        <option value="Garcia">García</option>
                     </select>
 
                     <div style="display:grid; grid-template-columns: 1fr 100px; gap: 15px; margin-bottom: 15px;">
@@ -855,6 +846,24 @@
                     </button>
                 </div>
                 <div id="listaNoticias" class="table-responsive">
+                    <div style="text-align:center; padding:40px; color:var(--text-silver);">Cargando...</div>
+                </div>
+            </div>
+
+            <div class="admin-card" style="margin-top:20px;">
+                <div
+                    style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:20px;">
+                    <h5>🚚 Lugares de Entrega y Costos de Envío</h5>
+                    <button id="btnAgregarLugar" class="btn-premium"
+                        style="padding:10px 16px;font-size:0.75rem; width:auto;">
+                        <i class="fas fa-plus"></i> Agregar Lugar
+                    </button>
+                </div>
+                <p style="font-size:0.75rem; color:var(--text-silver); margin:-10px 0 14px;">
+                    Estos lugares y costos se muestran en el formulario público y en el tab Ticket. Edítalos aquí y
+                    se actualizan en toda la tienda.
+                </p>
+                <div id="listaLugares" class="table-responsive">
                     <div style="text-align:center; padding:40px; color:var(--text-silver);">Cargando...</div>
                 </div>
             </div>
@@ -1060,6 +1069,38 @@
                         onclick="ocultarFormNoticia()">Cancelar</button>
                 </div>
                 <div id="mensajeNoticia" style="margin-top:10px;"></div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL PARA LUGAR DE ENTREGA / ENVÍO -->
+    <div id="formLugarContainer" class="form-overlay">
+        <div class="admin-card">
+            <h3 id="formLugarTitulo" style="font-weight:400; margin-bottom:20px;">➕ Agregar Lugar de Entrega</h3>
+            <form id="formLugar">
+                <input type="hidden" id="lugarId">
+                <label style="display:block; font-size:0.7rem; color:var(--text-silver); margin-bottom:6px;">
+                    Nombre del lugar o zona de entrega.
+                </label>
+                <input type="text" id="lugarNombre" class="input-luxury" placeholder="Lugar (ej: Apodaca) *" required
+                    title="Nombre del lugar/zona que verá el cliente.">
+                <label style="display:block; font-size:0.7rem; color:var(--text-silver); margin-bottom:6px;">
+                    Costo de envío en pesos para ese lugar.
+                </label>
+                <input type="number" id="lugarCosto" class="input-luxury" placeholder="Costo de envío *" step="0.01"
+                    min="0" required title="Cuánto cuesta enviar a ese lugar en pesos.">
+                <label style="display:block; font-size:0.7rem; color:var(--text-silver); margin-bottom:6px;">
+                    Orden en el que aparece (1 = primero).
+                </label>
+                <input type="number" id="lugarOrden" class="input-luxury" placeholder="Orden (1, 2, 3...)" min="1"
+                    required>
+                <div style="display:flex; gap:10px; margin-top:10px;">
+                    <button type="submit" class="btn-premium" style="width:100%;"><i class="fas fa-save"></i>
+                        Guardar</button>
+                    <button type="button" class="btn-premium-outline" style="width:100%;"
+                        onclick="ocultarFormLugar()">Cancelar</button>
+                </div>
+                <div id="mensajeLugar" style="margin-top:10px;"></div>
             </form>
         </div>
     </div>
