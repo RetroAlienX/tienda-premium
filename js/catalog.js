@@ -461,6 +461,12 @@ async function enviarCorreoConfirmacion(
       envio: envioPedido > 0 ? formatearMoneda(envioPedido) : "",
       descuento: pedido.descuento ? Number(pedido.descuento) : 0,
       cupon: pedido.cupon || "",
+      monto_descuento: (() => {
+        const pct = pedido.descuento ? Number(pedido.descuento) : 0;
+        return pct > 0
+          ? formatearMoneda((subtotalProd + envioPedido) * (pct / 100))
+          : "";
+      })(),
       dia_entrega: pedido.dia_entrega
         ? new Date(pedido.dia_entrega + "T00:00:00").toLocaleDateString("es-MX")
         : "Por confirmar",

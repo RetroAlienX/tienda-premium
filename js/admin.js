@@ -673,12 +673,13 @@ async function enviarCorreoManual(e) {
       }),
       productos: items,
       total: total,
-      subtotal: parseFloat(subtotalNum || 0).toFixed(2),
+      subtotal: baseTotal.toFixed(2),
       lugar_entrega: lugarEntrega || "No especificada",
       metodo_pago: metodoPago || "No especificado",
       direccion: direccion || "No especificada",
       envio: envioNum,
       descuento: descuentoNum,
+      monto_descuento: descuentoNum > 0 ? descuentoMonto.toFixed(2) : "",
       mensaje_adicional:
         mensajeAdicional ||
         (lugarEntrega
