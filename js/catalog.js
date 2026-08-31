@@ -457,7 +457,6 @@ async function enviarCorreoConfirmacion(
         precio_unitario: formatearMoneda(p.precio),
         precio: formatearMoneda(p.precio * p.cantidad),
       })),
-      subtotal_productos: formatearMoneda(subtotalProd),
       subtotal: formatearMoneda(subtotalProd + envioPedido),
       envio: envioPedido > 0 ? formatearMoneda(envioPedido) : "",
       descuento: pedido.descuento ? Number(pedido.descuento) : 0,
@@ -518,17 +517,11 @@ async function enviarCorreoCancelacion(pedido, numeroPedido) {
         precio_unitario: formatearMoneda(p.precio),
         precio: formatearMoneda(p.precio * p.cantidad),
       })),
-      subtotal_productos: formatearMoneda(
-        (pedido.productos || []).reduce(
-          (s, p) => s + (Number(p.precio) || 0) * (Number(p.cantidad) || 0),
-          0,
-        ),
-      ),
       subtotal: formatearMoneda(
-        (pedido.productos || []).reduce(
+        ((pedido.productos || []).reduce(
           (s, p) => s + (Number(p.precio) || 0) * (Number(p.cantidad) || 0),
           0,
-        ),
+        )) + (Number(pedido.costo_envio) || 0),
       ),
       envio: (Number(pedido.costo_envio) || 0) > 0 ? formatearMoneda(Number(pedido.costo_envio) || 0) : "",
       total: formatearMoneda(pedido.total),
