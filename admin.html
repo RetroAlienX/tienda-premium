@@ -526,15 +526,15 @@
             display: flex;
             flex-wrap: nowrap;
             align-items: center;
-            justify-content: flex-start;
-            gap: 8px;
+            justify-content: center;
+            gap: 14px;
         }
         .btn-accion {
-            font-size: 0.7rem;
-            padding: 5px 10px;
+            font-size: 0.72rem;
+            padding: 6px 12px;
             line-height: 1;
             white-space: nowrap;
-            flex: 0 0 auto;
+            margin: 0;
         }
     </style>
 </head>
@@ -635,12 +635,14 @@
             <div class="admin-card">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
                     <h5>Gestión de Pedidos</h5>
-                    <button class="btn-premium danger"
-                        onclick="limpiarTabla('pedidos', 'Esto borra TODOS los pedidos registrados.', cargarPedidos)"
-                        style="padding:10px 16px;font-size:0.75rem; width: auto; background:var(--regio-red); color:white; border:none;"
-                        title="⚠️ BORRA todos los pedidos de forma permanente (pide confirmación).">🧹 Limpiar base de datos</button>
-                    <button id="btnRefrescarPedidos" class="btn-premium-outline"
-                        style="padding:10px 16px;font-size:0.75rem; width: auto;">🔄 Refrescar</button>
+                    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                        <button id="btnRefrescarPedidos" class="btn-premium-outline"
+                            style="padding:10px 16px;font-size:0.75rem; width: auto;">🔄 Refrescar</button>
+                        <button class="btn-premium danger"
+                            onclick="limpiarTabla('pedidos', 'Esto borra TODOS los pedidos registrados.', cargarPedidos)"
+                            style="padding:10px 16px;font-size:0.75rem; width: auto; background:var(--regio-red); color:white; border:none;"
+                            title="⚠️ BORRA todos los pedidos de forma permanente (pide confirmación).">🧹 Limpiar base de datos</button>
+                    </div>
                 </div>
                 <div style="display: flex; gap: 10px; flex-wrap: wrap; margin: 15px 0; align-items:center;">
                     <input type="text" id="buscarNumeroPedido" class="input-luxury"
@@ -907,6 +909,24 @@
                     <div style="text-align:center; padding:40px; color:var(--text-silver);">Cargando...</div>
                 </div>
             </div>
+
+            <div class="admin-card" style="margin-top:20px;">
+                <div
+                    style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:20px;">
+                    <h5>🏷️ Marcas</h5>
+                    <button id="btnAgregarMarca" class="btn-premium"
+                        style="padding:10px 16px;font-size:0.75rem; width:auto;">
+                        <i class="fas fa-plus"></i> Agregar Marca
+                    </button>
+                </div>
+                <p style="font-size:0.75rem; color:var(--text-silver); margin:-10px 0 14px;">
+                    Marcas que manejas (ej: Gymshark, MuscleTech). Estas se muestran en la sección "Marcas que
+                    manejamos" de la página. Agrégalas, edítalas o elimínalas aquí.
+                </p>
+                <div id="listaMarcas" class="table-responsive">
+                    <div style="text-align:center; padding:40px; color:var(--text-silver);">Cargando...</div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -1141,6 +1161,47 @@
                         onclick="ocultarFormLugar()">Cancelar</button>
                 </div>
                 <div id="mensajeLugar" style="margin-top:10px;"></div>
+            </form>
+        </div>
+    </div>
+
+    <div id="formMarcaContainer" class="form-overlay">
+        <div class="admin-card">
+            <h3 id="formMarcasTitulo" style="font-weight:400; margin-bottom:20px;">➕ Agregar Marca</h3>
+            <form id="formMarca">
+                <input type="hidden" id="marcaId">
+                <label style="display:block; font-size:0.7rem; color:var(--text-silver); margin-bottom:6px;">
+                    Nombre de la marca (ej: Gymshark, MuscleTech).
+                </label>
+                <input type="text" id="marcaNombre" class="input-luxury" placeholder="Nombre de la marca *" required
+                    title="Nombre de la marca que verá el cliente.">
+                <label style="display:block; font-size:0.7rem; color:var(--text-silver); margin-bottom:6px;">
+                    Ícono o emoji de la marca (ej: 💪).
+                </label>
+                <input type="text" id="marcaIcono" class="input-luxury" placeholder="Ícono (emoji)" maxlength="4"
+                    title="Un emoji para representar la marca.">
+                <label style="display:block; font-size:0.7rem; color:var(--text-silver); margin-bottom:6px;">
+                    Categoría (ej: Ropa Deportiva, Suplementos).
+                </label>
+                <input type="text" id="marcaCategoria" class="input-luxury"
+                    placeholder="Categoría (Ropa Deportiva, Suplementos...)" title="Cómo se clasifica la marca.">
+                <label style="display:block; font-size:0.7rem; color:var(--text-silver); margin-bottom:6px;">
+                    Descripción breve de la marca.
+                </label>
+                <input type="text" id="marcaDescripcion" class="input-luxury"
+                    placeholder="Descripción de la marca (opcional)">
+                <label style="display:block; font-size:0.7rem; color:var(--text-silver); margin-bottom:6px;">
+                    Orden en el que aparece (1 = primero).
+                </label>
+                <input type="number" id="marcaOrden" class="input-luxury" placeholder="Orden (1, 2, 3...)" min="1"
+                    required>
+                <div style="display:flex; gap:10px; margin-top:10px;">
+                    <button type="submit" class="btn-premium" style="width:100%;"><i class="fas fa-save"></i>
+                        Guardar</button>
+                    <button type="button" class="btn-premium-outline" style="width:100%;"
+                        onclick="ocultarFormMarca()">Cancelar</button>
+                </div>
+                <div id="mensajeMarca" style="margin-top:10px;"></div>
             </form>
         </div>
     </div>

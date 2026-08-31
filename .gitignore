@@ -13,6 +13,7 @@ sql_tabla_pagos.sql
 sql_cupones.sql
 sql_columnas_pedidos.sql
 sql_lugares.sql
+sql_marcas.sql
 
 # Archivos del sistema
 .DS_Store

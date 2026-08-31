@@ -881,6 +881,7 @@ document.addEventListener("DOMContentLoaded", function () {
       cargarCupones();
       cargarNoticias();
       cargarLugaresEntregaAdmin();
+      cargarMarcas();
     }
     if (tabId === "lealtad" && typeof cargarLealtad === "function")
       cargarLealtad();
@@ -959,6 +960,7 @@ document.addEventListener("DOMContentLoaded", function () {
         if (typeof cargarNoticias === "function") cargarNoticias();
         if (typeof cargarLugaresEntregaAdmin === "function")
           cargarLugaresEntregaAdmin();
+        if (typeof cargarMarcas === "function") cargarMarcas();
       },
       "tab-promociones",
     );
@@ -1206,6 +1208,11 @@ document.addEventListener("DOMContentLoaded", function () {
 
   const formLugar = document.getElementById("formLugar");
   if (formLugar) formLugar.addEventListener("submit", guardarLugar);
+
+  addEventListenerSafe("btnAgregarMarca", "click", () => mostrarFormMarca());
+
+  const formMarca = document.getElementById("formMarca");
+  if (formMarca) formMarca.addEventListener("submit", guardarMarca);
 
   // Envío y Descuento del tab Ticket: solo ingresar números manualmente
   // (sin flechas de incremento/decremento ni negativos).
@@ -4394,6 +4401,209 @@ function aplicarCostoLugarTicket(sel) {
 }
 
 // ============================================
+// CRUD DE MARCAS (tab Promociones)
+// ============================================
+let ultimoTotalMarcas = 0;
+let marcaEditando = null;
+
+async function cargarMarcas() {
+  const container = document.getElementById("listaMarcas");
+  if (!container) return;
+
+  const tabPromociones = document.getElementById("tab-promociones");
+  if (tabPromociones && tabPromociones.style.display === "none") return;
+
+  container.innerHTML =
+    '<div class="text-center text-dim py-3">Cargando...</div>';
+
+  try {
+    const { data, error } = await window.supabase
+      .from("marcas")
+      .select("*")
+      .order("orden", { ascending: true });
+    if (error) throw error;
+
+    if (!data || !data.length) {
+      ultimoTotalMarcas = 0;
+      container.innerHTML =
+        '<p class="text-center text-dim py-3">🏷️ No hay marcas registradas</p>';
+      return;
+    }
+    ultimoTotalMarcas = data.length;
+
+    container.innerHTML = `
+        <table class="table table-dark table-hover table-sm">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Icono</th>
+                    <th>Marca</th>
+                    <th>Categoría</th>
+                    <th>Descripción</th>
+                    <th style="text-align:center;">Orden</th>
+                    <th style="text-align:center;">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${data
+                  .map(
+                    (m, i) => `
+                    <tr>
+                        <td>${i + 1}</td>
+                        <td style="font-size:1.2rem;">${m.icono || "🏷️"}</td>
+                        <td><strong>${m.nombre}</strong></td>
+                        <td>${m.categoria || "—"}</td>
+                        <td style="max-width:260px;">${m.descripcion || "—"}</td>
+                        <td style="text-align:center;">${m.orden ?? 0}</td>
+                        <td style="text-align:center; white-space:nowrap;">
+                            <button onclick="editarMarca('${m.id}')" class="btn btn-outline-warning btn-sm">✏️</button>
+                            <button onclick="pedirEliminarMarca('${m.id}')" class="btn btn-outline-danger btn-sm">🗑️</button>
+                        </td>
+                    </tr>
+                `,
+                  )
+                  .join("")}
+            </tbody>
+        </table>
+        <div style="margin-top:10px; color:var(--text-dim); font-size:0.75rem;">
+            <i class="fas fa-info-circle"></i> Estas marcas se muestran en la sección "Marcas que manejamos" de la página.
+        </div>
+    `;
+  } catch (error) {
+    console.error("Error cargando marcas:", error);
+    container.innerHTML =
+      '<p class="text-danger text-center">❌ Error al cargar marcas. ¿Ejecutaste el SQL para crear la tabla "marcas"?</p>';
+  }
+}
+
+function mostrarFormMarca(data = null) {
+  const container = document.getElementById("formMarcaContainer");
+  if (!container) return;
+  container.style.display = "flex";
+  container.scrollIntoView({ behavior: "smooth" });
+
+  if (data) {
+    marcaEditando = data;
+    document.getElementById("formMarcasTitulo").textContent =
+      "✏️ Editar Marca";
+    const submitBtn = document.querySelector(
+      '#formMarca button[type="submit"]',
+    );
+    if (submitBtn) submitBtn.textContent = "💾 Actualizar";
+
+    document.getElementById("marcaId").value = data.id;
+    document.getElementById("marcaNombre").value = data.nombre || "";
+    document.getElementById("marcaIcono").value = data.icono || "🏷️";
+    document.getElementById("marcaCategoria").value = data.categoria || "";
+    document.getElementById("marcaDescripcion").value = data.descripcion || "";
+    document.getElementById("marcaOrden").value = data.orden ?? 1;
+  } else {
+    marcaEditando = null;
+    document.getElementById("formMarcasTitulo").textContent = "➕ Agregar Marca";
+    const submitBtn = document.querySelector(
+      '#formMarca button[type="submit"]',
+    );
+    if (submitBtn) submitBtn.textContent = "💾 Guardar";
+
+    document.getElementById("formMarca").reset();
+    document.getElementById("marcaId").value = "";
+    document.getElementById("marcaIcono").value = "🏷️";
+    document.getElementById("marcaOrden").value = ultimoTotalMarcas + 1;
+  }
+}
+
+function ocultarFormMarca() {
+  const container = document.getElementById("formMarcaContainer");
+  if (container) container.style.display = "none";
+  marcaEditando = null;
+}
+
+async function editarMarca(id) {
+  try {
+    const { data, error } = await window.supabase
+      .from("marcas")
+      .select("*")
+      .eq("id", id)
+      .single();
+    if (error) throw error;
+    if (data) mostrarFormMarca(data);
+  } catch (error) {
+    console.error("Error:", error);
+    mostrarModalAlerta("Error al cargar la marca");
+  }
+}
+
+async function guardarMarca(e) {
+  e.preventDefault();
+  const msg = document.getElementById("mensajeMarca");
+  const btn = e.target.querySelector('button[type="submit"]');
+
+  const id = document.getElementById("marcaId").value || null;
+  const esEdicion = id && id !== "";
+
+  const datos = {
+    nombre: document.getElementById("marcaNombre").value.trim(),
+    icono: (document.getElementById("marcaIcono").value || "🏷️").trim(),
+    categoria: document.getElementById("marcaCategoria").value.trim(),
+    descripcion: document.getElementById("marcaDescripcion").value.trim(),
+    orden: parseInt(document.getElementById("marcaOrden").value) || 1,
+  };
+
+  if (!datos.nombre) {
+    if (msg) mostrarMensaje(msg, "❌ El nombre de la marca es obligatorio", "error");
+    return;
+  }
+
+  try {
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = "Guardando...";
+    }
+
+    let result;
+    if (esEdicion) {
+      result = await window.supabase
+        .from("marcas")
+        .update(datos)
+        .eq("id", id);
+    } else {
+      result = await window.supabase.from("marcas").insert([datos]);
+    }
+
+    if (result.error) throw result.error;
+
+    if (msg) mostrarMensaje(msg, "✅ Marca guardada correctamente", "exito");
+    ocultarFormMarca();
+    cargarMarcas();
+  } catch (error) {
+    console.error("Error:", error);
+    if (msg) mostrarMensaje(msg, "❌ " + error.message, "error");
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = esEdicion ? "💾 Actualizar" : "💾 Guardar";
+    }
+  }
+}
+
+function pedirEliminarMarca(id) {
+  modalConfirmar("¿Eliminar esta marca permanentemente?", async function () {
+    try {
+      const { error } = await window.supabase
+        .from("marcas")
+        .delete()
+        .eq("id", id);
+      if (error) throw error;
+      mostrarModalAlerta("✅ Marca eliminada");
+      cargarMarcas();
+    } catch (error) {
+      console.error("Error:", error);
+      mostrarModalAlerta("❌ Error al eliminar: " + error.message);
+    }
+  });
+}
+
+// ============================================
 // 9. EXPONER FUNCIONES AL WINDOW
 // ============================================window.eliminarProductoTicket = eliminarProductoTicket;
 window.agregarProductoTicket = agregarProductoTicket;
@@ -4443,4 +4653,10 @@ window.guardarLugar = guardarLugar;
 window.cargarLugaresEntregaAdmin = cargarLugaresEntregaAdmin;
 window.cargarLugaresTicketAdmin = cargarLugaresTicketAdmin;
 window.aplicarCostoLugarTicket = aplicarCostoLugarTicket;
+window.cargarMarcas = cargarMarcas;
+window.mostrarFormMarca = mostrarFormMarca;
+window.ocultarFormMarca = ocultarFormMarca;
+window.editarMarca = editarMarca;
+window.guardarMarca = guardarMarca;
+window.pedirEliminarMarca = pedirEliminarMarca;
 window.pedirMarcarEntregado = pedirMarcarEntregado;

@@ -791,6 +791,62 @@ async function cargarNoticiasDesdeDB() {
 }
 
 // ============================================
+// CARGAR MARCAS DESDE LA DB (grilla "Marcas que manejamos")
+// ============================================
+const MARCA_PERSONAL_SHOPPER = `
+    <div class="marca-card personal-shopper">
+        <div class="marca-icon">🛍️</div>
+        <h4>Personal Shopper</h4>
+        <span class="marca-categoria">Servicio Exclusivo</span>
+        <p class="marca-desc">¿No ves tu marca favorita? Contáctanos y la conseguimos para ti.</p>
+        <div class="personal-shopper-contactos">
+            <a href="mailto:theroute66jvmarket@outlook.com" class="contacto-link">
+                <i class="fas fa-envelope"></i> theroute66jvmarket@outlook.com
+            </a>
+            <a href="https://wa.me/5218126878080" target="_blank" class="contacto-link">
+                <i class="fab fa-whatsapp"></i> 81 2687 8080
+            </a>
+        </div>
+    </div>
+`;
+
+async function cargarMarcasDesdeDB() {
+  try {
+    const { data, error } = await window.supabase
+      .from("marcas")
+      .select("*")
+      .order("orden", { ascending: true });
+
+    // Si la tabla no existe o está vacía, se conserva el contenido estático
+    // que ya viene en el HTML (no rompe el sitio antes de ejecutar el SQL).
+    if (error) {
+      if (error.code === "PGRST204") return;
+      throw error;
+    }
+
+    const grid = document.getElementById("marcasGrid");
+    if (!grid) return;
+    if (!data || data.length === 0) return;
+
+    grid.innerHTML =
+      data
+        .map(
+          (m) => `
+            <div class="marca-card">
+                <div class="marca-icon">${m.icono || "🏷️"}</div>
+                <h4>${m.nombre}</h4>
+                <span class="marca-categoria">${m.categoria || ""}</span>
+                <p class="marca-desc">${m.descripcion || ""}</p>
+            </div>
+        `,
+        )
+        .join("") + MARCA_PERSONAL_SHOPPER;
+  } catch (error) {
+    console.error("Error cargando marcas:", error);
+  }
+}
+
+// ============================================
 // FUNCIÓN iniciarCarrusel
 // ============================================
 
@@ -1118,6 +1174,7 @@ document.addEventListener("DOMContentLoaded", function () {
   setTimeout(() => {
     cargarCuponesDesdeDB();
     cargarNoticiasDesdeDB();
+    cargarMarcasDesdeDB();
   }, 500);
 
   esperarSupabase(function () {

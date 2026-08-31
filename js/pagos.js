@@ -89,7 +89,7 @@ async function cargarPagos() {
                             <td style="text-align:center; white-space:nowrap;">${estadoPagoLabel(
                               r.estado,
                             )}</td>
-                            <td style="white-space:nowrap; text-align:left;">
+                            <td style="white-space:nowrap;">
                                 <div class="acciones-pago">
                                 <button onclick="liquidarPago('${
                                   r.id
