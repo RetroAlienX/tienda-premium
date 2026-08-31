@@ -1384,7 +1384,12 @@ document.addEventListener("DOMContentLoaded", function () {
       }
 
       // Validación: un mismo cupón no puede usarse 2 veces con el mismo correo
-      if (cuponCodigo && window.supabase) {
+      const CORREO_TEST_CUPON = "ghxst023@gmail.com";
+      if (
+        cuponCodigo &&
+        window.supabase &&
+        email.toLowerCase() !== CORREO_TEST_CUPON
+      ) {
         try {
           const { data: usado, error: errUso } = await window.supabase
             .from("cupon_usos")
@@ -1451,7 +1456,7 @@ document.addEventListener("DOMContentLoaded", function () {
         if (error) throw error;
 
         // Registrar el uso del cupón (una vez por correo)
-        if (cuponCodigo) {
+        if (cuponCodigo && email.toLowerCase() !== CORREO_TEST_CUPON) {
           await window.supabase
             .from("cupon_usos")
             .insert([{ correo: email, cupon: cuponCodigo }]);
