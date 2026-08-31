@@ -72,7 +72,7 @@ async function cargarPagos() {
                         (r) => `
                         <tr data-pago-id="${r.id}">
                             <td><strong style="color:var(--text-main);">${
-                              r.cliente
+                              r.cliente || "—"
                             }</strong></td>
                             <td style="text-align:center;"><span style="color:var(--accent); font-weight:600; white-space:nowrap;">${formatearMoneda(
                               Number(r.monto_actual) || 0,
