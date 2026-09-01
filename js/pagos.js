@@ -109,15 +109,15 @@ async function cargarPagos() {
                             <td style="text-align:center; white-space:nowrap;">
                                 <select class="form-select form-select-sm estado-select" title="Cambiar el estado de este pago."
                                     onchange="cambiarEstadoPago('${r.id}', this.value)">
-                                    <option value="en_mora" ${
+                                    <option value="en_mora" style="color:#ff4d4d;" ${
                                       st === "en_mora" ? "selected" : ""
-                                    }>En mora</option>
-                                    <option value="al_corriente" ${
+                                    }>⏰ En mora</option>
+                                    <option value="al_corriente" style="color:#ffd166;" ${
                                       st === "al_corriente" ? "selected" : ""
-                                    }>Al corriente</option>
-                                    <option value="liquidado" ${
+                                    }>💵 Al corriente</option>
+                                    <option value="liquidado" style="color:#4ade80;" ${
                                       st === "liquidado" ? "selected" : ""
-                                    }>Liquidado</option>
+                                    }>💰 Liquidado</option>
                                 </select>
                             </td>
                             <td style="text-align:center; white-space:nowrap;">${
