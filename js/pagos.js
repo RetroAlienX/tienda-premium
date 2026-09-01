@@ -20,14 +20,18 @@ function mensajeErrorAmigable(error) {
   if (!error) return "Ocurrió un error desconocido.";
   const msg = String(error.message || "");
   const code = error.code || "";
-  if (code === "23502" || /null value in column/i.test(msg) || /violates not-null constraint/i.test(msg)) {
+  if (
+    code === "23502" ||
+    /null value in column/i.test(msg) ||
+    /violates not-null constraint/i.test(msg)
+  ) {
     return "Falta un dato obligatorio. Revisa que todos los campos requeridos estén llenos. Si el problema persiste, re-ejecuta el SQL de pagos en Supabase.";
   }
   if (code === "23505" || /duplicate key/i.test(msg)) {
     return "Ese registro ya existe (dato duplicado).";
   }
   if (code === "42P01" || /relation ".*" does not exist/i.test(msg)) {
-    return "La tabla no existe. Ejecuta el SQL para crear la tabla \"pagos\".";
+    return 'La tabla no existe. Ejecuta el SQL para crear la tabla "pagos".';
   }
   return "Revisa los datos e inténtalo de nuevo.";
 }
@@ -36,7 +40,20 @@ function formatearFechaLatam(iso) {
   if (!iso) return "—";
   const d = new Date(iso);
   if (isNaN(d.getTime())) return "—";
-  const meses = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+  const meses = [
+    "enero",
+    "febrero",
+    "marzo",
+    "abril",
+    "mayo",
+    "junio",
+    "julio",
+    "agosto",
+    "septiembre",
+    "octubre",
+    "noviembre",
+    "diciembre",
+  ];
   return `${String(d.getDate()).padStart(2, "0")}/${meses[d.getMonth()]}/${d.getFullYear()}`;
 }
 
@@ -86,18 +103,20 @@ async function cargarPagos() {
                         <th>Cliente</th>
                         <th style="text-align:center; white-space:nowrap;" title="Cantidad total que el cliente debe cubrir.">Adeudo actual</th>
                         <th style="text-align:center; white-space:nowrap;" title="Estado actual del pago: en mora, al corriente o liquidado.">Estado</th>
-                        <th style="text-align:center; white-space:nowrap; width:90px;" title="Total de quincenas acordadas para este pago.">Q. totales</th>
-                        <th style="text-align:center; white-space:nowrap; width:90px;" title="Cuántas quincenas ya pagó el cliente.">Q. pagadas</th>
                         <th style="text-align:center; white-space:nowrap; width:90px;" title="Cuántas quincenas faltan por cubrir.">Q. pendientes</th>
+                        <th style="text-align:center; white-space:nowrap; width:90px;" title="Cuántas quincenas ya pagó el cliente.">Q. pagadas</th>
+                        <th style="text-align:center; white-space:nowrap; width:90px;" title="Total de quincenas acordadas para este pago.">Q. totales</th>
                         <th style="text-align:center; white-space:nowrap; width:80px;" title="Cargos extras acumulados por morosidad/recargos.">Cargos</th>
                         <th style="text-align:center; white-space:nowrap;" title="Fecha en que se liquidó el pago (si aplica).">Fecha liquidación</th>
-                        <th style="text-align:center; white-space:nowrap; min-width:760px;">Acciones</th>
+                        <th style="text-align:center; white-space:nowrap; min-width:360px;">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
                     ${data
                       .map((r) => {
-                        const st = ESTADOS.includes(r.estado) ? r.estado : "en_mora";
+                        const st = ESTADOS.includes(r.estado)
+                          ? r.estado
+                          : "en_mora";
                         const estadoColor =
                           st === "liquidado"
                             ? "#4ade80"
@@ -127,15 +146,15 @@ async function cargarPagos() {
                                     }>💰 Liquidado</option>
                                 </select>
                             </td>
-                            <td style="text-align:center; white-space:nowrap;">${
-                              r.quincenas_totales ?? 0
-                            }</td>
-                            <td style="text-align:center; white-space:nowrap;"><span style="color:#6ee7b7; font-weight:600;">${
-                              r.quincenas_pagadas ?? 0
-                            }</span></td>
                             <td style="text-align:center; white-space:nowrap;"><span style="font-weight:600;">${
                               r.quincenas_pendientes ?? 0
                             }</span></td>
+                            <td style="text-align:center; white-space:nowrap;"><span style="color:#6ee7b7; font-weight:600;">${
+                              r.quincenas_pagadas ?? 0
+                            }</span></td>
+                            <td style="text-align:center; white-space:nowrap;">${
+                              r.quincenas_totales ?? 0
+                            }</td>
                             <td style="text-align:center; white-space:nowrap;"><span style="color:#ffd166;">${formatearMoneda(
                               Number(r.cargos) || 0,
                             )}</span></td>
@@ -192,7 +211,8 @@ function abrirModalPago(id) {
     document.getElementById("pagoMonto").value = "";
     document.getElementById("pagoQuincenasTotales").value = "";
     document.getElementById("pagoQuincenasPendientes").value = "";
-    document.getElementById("pagoModalTitulo").textContent = "💳 Agregar Pago";
+    document.getElementById("pagoModalTitulo").textContent =
+      "💳 Agregar Cliente";
     const m = document.getElementById("mensajePago");
     if (m) {
       m.innerHTML = "";
@@ -212,12 +232,12 @@ function abrirModalPago(id) {
   document.getElementById("pagoId").value = id;
   document.getElementById("pagoCliente").value =
     row.children[0].textContent.trim();
-  document.getElementById("pagoMonto").value = row.children[1].textContent
-    .replace(/[^\d.]/g, "");
+  document.getElementById("pagoMonto").value =
+    row.children[1].textContent.replace(/[^\d.]/g, "");
   document.getElementById("pagoQuincenasTotales").value =
-    row.children[3].textContent.trim();
-  document.getElementById("pagoQuincenasPendientes").value =
     row.children[5].textContent.trim();
+  document.getElementById("pagoQuincenasPendientes").value =
+    row.children[3].textContent.trim();
   document.getElementById("pagoModalTitulo").textContent = "✏️ Editar Pago";
 
   const m = document.getElementById("mensajePago");
@@ -242,7 +262,7 @@ function sincronizarQuincenas() {
   }
   // Nunca permitir pendientes > totales ni negativas.
   p = Math.min(Math.max(0, p), t);
-  pen.value = (t === 0 && pen.value === "") ? "" : String(p);
+  pen.value = t === 0 && pen.value === "" ? "" : String(p);
 }
 
 async function guardarPago() {
@@ -335,9 +355,7 @@ async function guardarPago() {
           quincenas_liquidadas: qPagadas,
           cargos: 0,
           estado: quedaLiquidado ? "liquidado" : "en_mora",
-          fecha_liquidacion: quedaLiquidado
-            ? new Date().toISOString()
-            : null,
+          fecha_liquidacion: quedaLiquidado ? new Date().toISOString() : null,
         },
       ]);
       if (error) throw error;
@@ -346,12 +364,16 @@ async function guardarPago() {
     document.getElementById("modalPago").style.display = "none";
     cargarPagos();
     mostrarModalAlerta(
-      pagoEditando ? "✅ Pago actualizado correctamente" : "✅ Pago registrado correctamente",
+      pagoEditando
+        ? "✅ Pago actualizado correctamente"
+        : "✅ Pago registrado correctamente",
     );
     pagoEditando = null;
   } catch (error) {
     console.error("Error guardando pago:", error);
-    mostrarModalAlerta("❌ No se pudo guardar el pago. " + mensajeErrorAmigable(error));
+    mostrarModalAlerta(
+      "❌ No se pudo guardar el pago. " + mensajeErrorAmigable(error),
+    );
   }
 }
 
@@ -371,7 +393,10 @@ async function cambiarEstadoPago(id, nuevoEstado) {
             .single();
           if (error) throw error;
           const esLiquidado = nuevoEstado === "liquidado";
-          const updates = { estado: nuevoEstado, updated_at: new Date().toISOString() };
+          const updates = {
+            estado: nuevoEstado,
+            updated_at: new Date().toISOString(),
+          };
           if (esLiquidado) {
             const totales = Number(data.quincenas_totales) || 0;
             updates.quincenas_pendientes = 0;
@@ -385,10 +410,14 @@ async function cambiarEstadoPago(id, nuevoEstado) {
             .eq("id", id);
           if (upError) throw upError;
           cargarPagos();
-          mostrarModalAlerta(`✅ Estado actualizado a "${estadoLabel(nuevoEstado)}"`);
+          mostrarModalAlerta(
+            `✅ Estado actualizado a "${estadoLabel(nuevoEstado)}"`,
+          );
         } catch (error) {
           console.error("Error cambiando estado:", error);
-          mostrarModalAlerta("❌ Error al cambiar el estado: " + mensajeErrorAmigable(error));
+          mostrarModalAlerta(
+            "❌ Error al cambiar el estado: " + mensajeErrorAmigable(error),
+          );
         }
       },
     );
@@ -422,10 +451,14 @@ async function liquidarPago(id) {
             .eq("id", id);
           if (upError) throw upError;
           cargarPagos();
-          mostrarModalAlerta("✅ Adeudo liquidado y fecha de liquidación guardada");
+          mostrarModalAlerta(
+            "✅ Adeudo liquidado y fecha de liquidación guardada",
+          );
         } catch (error) {
           console.error("Error liquidando:", error);
-          mostrarModalAlerta("❌ Error al liquidar: " + mensajeErrorAmigable(error));
+          mostrarModalAlerta(
+            "❌ Error al liquidar: " + mensajeErrorAmigable(error),
+          );
         }
       },
     );
@@ -435,7 +468,7 @@ async function liquidarPago(id) {
 async function cargarMorosidadPago(id) {
   if (typeof modalConfirmar === "function") {
     modalConfirmar(
-      `¿Cargar morosidad? El adeudo aumentará $${CARGO_MOROSIDAD} MXN y sumará 1 quincena pendiente.`,
+      `¿Cargar morosidad? El adeudo aumentará $${CARGO_MOROSIDAD} MXN (solo en cargos; NO modifica las quincenas).`,
       async () => {
         try {
           const { data, error } = await window.supabase
@@ -445,28 +478,25 @@ async function cargarMorosidadPago(id) {
             .single();
           if (error) throw error;
           const nuevoMonto = (Number(data.monto_actual) || 0) + CARGO_MOROSIDAD;
-          const nuevasPendientes = Math.min(
-            (Number(data.quincenas_pendientes) || 0) + 1,
-            Number(data.quincenas_totales) || 0,
-          );
           const { error: upError } = await window.supabase
             .from("pagos")
             .update({
               monto_actual: nuevoMonto,
               cargos: (Number(data.cargos) || 0) + CARGO_MOROSIDAD,
-              quincenas_pendientes: nuevasPendientes,
-              quincenas_pagadas: Math.max(0, (Number(data.quincenas_totales) || 0) - nuevasPendientes),
-              quincenas_liquidadas: Math.max(0, (Number(data.quincenas_totales) || 0) - nuevasPendientes),
               estado: "en_mora",
               updated_at: new Date().toISOString(),
             })
             .eq("id", id);
           if (upError) throw upError;
           cargarPagos();
-          mostrarModalAlerta(`✅ Morosidad cargada: +$${CARGO_MOROSIDAD} MXN`);
+          mostrarModalAlerta(
+            `✅ Morosidad cargada: +$${CARGO_MOROSIDAD} MXN (cargos)`,
+          );
         } catch (error) {
           console.error("Error cargando morosidad:", error);
-          mostrarModalAlerta("❌ Error al cargar morosidad: " + mensajeErrorAmigable(error));
+          mostrarModalAlerta(
+            "❌ Error al cargar morosidad: " + mensajeErrorAmigable(error),
+          );
         }
       },
     );
@@ -484,6 +514,14 @@ async function ajustarQuincenas(id, delta, exitoMsg) {
     if (error) throw error;
 
     const totales = Number(data.quincenas_totales) || 0;
+
+    if (totales <= 0) {
+      mostrarModalAlerta(
+        '⚠️ Este cliente no tiene "Quincenas totales" configuradas (está en 0), por eso no hay nada que sumar o restar. Edítalo con ✏️ y captura cuántas quincenas totales tiene su plan.',
+      );
+      return;
+    }
+
     const pagadas = Math.min(
       Math.max(0, (Number(data.quincenas_pagadas) || 0) + delta),
       totales,
@@ -536,7 +574,9 @@ async function ajustarQuincenas(id, delta, exitoMsg) {
     mostrarModalAlerta(exitoMsg);
   } catch (error) {
     console.error("Error ajustando quincena:", error);
-    mostrarModalAlerta("❌ Error al ajustar quincena: " + mensajeErrorAmigable(error));
+    mostrarModalAlerta(
+      "❌ Error al ajustar quincena: " + mensajeErrorAmigable(error),
+    );
   }
 }
 
@@ -588,8 +628,7 @@ function abrirCargoPago(id, esCargo) {
 function confirmarCargoPago() {
   const msg = document.getElementById("mensajeCargo");
   const id = document.getElementById("cargoId").value.trim();
-  const esCargo =
-    document.getElementById("cargoEsCargo").value === "1";
+  const esCargo = document.getElementById("cargoEsCargo").value === "1";
   const monto = parseFloat(document.getElementById("cargoMonto").value);
 
   if (!id) {
@@ -632,23 +671,14 @@ async function aplicarCargoPago(id, esCargo, monto) {
     }
 
     const quedaLiquidado = nuevoMonto <= 0;
-    const estado = quedaLiquidado ? "liquidado" : data.estado;
-    const totales = Number(data.quincenas_totales) || 0;
     const updates = {
       monto_actual: nuevoMonto,
       cargos: nuevosCargos,
-      quincenas_pendientes: quedaLiquidado
-        ? 0
-        : Number(data.quincenas_pendientes) || 0,
-      estado,
+      estado: quedaLiquidado ? "liquidado" : data.estado,
       updated_at: new Date().toISOString(),
     };
-    if (quedaLiquidado) {
-      updates.quincenas_pagadas = totales;
-      updates.quincenas_liquidadas = totales;
-      if (!data.fecha_liquidacion) {
-        updates.fecha_liquidacion = new Date().toISOString();
-      }
+    if (quedaLiquidado && !data.fecha_liquidacion) {
+      updates.fecha_liquidacion = new Date().toISOString();
     }
 
     const { error: upError } = await window.supabase
@@ -682,7 +712,9 @@ async function pedirEliminarPago(id) {
         mostrarModalAlerta("✅ Registro de pago eliminado");
       } catch (error) {
         console.error("Error al eliminar pago:", error);
-        mostrarModalAlerta("❌ Error al eliminar: " + mensajeErrorAmigable(error));
+        mostrarModalAlerta(
+          "❌ Error al eliminar: " + mensajeErrorAmigable(error),
+        );
       }
     });
   }
