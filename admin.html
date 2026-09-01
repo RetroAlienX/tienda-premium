@@ -940,9 +940,9 @@
                         <button id="btnRefrescarPromociones" class="btn-premium-outline"
                             style="padding:10px 16px;font-size:0.75rem; width:auto;">🔄 Refrescar</button>
                         <button class="btn-premium danger"
-                            onclick="limpiarTabla(['cupones','noticias'], 'Borra TODOS los cupones y noticias.', function(){ cargarCupones(); cargarNoticias(); })"
+                            onclick="limpiarTabla(['cupones','noticias','lugares_entrega','marcas'], 'Borra TODOS los cupones, noticias, lugares de entrega y marcas.', function(){ cargarCupones(); cargarNoticias(); cargarLugaresEntregaAdmin(); cargarMarcas(); })"
                             style="padding:10px 16px;font-size:0.75rem; width:auto; background:var(--regio-red); color:white; border:none;"
-                            title="⚠️ BORRA todos los cupones y noticias de forma permanente (pide confirmación).">🧹
+                            title="⚠️ BORRA todos los cupones, noticias, lugares de entrega y marcas de forma permanente (pide confirmación).">🧹
                             Limpiar base de datos</button>
                         <button id="btnAgregarCupon" class="btn-premium"
                             style="padding:10px 16px;font-size:0.75rem; width:auto;">
