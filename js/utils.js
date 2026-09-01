@@ -32,7 +32,7 @@ function formatearFecha(fecha) {
   });
 }
 
-const MESES_ES = [
+const NOMBRES_MESES = [
   "enero",
   "febrero",
   "marzo",
@@ -52,7 +52,7 @@ function formatearDiaEntrega(diaStr) {
   const d = new Date(diaStr + "T00:00:00");
   if (isNaN(d.getTime())) return diaStr;
   return `${String(d.getDate()).padStart(2, "0")}/${
-    MESES_ES[d.getMonth()]
+    NOMBRES_MESES[d.getMonth()]
   }/${d.getFullYear()}`;
 }
 

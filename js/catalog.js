@@ -1080,7 +1080,7 @@ function calcularFechasEntrega() {
 
 function formatoFechaLatam(fecha) {
   return `${String(fecha.getDate()).padStart(2, "0")}/${
-    MESES_ES[fecha.getMonth()]
+    NOMBRES_MESES[fecha.getMonth()]
   }/${fecha.getFullYear()}`;
 }
 
