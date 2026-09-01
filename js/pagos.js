@@ -562,7 +562,7 @@ async function ajustarQuincenas(id, delta, exitoMsg) {
 
     // Reglas de estado al ajustar quincenas:
     //  · QUITAR quincena: solo vuelve a "liquidado" si las quincenas pagadas
-    //    llegan a 0 Y el adeudo total está en $0 (deben cumplirse ambas).
+    //    son iguales a las totales Y el adeudo total está en $0 (ambas).
     //    Si estaba liquidado pero no cumple ambas, pasa a "al corriente".
     //  · AGREGAR quincena: si el cliente estaba "liquidado" pasa a
     //    "al corriente" (posiblemente volvió a comprar) y se reinicia la
@@ -573,7 +573,7 @@ async function ajustarQuincenas(id, delta, exitoMsg) {
     let nuevaFechaLiquidacion; // undefined = no tocar la fecha
 
     if (esQuitar) {
-      if (pagadas === 0 && adeudoNum === 0) {
+      if (pagadas === totales && adeudoNum === 0) {
         nuevoEstado = "liquidado";
         nuevaFechaLiquidacion = new Date().toISOString();
       } else if (data.estado === "liquidado") {
