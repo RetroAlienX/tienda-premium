@@ -1373,11 +1373,13 @@
             <input type="number" id="pagoMonto" class="input-luxury" placeholder="Monto del adeudo *" step="0.01"
                 min="0" title="Cantidad total que el cliente debe pagar.">
             <input type="number" id="pagoQuincenasTotales" class="input-luxury" placeholder="Quincenas totales *"
-                min="1" step="1" title="Número total de quincenas acordadas para cubrir el pago.">
+                min="1" step="1" oninput="sincronizarQuincenas()"
+                title="Número total de quincenas acordadas para cubrir el pago. Ej: si vendes a 10 quincenas, escribe 10.">
             <input type="number" id="pagoQuincenasPendientes" class="input-luxury" placeholder="Quincenas pendientes *"
-                min="0" step="1" title="Cuántas quincenas faltan por pagar. Empieza igual que las totales.">
+                min="0" step="1" title="Cuántas quincenas faltan por pagar. No puede superar las totales ni ser negativa. Normalmente se deja igual que las totales (todas pendientes al inicio).">
             <label style="display:block; font-size:0.7rem; color:var(--text-silver); margin-bottom:6px;">
-                La morosidad suma $50 MXN y una quincena pendiente por cada aviso. Los cargos extras se suman al adeudo.
+                💳 Quincenas: <strong>pagadas = totales − pendientes</strong>. Al cargar totales, las pendientes se igualan
+                automáticamente. La morosidad suma $50 MXN y una quincena pendiente por cada aviso. Los cargos extras se suman al adeudo.
             </label>
             <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:20px;">
                 <button type="button" class="btn-premium-outline" style="width: auto;"
@@ -1396,13 +1398,16 @@
             <input type="hidden" id="cargoEsCargo">
             <div id="mensajeCargo" style="margin-bottom:12px; display:none;"></div>
             <p id="cargoClienteInfo" style="font-size:0.8rem; color:var(--text-silver); margin:0 0 8px 0;"></p>
-            <input type="number" id="cargoMonto" class="input-luxury" placeholder="Monto en pesos MXN *" step="0.01"
-                min="0.01">
+            <input type="number" id="cargoMonto" class="input-luxury"
+                placeholder="Ej: 50 (monto en pesos MXN a aplicar)" step="0.01" min="0.01"
+                title="Cantidad en pesos MXN a sumar (cargo) o restar (abono) del adeudo actual. Debe ser mayor a 0.">
             <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:20px;">
                 <button type="button" class="btn-premium-outline" style="width:auto;"
+                    title="Cerrar sin aplicar cambios a este pago."
                     onclick="document.getElementById('modalCargoPago').style.display='none';">Cancelar</button>
-                <button type="button" class="btn-premium" style="width:auto;" onclick="confirmarCargoPago()"><i
-                        class="fas fa-check"></i> Aplicar</button>
+                <button type="button" class="btn-premium" style="width:auto;"
+                    title="Confirmar el monto y aplicar el cargo/abono a este pago."
+                    onclick="confirmarCargoPago()"><i class="fas fa-check"></i> Aplicar</button>
             </div>
         </div>
     </div>

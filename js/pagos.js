@@ -1,12 +1,44 @@
 // ============================================
 // CONTROL DE PAGOS - CRUD (Supabase)
 // Tabla: pagos (id, cliente, monto_actual, quincenas_totales,
-//        quincenas_pendientes, cargos, estado, created_at, updated_at)
+//        quincenas_pagadas, quincenas_liquidadas, quincenas_pendientes,
+//        cargos, estado, fecha_liquidacion, created_at, updated_at)
 // ============================================
 
 const CARGO_MOROSIDAD = 50; // $50 MXN por cada aviso de morosidad
+const ESTADOS = ["en_mora", "al_corriente", "liquidado"];
 
 let pagoEditando = null;
+
+function estadoLabel(estado) {
+  if (estado === "liquidado") return "Liquidado";
+  if (estado === "al_corriente") return "Al corriente";
+  return "En mora";
+}
+
+function mensajeErrorAmigable(error) {
+  if (!error) return "Ocurrió un error desconocido.";
+  const msg = String(error.message || "");
+  const code = error.code || "";
+  if (code === "23502" || /null value in column/i.test(msg) || /violates not-null constraint/i.test(msg)) {
+    return "Falta un dato obligatorio. Revisa que todos los campos requeridos estén llenos. Si el problema persiste, re-ejecuta el SQL de pagos en Supabase.";
+  }
+  if (code === "23505" || /duplicate key/i.test(msg)) {
+    return "Ese registro ya existe (dato duplicado).";
+  }
+  if (code === "42P01" || /relation ".*" does not exist/i.test(msg)) {
+    return "La tabla no existe. Ejecuta el SQL para crear la tabla \"pagos\".";
+  }
+  return "Revisa los datos e inténtalo de nuevo.";
+}
+
+function formatearFechaLatam(iso) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "—";
+  const meses = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+  return `${String(d.getDate()).padStart(2, "0")}/${meses[d.getMonth()]}/${d.getFullYear()}`;
+}
 
 function mostrarMensajePago(el, msg, tipo) {
   if (!el) return;
@@ -19,12 +51,6 @@ function mostrarMensajePago(el, msg, tipo) {
   el.innerHTML = msg;
   el.className = "mt-2 " + clase;
   el.style.display = "block";
-}
-
-function estadoPagoLabel(estado) {
-  return estado === "liquidado"
-    ? '<span class="badge bg-success" title="Adeudo saldado por completo.">✅ Liquidado</span>'
-    : '<span class="badge bg-warning text-dark" title="Adeudo pendiente por cobrar.">⏳ En mora</span>';
 }
 
 async function cargarPagos() {
@@ -59,17 +85,20 @@ async function cargarPagos() {
                     <tr>
                         <th>Cliente</th>
                         <th style="text-align:center; white-space:nowrap;" title="Cantidad total que el cliente debe cubrir.">Adeudo actual</th>
+                        <th style="text-align:center; white-space:nowrap;" title="Estado actual del pago: en mora, al corriente o liquidado.">Estado</th>
                         <th style="text-align:center; white-space:nowrap; width:90px;" title="Total de quincenas acordadas para este pago.">Q. totales</th>
+                        <th style="text-align:center; white-space:nowrap; width:90px;" title="Cuántas quincenas ya pagó el cliente.">Q. pagadas</th>
                         <th style="text-align:center; white-space:nowrap; width:90px;" title="Cuántas quincenas faltan por cubrir.">Q. pendientes</th>
                         <th style="text-align:center; white-space:nowrap; width:80px;" title="Cargos extras acumulados por morosidad/recargos.">Cargos</th>
-                        <th style="text-align:center; white-space:nowrap;">Estado</th>
-                        <th style="text-align:center; white-space:nowrap; min-width:640px;">Acciones</th>
+                        <th style="text-align:center; white-space:nowrap;" title="Fecha en que se liquidó el pago (si aplica).">Fecha liquidación</th>
+                        <th style="text-align:center; white-space:nowrap; min-width:760px;">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
                     ${data
-                      .map(
-                        (r) => `
+                      .map((r) => {
+                        const st = ESTADOS.includes(r.estado) ? r.estado : "en_mora";
+                        return `
                         <tr data-pago-id="${r.id}">
                             <td><strong style="color:var(--text-main);">${
                               r.cliente || "—"
@@ -77,23 +106,46 @@ async function cargarPagos() {
                             <td style="text-align:center;"><span style="color:var(--accent); font-weight:600; white-space:nowrap;">${formatearMoneda(
                               Number(r.monto_actual) || 0,
                             )}</span></td>
+                            <td style="text-align:center; white-space:nowrap;">
+                                <select class="form-select form-select-sm estado-select" title="Cambiar el estado de este pago."
+                                    onchange="cambiarEstadoPago('${r.id}', this.value)">
+                                    <option value="en_mora" ${
+                                      st === "en_mora" ? "selected" : ""
+                                    }>En mora</option>
+                                    <option value="al_corriente" ${
+                                      st === "al_corriente" ? "selected" : ""
+                                    }>Al corriente</option>
+                                    <option value="liquidado" ${
+                                      st === "liquidado" ? "selected" : ""
+                                    }>Liquidado</option>
+                                </select>
+                            </td>
                             <td style="text-align:center; white-space:nowrap;">${
                               r.quincenas_totales ?? 0
                             }</td>
+                            <td style="text-align:center; white-space:nowrap;"><span style="color:#6ee7b7; font-weight:600;">${
+                              r.quincenas_pagadas ?? 0
+                            }</span></td>
                             <td style="text-align:center; white-space:nowrap;"><span style="font-weight:600;">${
                               r.quincenas_pendientes ?? 0
                             }</span></td>
                             <td style="text-align:center; white-space:nowrap;"><span style="color:#ffd166;">${formatearMoneda(
                               Number(r.cargos) || 0,
                             )}</span></td>
-                            <td style="text-align:center; white-space:nowrap;">${estadoPagoLabel(
-                              r.estado,
+                            <td style="text-align:center; white-space:nowrap;">${formatearFechaLatam(
+                              r.fecha_liquidacion,
                             )}</td>
                             <td style="white-space:nowrap;">
                                 <div class="acciones-pago">
+                                <button onclick="aumentarQuincenaPago('${
+                                  r.id
+                                }')" class="btn btn-success btn-sm btn-accion" title="Marcar UNA quincena como pagada: suma a quincenas pagadas y baja una pendiente.">＋ Quincena</button>
+                                <button onclick="quitarQuincenaPago('${
+                                  r.id
+                                }')" class="btn btn-outline-success btn-sm btn-accion" title="Quitar UNA quincena pagada: resta a quincenas pagadas y sube una pendiente.">－ Quincena</button>
                                 <button onclick="liquidarPago('${
                                   r.id
-                                }')" class="btn btn-success btn-sm btn-accion" title="Liquidar: salda el adeudo a $0, quincenas pendientes a 0 y marca como Liquidado.">💰 Liquidar</button>
+                                }')" class="btn btn-danger btn-sm btn-accion" title="Liquidar: salda el adeudo a $0, quincenas pendientes a 0 y guarda la fecha de liquidación.">💾 Liquidar</button>
                                 <button onclick="cargarMorosidadPago('${
                                   r.id
                                 }')" class="btn btn-warning btn-sm btn-accion" title="Cargar morosidad: aumenta el adeudo en $50 MXN y suma una quincena pendiente.">⏱️ +$50 Mora</button>
@@ -112,8 +164,8 @@ async function cargarPagos() {
                                 </div>
                             </td>
                         </tr>
-                    `,
-                      )
+                    `;
+                      })
                       .join("")}
                 </tbody>
             </table>
@@ -156,9 +208,9 @@ function abrirModalPago(id) {
   document.getElementById("pagoMonto").value = row.children[1].textContent
     .replace(/[^\d.]/g, "");
   document.getElementById("pagoQuincenasTotales").value =
-    row.children[2].textContent.trim();
-  document.getElementById("pagoQuincenasPendientes").value =
     row.children[3].textContent.trim();
+  document.getElementById("pagoQuincenasPendientes").value =
+    row.children[5].textContent.trim();
   document.getElementById("pagoModalTitulo").textContent = "✏️ Editar Pago";
 
   const m = document.getElementById("mensajePago");
@@ -167,6 +219,23 @@ function abrirModalPago(id) {
     m.className = "";
   }
   document.getElementById("modalPago").style.display = "flex";
+}
+
+// Mantiene pendientes = totales cuando el usuario escribe las totales
+// (caso común: comprar a N quincenas => N pendientes al inicio).
+function sincronizarQuincenas() {
+  const tot = document.getElementById("pagoQuincenasTotales");
+  const pen = document.getElementById("pagoQuincenasPendientes");
+  if (!tot || !pen) return;
+  const t = parseInt(tot.value) || 0;
+  let p = parseInt(pen.value) || 0;
+  if (pen.value === "" || t === 0) {
+    pen.value = t > 0 ? t : "";
+    return;
+  }
+  // Nunca permitir pendientes > totales ni negativas.
+  p = Math.min(Math.max(0, p), t);
+  pen.value = (t === 0 && pen.value === "") ? "" : String(p);
 }
 
 async function guardarPago() {
@@ -181,38 +250,71 @@ async function guardarPago() {
   if (!cliente) {
     return mostrarMensajePago(
       msg,
-      "❌ El nombre del cliente es obligatorio",
+      "❌ El nombre del cliente es obligatorio.",
       "error",
     );
   }
   if (monto <= 0) {
     return mostrarMensajePago(
       msg,
-      "❌ El monto del adeudo debe ser mayor a 0",
+      "❌ El monto del adeudo debe ser mayor a 0.",
       "error",
     );
   }
   if (qTotales < 1) {
     return mostrarMensajePago(
       msg,
-      "❌ Las quincenas totales deben ser al menos 1",
+      "❌ Las quincenas totales deben ser al menos 1.",
       "error",
     );
   }
-  // Las quincenas pendientes nunca pueden superar las totales.
-  const qPend = Math.min(Math.max(0, qPendientes), qTotales);
+  if (qPendientes < 0) {
+    return mostrarMensajePago(
+      msg,
+      "❌ Las quincenas pendientes no pueden ser negativas.",
+      "error",
+    );
+  }
+  if (qPendientes > qTotales) {
+    return mostrarMensajePago(
+      msg,
+      `❌ Las quincenas pendientes (${qPendientes}) no pueden superar las totales (${qTotales}).`,
+      "error",
+    );
+  }
+
+  const qPend = qPendientes; // ya validado entre 0 y totales
+  const qPagadas = qTotales - qPend;
+  const quedaLiquidado = qPend === 0;
 
   try {
     if (pagoEditando) {
+      const { data: prev, error: prevErr } = await window.supabase
+        .from("pagos")
+        .select("*")
+        .eq("id", pagoEditando)
+        .single();
+      if (prevErr) throw prevErr;
+      const updates = {
+        cliente,
+        monto_actual: monto,
+        quincenas_totales: qTotales,
+        quincenas_pendientes: qPend,
+        quincenas_pagadas: qPagadas,
+        quincenas_liquidadas: qPagadas,
+        estado: quedaLiquidado
+          ? "liquidado"
+          : prev.estado === "liquidado"
+            ? "liquidado"
+            : prev.estado || "en_mora",
+        updated_at: new Date().toISOString(),
+      };
+      if (quedaLiquidado && !prev.fecha_liquidacion) {
+        updates.fecha_liquidacion = new Date().toISOString();
+      }
       const { error } = await window.supabase
         .from("pagos")
-        .update({
-          cliente,
-          monto_actual: monto,
-          quincenas_totales: qTotales,
-          quincenas_pendientes: qPend,
-          updated_at: new Date().toISOString(),
-        })
+        .update(updates)
         .eq("id", pagoEditando);
       if (error) throw error;
     } else {
@@ -221,9 +323,14 @@ async function guardarPago() {
           cliente,
           monto_actual: monto,
           quincenas_totales: qTotales,
-          quincenas_pendientes: qPend > 0 ? qPend : qTotales,
+          quincenas_pendientes: qPend,
+          quincenas_pagadas: qPagadas,
+          quincenas_liquidadas: qPagadas,
           cargos: 0,
-          estado: "activo",
+          estado: quedaLiquidado ? "liquidado" : "en_mora",
+          fecha_liquidacion: quedaLiquidado
+            ? new Date().toISOString()
+            : null,
         },
       ]);
       if (error) throw error;
@@ -232,36 +339,86 @@ async function guardarPago() {
     document.getElementById("modalPago").style.display = "none";
     cargarPagos();
     mostrarModalAlerta(
-      pagoEditando ? "✅ Pago actualizado correctamente" : "✅ Pago registrado",
+      pagoEditando ? "✅ Pago actualizado correctamente" : "✅ Pago registrado correctamente",
     );
     pagoEditando = null;
   } catch (error) {
     console.error("Error guardando pago:", error);
-    mostrarModalAlerta("❌ Error al guardar: " + error.message);
+    mostrarModalAlerta("❌ No se pudo guardar el pago. " + mensajeErrorAmigable(error));
+  }
+}
+
+// Cambia el estado (dropdown). Si pasa a "liquidado", guarda la fecha de
+// liquidación y ajusta las quincenas.
+async function cambiarEstadoPago(id, nuevoEstado) {
+  if (!id || !ESTADOS.includes(nuevoEstado)) return;
+  if (typeof modalConfirmar === "function") {
+    modalConfirmar(
+      `¿Cambiar el estado de este pago a "${estadoLabel(nuevoEstado)}"?`,
+      async () => {
+        try {
+          const { data, error } = await window.supabase
+            .from("pagos")
+            .select("*")
+            .eq("id", id)
+            .single();
+          if (error) throw error;
+          const esLiquidado = nuevoEstado === "liquidado";
+          const updates = { estado: nuevoEstado, updated_at: new Date().toISOString() };
+          if (esLiquidado) {
+            const totales = Number(data.quincenas_totales) || 0;
+            updates.quincenas_pendientes = 0;
+            updates.quincenas_pagadas = totales;
+            updates.quincenas_liquidadas = totales;
+            updates.fecha_liquidacion = new Date().toISOString();
+          }
+          const { error: upError } = await window.supabase
+            .from("pagos")
+            .update(updates)
+            .eq("id", id);
+          if (upError) throw upError;
+          cargarPagos();
+          mostrarModalAlerta(`✅ Estado actualizado a "${estadoLabel(nuevoEstado)}"`);
+        } catch (error) {
+          console.error("Error cambiando estado:", error);
+          mostrarModalAlerta("❌ Error al cambiar el estado: " + mensajeErrorAmigable(error));
+        }
+      },
+    );
   }
 }
 
 async function liquidarPago(id) {
   if (typeof modalConfirmar === "function") {
     modalConfirmar(
-      "¿Liquidar este adeudo? Se pondrá en $0 y quincenas pendientes en 0.",
+      "¿Liquidar este adeudo? Se pondrá en $0, quincenas pendientes en 0 y se guardará la fecha de liquidación.",
       async () => {
         try {
-          const { error } = await window.supabase
+          const { data, error } = await window.supabase
+            .from("pagos")
+            .select("*")
+            .eq("id", id)
+            .single();
+          if (error) throw error;
+          const totales = Number(data.quincenas_totales) || 0;
+          const { error: upError } = await window.supabase
             .from("pagos")
             .update({
               monto_actual: 0,
               quincenas_pendientes: 0,
+              quincenas_pagadas: totales,
+              quincenas_liquidadas: totales,
               estado: "liquidado",
+              fecha_liquidacion: new Date().toISOString(),
               updated_at: new Date().toISOString(),
             })
             .eq("id", id);
-          if (error) throw error;
+          if (upError) throw upError;
           cargarPagos();
-          mostrarModalAlerta("✅ Adeudo liquidado correctamente");
+          mostrarModalAlerta("✅ Adeudo liquidado y fecha de liquidación guardada");
         } catch (error) {
           console.error("Error liquidando:", error);
-          mostrarModalAlerta("❌ Error al liquidar: " + error.message);
+          mostrarModalAlerta("❌ Error al liquidar: " + mensajeErrorAmigable(error));
         }
       },
     );
@@ -291,6 +448,9 @@ async function cargarMorosidadPago(id) {
               monto_actual: nuevoMonto,
               cargos: (Number(data.cargos) || 0) + CARGO_MOROSIDAD,
               quincenas_pendientes: nuevasPendientes,
+              quincenas_pagadas: Math.max(0, (Number(data.quincenas_totales) || 0) - nuevasPendientes),
+              quincenas_liquidadas: Math.max(0, (Number(data.quincenas_totales) || 0) - nuevasPendientes),
+              estado: "en_mora",
               updated_at: new Date().toISOString(),
             })
             .eq("id", id);
@@ -299,9 +459,63 @@ async function cargarMorosidadPago(id) {
           mostrarModalAlerta(`✅ Morosidad cargada: +$${CARGO_MOROSIDAD} MXN`);
         } catch (error) {
           console.error("Error cargando morosidad:", error);
-          mostrarModalAlerta("❌ Error al cargar morosidad: " + error.message);
+          mostrarModalAlerta("❌ Error al cargar morosidad: " + mensajeErrorAmigable(error));
         }
       },
+    );
+  }
+}
+
+// Ajusta quincenas pagadas/liquidadas/pendientes manteniendo consistencia.
+async function ajustarQuincenas(id, delta, exitoMsg) {
+  try {
+    const { data, error } = await window.supabase
+      .from("pagos")
+      .select("*")
+      .eq("id", id)
+      .single();
+    if (error) throw error;
+
+    const totales = Number(data.quincenas_totales) || 0;
+    const pagadas = Math.min(
+      Math.max(0, (Number(data.quincenas_pagadas) || 0) + delta),
+      totales,
+    );
+    const pendientes = Math.max(0, totales - pagadas);
+
+    const { error: upError } = await window.supabase
+      .from("pagos")
+      .update({
+        quincenas_pagadas: pagadas,
+        quincenas_liquidadas: pagadas,
+        quincenas_pendientes: pendientes,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", id);
+    if (upError) throw upError;
+
+    cargarPagos();
+    mostrarModalAlerta(exitoMsg);
+  } catch (error) {
+    console.error("Error ajustando quincena:", error);
+    mostrarModalAlerta("❌ Error al ajustar quincena: " + mensajeErrorAmigable(error));
+  }
+}
+
+function aumentarQuincenaPago(id) {
+  if (typeof modalConfirmar === "function") {
+    modalConfirmar(
+      "¿Marcar UNA quincena como pagada? Se suma a quincenas pagadas y baja una pendiente.",
+      () => ajustarQuincenas(id, 1, "✅ Quincena marcada como pagada"),
+    );
+  }
+}
+
+function quitarQuincenaPago(id) {
+  if (typeof modalConfirmar === "function") {
+    modalConfirmar(
+      "¿Quitar UNA quincena como pagada? Se resta a quincenas pagadas y sube una pendiente.",
+      () => ajustarQuincenas(id, -1, "✅ Quincena pagada removida"),
     );
   }
 }
@@ -379,20 +593,29 @@ async function aplicarCargoPago(id, esCargo, monto) {
       nuevoMonto = Math.max(0, nuevoMonto - monto);
     }
 
-    // Si se deduce hasta quedar en $0, se liquida.
-    const estado = nuevoMonto <= 0 ? "liquidado" : data.estado;
-    const qPendientes =
-      nuevoMonto <= 0 ? 0 : Number(data.quincenas_pendientes) || 0;
+    const quedaLiquidado = nuevoMonto <= 0;
+    const estado = quedaLiquidado ? "liquidado" : data.estado;
+    const totales = Number(data.quincenas_totales) || 0;
+    const updates = {
+      monto_actual: nuevoMonto,
+      cargos: nuevosCargos,
+      quincenas_pendientes: quedaLiquidado
+        ? 0
+        : Number(data.quincenas_pendientes) || 0,
+      estado,
+      updated_at: new Date().toISOString(),
+    };
+    if (quedaLiquidado) {
+      updates.quincenas_pagadas = totales;
+      updates.quincenas_liquidadas = totales;
+      if (!data.fecha_liquidacion) {
+        updates.fecha_liquidacion = new Date().toISOString();
+      }
+    }
 
     const { error: upError } = await window.supabase
       .from("pagos")
-      .update({
-        monto_actual: nuevoMonto,
-        cargos: nuevosCargos,
-        quincenas_pendientes: qPendientes,
-        estado,
-        updated_at: new Date().toISOString(),
-      })
+      .update(updates)
       .eq("id", id);
     if (upError) throw upError;
 
@@ -400,11 +623,11 @@ async function aplicarCargoPago(id, esCargo, monto) {
     mostrarModalAlerta(
       esCargo
         ? `✅ Cargo añadido: +${formatearMoneda(monto)}`
-        : `✅ Abono deducido: −${formatearMoneda(monto)}${nuevoMonto <= 0 ? " · Adeudo liquidado" : ""}`,
+        : `✅ Abono deducido: −${formatearMoneda(monto)}${quedaLiquidado ? " · Adeudo liquidado" : ""}`,
     );
   } catch (error) {
     console.error("Error aplicando cargo:", error);
-    mostrarModalAlerta("❌ Error al aplicar: " + error.message);
+    mostrarModalAlerta("❌ Error al aplicar: " + mensajeErrorAmigable(error));
   }
 }
 
@@ -421,7 +644,7 @@ async function pedirEliminarPago(id) {
         mostrarModalAlerta("✅ Registro de pago eliminado");
       } catch (error) {
         console.error("Error al eliminar pago:", error);
-        mostrarModalAlerta("❌ Error al eliminar: " + error.message);
+        mostrarModalAlerta("❌ Error al eliminar: " + mensajeErrorAmigable(error));
       }
     });
   }
@@ -441,17 +664,23 @@ async function cargarPagosDummySiVacio() {
           cliente: "Cliente Demo 1",
           monto_actual: 1200,
           quincenas_totales: 4,
+          quincenas_pagadas: 0,
+          quincenas_liquidadas: 0,
           quincenas_pendientes: 4,
           cargos: 0,
-          estado: "activo",
+          estado: "en_mora",
+          fecha_liquidacion: null,
         },
         {
           cliente: "Cliente Demo 2",
           monto_actual: 500,
           quincenas_totales: 2,
-          quincenas_pendientes: 2,
+          quincenas_pagadas: 1,
+          quincenas_liquidadas: 1,
+          quincenas_pendientes: 1,
           cargos: 0,
-          estado: "activo",
+          estado: "al_corriente",
+          fecha_liquidacion: null,
         },
       ]);
     }
@@ -463,10 +692,13 @@ async function cargarPagosDummySiVacio() {
 window.cargarPagos = cargarPagos;
 window.abrirModalPago = abrirModalPago;
 window.guardarPago = guardarPago;
+window.sincronizarQuincenas = sincronizarQuincenas;
+window.cambiarEstadoPago = cambiarEstadoPago;
 window.liquidarPago = liquidarPago;
 window.cargarMorosidadPago = cargarMorosidadPago;
+window.aumentarQuincenaPago = aumentarQuincenaPago;
+window.quitarQuincenaPago = quitarQuincenaPago;
 window.abrirCargoPago = abrirCargoPago;
 window.confirmarCargoPago = confirmarCargoPago;
 window.pedirEliminarPago = pedirEliminarPago;
 window.cargarPagosDummySiVacio = cargarPagosDummySiVacio;
-
