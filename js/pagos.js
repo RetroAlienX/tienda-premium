@@ -124,7 +124,15 @@ async function cargarPagos() {
                               ? "#ffd166"
                               : "#ff4d4d";
                         return `
-                        <tr data-pago-id="${r.id}">
+                        <tr data-pago-id="${r.id}"
+                            data-cliente="${
+                              r.cliente || ""
+                            }"
+                            data-monto="${Number(r.monto_actual) || 0}"
+                            data-totales="${r.quincenas_totales ?? 0}"
+                            data-pagadas="${r.quincenas_pagadas ?? 0}"
+                            data-pendientes="${r.quincenas_pendientes ?? 0}"
+                            data-cargos="${Number(r.cargos) || 0}">
                             <td><strong style="color:var(--text-main);">${
                               r.cliente || "—"
                             }</strong></td>
@@ -211,8 +219,10 @@ function abrirModalPago(id) {
     document.getElementById("pagoMonto").value = "";
     document.getElementById("pagoQuincenasTotales").value = "";
     document.getElementById("pagoQuincenasPendientes").value = "";
+    const cargosField = document.getElementById("pagoCargos");
+    if (cargosField) cargosField.value = "";
     document.getElementById("pagoModalTitulo").textContent =
-      "💳 Agregar Cliente";
+      "💳 Agregar Pago";
     const m = document.getElementById("mensajePago");
     if (m) {
       m.innerHTML = "";
@@ -229,15 +239,14 @@ function abrirModalPago(id) {
   }
 
   pagoEditando = id;
+  const d = row.dataset || {};
   document.getElementById("pagoId").value = id;
-  document.getElementById("pagoCliente").value =
-    row.children[0].textContent.trim();
-  document.getElementById("pagoMonto").value =
-    row.children[1].textContent.replace(/[^\d.]/g, "");
-  document.getElementById("pagoQuincenasTotales").value =
-    row.children[5].textContent.trim();
-  document.getElementById("pagoQuincenasPendientes").value =
-    row.children[3].textContent.trim();
+  document.getElementById("pagoCliente").value = (d.cliente || "").trim();
+  document.getElementById("pagoMonto").value = d.monto ?? "";
+  document.getElementById("pagoQuincenasTotales").value = d.totales ?? "";
+  document.getElementById("pagoQuincenasPendientes").value = d.pendientes ?? "";
+  const cargosField = document.getElementById("pagoCargos");
+  if (cargosField) cargosField.value = d.cargos ?? "0";
   document.getElementById("pagoModalTitulo").textContent = "✏️ Editar Pago";
 
   const m = document.getElementById("mensajePago");
@@ -273,6 +282,10 @@ async function guardarPago() {
     parseInt(document.getElementById("pagoQuincenasTotales").value) || 0;
   const qPendientes =
     parseInt(document.getElementById("pagoQuincenasPendientes").value) || 0;
+  const cargosField = document.getElementById("pagoCargos");
+  const cargos = cargosField
+    ? Math.max(0, parseFloat(cargosField.value) || 0)
+    : 0;
 
   if (!cliente) {
     return mostrarMensajePago(
@@ -325,6 +338,7 @@ async function guardarPago() {
       const updates = {
         cliente,
         monto_actual: monto,
+        cargos,
         quincenas_totales: qTotales,
         quincenas_pendientes: qPend,
         quincenas_pagadas: qPagadas,
@@ -353,7 +367,7 @@ async function guardarPago() {
           quincenas_pendientes: qPend,
           quincenas_pagadas: qPagadas,
           quincenas_liquidadas: qPagadas,
-          cargos: 0,
+          cargos,
           estado: quedaLiquidado ? "liquidado" : "en_mora",
           fecha_liquidacion: quedaLiquidado ? new Date().toISOString() : null,
         },
@@ -668,6 +682,7 @@ async function aplicarCargoPago(id, esCargo, monto) {
       nuevosCargos += monto;
     } else {
       nuevoMonto = Math.max(0, nuevoMonto - monto);
+      nuevosCargos = Math.max(0, nuevosCargos - monto);
     }
 
     const quedaLiquidado = nuevoMonto <= 0;

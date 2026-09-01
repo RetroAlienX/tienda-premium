@@ -368,19 +368,6 @@
             gap: 4px !important;
         }
 
-        #listaPagos td:last-child,
-        #listaPagos td:last-child>div {
-            display: flex !important;
-            flex-wrap: wrap !important;
-            gap: 6px !important;
-            align-items: center !important;
-            justify-content: center !important;
-        }
-
-        #listaPagos td:last-child {
-            min-width: 300px;
-        }
-
         .btn-premium {
             background: var(--bg-input);
             color: var(--text-main);
@@ -555,13 +542,20 @@
             appearance: textfield;
         }
 
-        /* Botones de acciones (tab Pagos) ajustados al texto */
+        /* Botones de acciones (tab Pagos) ajustados al texto.
+           flex-wrap:wrap + max-width para que los 8 botones se
+           acomoden en varias líneas dentro de la celda, en vez de
+           forzar una sola línea que hacía la tabla más ancha que su
+           contenedor (esto era lo que causaba la barra de scroll
+           horizontal "desfasada" bajo la tabla). */
         .acciones-pago {
             display: flex;
-            flex-wrap: nowrap;
+            flex-wrap: wrap;
             align-items: center;
             justify-content: center;
-            gap: 14px;
+            gap: 8px;
+            max-width: 360px;
+            margin: 0 auto;
         }
 
         .btn-accion {
@@ -1345,8 +1339,8 @@
                         datos</button>
                     <button id="btnAgregarPago" class="btn-premium"
                         style="padding:10px 16px;font-size:0.75rem; width: auto;"
-                        title="Registra un nuevo pago/crédito a un cliente."><i class="fas fa-plus"></i>
-                        Agregar Pago</button>
+                        title="Registra un nuevo cliente con su crédito/plan de pagos."><i class="fas fa-plus"></i>
+                        Agregar Cliente</button>
                 </div>
             </div>
             <label
@@ -1365,21 +1359,24 @@
     <!-- MODAL PAGO -->
     <div id="modalPago" class="modal-box">
         <div class="modal-content" style="max-width:520px;">
-            <h5 style="font-weight:400; margin-bottom:20px;" id="pagoModalTitulo">💳 Agregar Pago</h5>
+            <h5 style="font-weight:400; margin-bottom:20px;" id="pagoModalTitulo">💳 Agregar Cliente</h5>
             <input type="hidden" id="pagoId">
             <div id="mensajePago" style="margin-bottom:12px;"></div>
             <input type="text" id="pagoCliente" class="input-luxury" placeholder="Nombre del cliente *"
                 title="Nombre del cliente que tiene este crédito/pago.">
             <input type="number" id="pagoMonto" class="input-luxury" placeholder="Monto del adeudo *" step="0.01"
                 min="0" title="Cantidad total que el cliente debe pagar.">
+            <input type="number" id="pagoCargos" class="input-luxury" placeholder="Cargos acumulados" step="0.01"
+                min="0" title="Cargos extras acumulados por morosidad/recargos. Solo afectan el monto y la columna Cargos; NO modifican las quincenas.">
             <input type="number" id="pagoQuincenasTotales" class="input-luxury" placeholder="Quincenas totales *"
                 min="1" step="1" oninput="sincronizarQuincenas()"
                 title="Número total de quincenas acordadas para cubrir el pago. Ej: si vendes a 10 quincenas, escribe 10.">
             <input type="number" id="pagoQuincenasPendientes" class="input-luxury" placeholder="Quincenas pendientes *"
-                min="0" step="1" title="Cuántas quincenas faltan por pagar. No puede superar las totales ni ser negativa. Normalmente se deja igual que las totales (todas pendientes al inicio).">
+                min="0" step="1"
+                title="Cuántas quincenas faltan por pagar. No puede superar las totales ni ser negativa. Normalmente se deja igual que las totales (todas pendientes al inicio).">
             <label style="display:block; font-size:0.7rem; color:var(--text-silver); margin-bottom:6px;">
-                💳 Quincenas: <strong>pagadas = totales − pendientes</strong>. Al cargar totales, las pendientes se igualan
-                automáticamente. La morosidad suma $50 MXN y una quincena pendiente por cada aviso. Los cargos extras se suman al adeudo.
+                💳 Quincenas: <strong>pagadas = totales − pendientes</strong>. Al cargar totales, las pendientes se
+                igualan automáticamente.
             </label>
             <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:20px;">
                 <button type="button" class="btn-premium-outline" style="width: auto;"
@@ -1406,8 +1403,8 @@
                     title="Cerrar sin aplicar cambios a este pago."
                     onclick="document.getElementById('modalCargoPago').style.display='none';">Cancelar</button>
                 <button type="button" class="btn-premium" style="width:auto;"
-                    title="Confirmar el monto y aplicar el cargo/abono a este pago."
-                    onclick="confirmarCargoPago()"><i class="fas fa-check"></i> Aplicar</button>
+                    title="Confirmar el monto y aplicar el cargo/abono a este pago." onclick="confirmarCargoPago()"><i
+                        class="fas fa-check"></i> Aplicar</button>
             </div>
         </div>
     </div>
