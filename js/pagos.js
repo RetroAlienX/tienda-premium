@@ -98,6 +98,12 @@ async function cargarPagos() {
                     ${data
                       .map((r) => {
                         const st = ESTADOS.includes(r.estado) ? r.estado : "en_mora";
+                        const estadoColor =
+                          st === "liquidado"
+                            ? "#4ade80"
+                            : st === "al_corriente"
+                              ? "#ffd166"
+                              : "#ff4d4d";
                         return `
                         <tr data-pago-id="${r.id}">
                             <td><strong style="color:var(--text-main);">${
@@ -108,6 +114,7 @@ async function cargarPagos() {
                             )}</span></td>
                             <td style="text-align:center; white-space:nowrap;">
                                 <select class="form-select form-select-sm estado-select" title="Cambiar el estado de este pago."
+                                    style="color:${estadoColor}; border-color:${estadoColor}; font-weight:600;"
                                     onchange="cambiarEstadoPago('${r.id}', this.value)">
                                     <option value="en_mora" style="color:#ff4d4d;" ${
                                       st === "en_mora" ? "selected" : ""
@@ -483,15 +490,46 @@ async function ajustarQuincenas(id, delta, exitoMsg) {
     );
     const pendientes = Math.max(0, totales - pagadas);
 
-    const { error: upError } = await window.supabase
-      .from("pagos")
-      .update({
-        quincenas_pagadas: pagadas,
-        quincenas_liquidadas: pagadas,
-        quincenas_pendientes: pendientes,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", id);
+    let upError = null;
+    // Intenta actualizar todas las columnas (pagadas/liquidadas).
+    try {
+      const { error } = await window.supabase
+        .from("pagos")
+        .update({
+          quincenas_pagadas: pagadas,
+          quincenas_liquidadas: pagadas,
+          quincenas_pendientes: pendientes,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", id);
+      upError = error;
+    } catch (e) {
+      upError = e;
+    }
+
+    // Si las columnas nuevas aún no existen (SQL no re-ejecutado),
+    // degrada para que al menos quincenas_pendientes se actualice.
+    if (
+      upError &&
+      /quincenas_pagadas|quincenas_liquidadas|Could not find/i.test(
+        String(upError.message || ""),
+      )
+    ) {
+      const { error: fbErr } = await window.supabase
+        .from("pagos")
+        .update({
+          quincenas_pendientes: pendientes,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", id);
+      if (fbErr) throw fbErr;
+      cargarPagos();
+      mostrarModalAlerta(
+        exitoMsg +
+          " (las quincenas pagadas se mostrarán en 0 hasta re-ejecutar el SQL de pagos)",
+      );
+      return;
+    }
     if (upError) throw upError;
 
     cargarPagos();
