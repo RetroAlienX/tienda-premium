@@ -307,18 +307,58 @@ async function cargarMorosidadPago(id) {
 }
 
 function abrirCargoPago(id, esCargo) {
-  const tipo = esCargo ? "añadir un cargo" : "deducir un abono";
-  const monto = prompt(
-    `Ingresa el monto para ${tipo} a este pago (en pesos MXN):`,
-    "50",
-  );
-  if (monto === null) return;
-  const num = parseFloat(monto);
-  if (isNaN(num) || num <= 0) {
-    mostrarModalAlerta("❌ Ingresa un monto válido mayor a 0");
+  const titulo = esCargo ? "➕ Añadir Cargo" : "➖ Deducir Abono";
+  document.getElementById("cargoTitulo").textContent = titulo;
+  document.getElementById("cargoId").value = id || "";
+  document.getElementById("cargoEsCargo").value = esCargo ? "1" : "0";
+  document.getElementById("cargoMonto").value = "";
+
+  const row = document.querySelector(`tr[data-pago-id="${id}"]`);
+  const info = document.getElementById("cargoClienteInfo");
+  if (info) {
+    info.textContent = row
+      ? `Cliente: ${row.children[0].textContent.trim()}`
+      : "";
+  }
+
+  const msg = document.getElementById("mensajeCargo");
+  if (msg) {
+    msg.innerHTML = "";
+    msg.className = "";
+    msg.style.display = "none";
+  }
+
+  document.getElementById("modalCargoPago").style.display = "flex";
+  const montoInput = document.getElementById("cargoMonto");
+  if (montoInput) montoInput.focus();
+}
+
+function confirmarCargoPago() {
+  const msg = document.getElementById("mensajeCargo");
+  const id = document.getElementById("cargoId").value.trim();
+  const esCargo =
+    document.getElementById("cargoEsCargo").value === "1";
+  const monto = parseFloat(document.getElementById("cargoMonto").value);
+
+  if (!id) {
+    if (msg) {
+      msg.textContent = "❌ No se pudo identificar el pago.";
+      msg.className = "mt-2 mensaje-error";
+      msg.style.display = "block";
+    }
     return;
   }
-  aplicarCargoPago(id, esCargo, num);
+  if (isNaN(monto) || monto <= 0) {
+    if (msg) {
+      msg.textContent = "❌ Ingresa un monto válido mayor a 0.";
+      msg.className = "mt-2 mensaje-error";
+      msg.style.display = "block";
+    }
+    return;
+  }
+
+  document.getElementById("modalCargoPago").style.display = "none";
+  aplicarCargoPago(id, esCargo, monto);
 }
 
 async function aplicarCargoPago(id, esCargo, monto) {
@@ -426,6 +466,7 @@ window.guardarPago = guardarPago;
 window.liquidarPago = liquidarPago;
 window.cargarMorosidadPago = cargarMorosidadPago;
 window.abrirCargoPago = abrirCargoPago;
+window.confirmarCargoPago = confirmarCargoPago;
 window.pedirEliminarPago = pedirEliminarPago;
 window.cargarPagosDummySiVacio = cargarPagosDummySiVacio;
 
