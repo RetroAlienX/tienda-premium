@@ -944,6 +944,8 @@ document.addEventListener("DOMContentLoaded", function () {
         if (sel) sel.value = "";
         cargarProductosTicket();
         cargarPedidosParaTicket();
+        if (typeof cargarLugaresTicketAdmin === "function")
+          cargarLugaresTicketAdmin();
       },
       "tab-ticket",
     );
