@@ -127,6 +127,13 @@ async function cargarPagos() {
                               ? "#ffd166"
                               : "#ff4d4d";
                         const adeudoTotal = Number(r.adeudo_total) || 0;
+                        const puedeLiquidarOAbonar = adeudoTotal > 0;
+                        const liquidarDisabled = puedeLiquidarOAbonar
+                          ? ""
+                          : 'disabled style="opacity:0.4; pointer-events:none;"';
+                        const abonoDisabled = puedeLiquidarOAbonar
+                          ? ""
+                          : 'disabled style="opacity:0.4; pointer-events:none;"';
                         return `
                         <tr data-pago-id="${r.id}"
                             data-cliente="${
@@ -179,7 +186,7 @@ async function cargarPagos() {
                                 }')" class="btn btn-outline-success btn-sm btn-accion" title="Quitar UNA quincena pagada: resta a quincenas pagadas y sube una pendiente.">－ Quincena</button>
                                 <button onclick="liquidarPago('${
                                   r.id
-                                }')" class="btn btn-danger btn-sm btn-accion" title="Liquidar: salda el adeudo a $0, quincenas pendientes a 0 y guarda la fecha de liquidación.">💾 Liquidar</button>
+                                }')" class="btn btn-danger btn-sm btn-accion" title="Liquidar: salda el adeudo a $0, quincenas pendientes a 0 y guarda la fecha de liquidación. Solo disponible si el adeudo total es mayor a $0." ${liquidarDisabled}>💾 Liquidar</button>
                                 <button onclick="cargarMorosidadPago('${
                                   r.id
                                 }')" class="btn btn-warning btn-sm btn-accion" title="Cargar morosidad: aumenta el adeudo total en $50 MXN (no modifica las quincenas).">⏱️ +$50 Mora</button>
@@ -188,7 +195,7 @@ async function cargarPagos() {
                                 }', true)" class="btn btn-info btn-sm btn-accion" title="Añadir cargo: suma un recargo extra al adeudo.">＋ Cargo</button>
                                 <button onclick="abrirCargoPago('${
                                   r.id
-                                }', false)" class="btn btn-outline-info btn-sm btn-accion" title="Deducir cargo: resta un abono del adeudo.">− Abono</button>
+                                }', false)" class="btn btn-outline-info btn-sm btn-accion" title="Deducir cargo: resta un abono del adeudo. Solo disponible si el adeudo total es mayor a $0." ${abonoDisabled}>− Abono</button>
                                 <button onclick="abrirModalPago('${
                                   r.id
                                 }')" class="btn btn-outline-warning btn-sm btn-accion" title="Editar los datos de este pago.">✏️</button>
@@ -330,6 +337,10 @@ async function guardarPago() {
       if (liquida && !prev.fecha_liquidacion) {
         updates.fecha_liquidacion = fecha;
       }
+      if (!liquida && prev.fecha_liquidacion) {
+        // Dejó de estar liquidado (volvió a comprar): se reinicia la fecha.
+        updates.fecha_liquidacion = null;
+      }
       const { error } = await window.supabase
         .from("pagos")
         .update(updates)
@@ -393,6 +404,10 @@ async function cambiarEstadoPago(id, nuevoEstado) {
             updates.quincenas_pagadas = totales;
             updates.quincenas_liquidadas = totales;
             updates.fecha_liquidacion = new Date().toISOString();
+          } else {
+            // Si sale del estado "liquidado" (volvió a comprar), se reinicia
+            // la fecha de liquidación: solo se repone al liquidar de nuevo.
+            updates.fecha_liquidacion = null;
           }
           const { error: upError } = await window.supabase
             .from("pagos")
@@ -426,7 +441,15 @@ async function liquidarPago(id) {
             .eq("id", id)
             .single();
           if (error) throw error;
+          // No se puede liquidar un adeudo que ya está en $0.
+          if ((Number(data.adeudo_total) || 0) <= 0) {
+            mostrarModalAlerta(
+              "⚠️ No se puede liquidar porque el adeudo total ya está en $0.",
+            );
+            return;
+          }
           const totales = Number(data.quincenas_totales) || 0;
+          const adeudoLiquidado = Number(data.adeudo_total) || 0;
           const { error: upError } = await window.supabase
             .from("pagos")
             .update({
@@ -440,7 +463,23 @@ async function liquidarPago(id) {
             })
             .eq("id", id);
           if (upError) throw upError;
+          // La liquidación deja el adeudo en $0; el monto liquidado sí se
+          // registra como ingreso en Finanzas (suma a Ingresos y Ganancia).
+          if (adeudoLiquidado > 0) {
+            const { error: finError } = await window.supabase
+              .from("finanzas")
+              .insert([
+                {
+                  tipo: "ingreso",
+                  categoria: "abono",
+                  descripcion: `Liquidación de ${data.cliente || "cliente"}`,
+                  monto: adeudoLiquidado,
+                },
+              ]);
+            if (finError) throw finError;
+          }
           cargarPagos();
+          if (typeof cargarFinanzas === "function") cargarFinanzas();
           mostrarModalAlerta(
             "✅ Adeudo liquidado y fecha de liquidación guardada",
           );
@@ -473,6 +512,9 @@ async function cargarMorosidadPago(id) {
             estado: "al_corriente",
             updated_at: new Date().toISOString(),
           };
+          // Si estaba liquidado y se le carga morosidad, dejó de estarlo:
+          // se reinicia la fecha de liquidación.
+          if (data.fecha_liquidacion) update.fecha_liquidacion = null;
           const { error: upError } = await window.supabase
             .from("pagos")
             .update(update)
@@ -518,17 +560,48 @@ async function ajustarQuincenas(id, delta, exitoMsg) {
     );
     const pendientes = Math.max(0, totales - pagadas);
 
+    // Reglas de estado al ajustar quincenas:
+    //  · QUITAR quincena: solo vuelve a "liquidado" si las quincenas pagadas
+    //    llegan a 0 Y el adeudo total está en $0 (deben cumplirse ambas).
+    //    Si estaba liquidado pero no cumple ambas, pasa a "al corriente".
+    //  · AGREGAR quincena: si el cliente estaba "liquidado" pasa a
+    //    "al corriente" (posiblemente volvió a comprar) y se reinicia la
+    //    fecha de liquidación.
+    const adeudoNum = Number(data.adeudo_total) || 0;
+    const esQuitar = delta < 0;
+    let nuevoEstado = data.estado;
+    let nuevaFechaLiquidacion; // undefined = no tocar la fecha
+
+    if (esQuitar) {
+      if (pagadas === 0 && adeudoNum === 0) {
+        nuevoEstado = "liquidado";
+        nuevaFechaLiquidacion = new Date().toISOString();
+      } else if (data.estado === "liquidado") {
+        nuevoEstado = "al_corriente";
+        nuevaFechaLiquidacion = null;
+      }
+    } else if (data.estado === "liquidado") {
+      nuevoEstado = "al_corriente";
+      nuevaFechaLiquidacion = null;
+    }
+
+    const baseUpdate = {
+      quincenas_pagadas: pagadas,
+      quincenas_liquidadas: pagadas,
+      quincenas_pendientes: pendientes,
+      estado: nuevoEstado,
+      updated_at: new Date().toISOString(),
+    };
+    if (nuevaFechaLiquidacion !== undefined) {
+      baseUpdate.fecha_liquidacion = nuevaFechaLiquidacion;
+    }
+
     let upError = null;
     // Intenta actualizar todas las columnas (pagadas/liquidadas).
     try {
       const { error } = await window.supabase
         .from("pagos")
-        .update({
-          quincenas_pagadas: pagadas,
-          quincenas_liquidadas: pagadas,
-          quincenas_pendientes: pendientes,
-          updated_at: new Date().toISOString(),
-        })
+        .update(baseUpdate)
         .eq("id", id);
       upError = error;
     } catch (e) {
@@ -543,12 +616,17 @@ async function ajustarQuincenas(id, delta, exitoMsg) {
         String(upError.message || ""),
       )
     ) {
+      const fallbackUpdate = {
+        quincenas_pendientes: pendientes,
+        estado: nuevoEstado,
+        updated_at: new Date().toISOString(),
+      };
+      if (nuevaFechaLiquidacion !== undefined) {
+        fallbackUpdate.fecha_liquidacion = nuevaFechaLiquidacion;
+      }
       const { error: fbErr } = await window.supabase
         .from("pagos")
-        .update({
-          quincenas_pendientes: pendientes,
-          updated_at: new Date().toISOString(),
-        })
+        .update(fallbackUpdate)
         .eq("id", id);
       if (fbErr) throw fbErr;
       cargarPagos();
@@ -589,6 +667,19 @@ function quitarQuincenaPago(id) {
 }
 
 function abrirCargoPago(id, esCargo) {
+  // El botón "− Abono" (esCargo=false) no puede usarse si el adeudo está en $0.
+  if (!esCargo && id) {
+    const row = document.querySelector(`tr[data-pago-id="${id}"]`);
+    const adeudoFila = row
+      ? Number(row.dataset.adeudototal || row.getAttribute("data-adeudototal"))
+      : 0;
+    if (!isNaN(adeudoFila) && adeudoFila <= 0) {
+      mostrarModalAlerta(
+        "⚠️ No se puede abonar porque el adeudo total ya está en $0.",
+      );
+      return;
+    }
+  }
   const titulo = esCargo ? "➕ Añadir Cargo" : "➖ Deducir Abono";
   document.getElementById("cargoTitulo").textContent = titulo;
   document.getElementById("cargoId").value = id || "";
@@ -653,6 +744,14 @@ async function aplicarCargoPago(id, esCargo, monto) {
 
     const adeudo = Number(data.adeudo_total) || 0;
 
+    // Refuerzo: el abono no se permite cuando el adeudo ya está en $0.
+    if (!esCargo && adeudo <= 0) {
+      mostrarModalAlerta(
+        "⚠️ No se puede abonar porque el adeudo total ya está en $0.",
+      );
+      return;
+    }
+
     const nuevoAdeudo = esCargo
       ? adeudo + monto
       : Math.max(0, adeudo - monto);
@@ -663,7 +762,11 @@ async function aplicarCargoPago(id, esCargo, monto) {
       estado: quedaLiquidado ? "liquidado" : "al_corriente",
       updated_at: new Date().toISOString(),
     };
-    if (quedaLiquidado && !data.fecha_liquidacion) {
+    // Si estaba liquidado y se le aplica cargo o abono, dejó de estarlo
+    // (posiblemente volvió a comprar): se reinicia la fecha de liquidación.
+    if (data.fecha_liquidacion) {
+      updates.fecha_liquidacion = null;
+    } else if (quedaLiquidado) {
       updates.fecha_liquidacion = new Date().toISOString();
     }
 
