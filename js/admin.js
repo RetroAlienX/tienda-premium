@@ -2254,21 +2254,67 @@ async function limpiarTabla(tablas, descripcion, refrescar) {
   }
 }
 
-// Reinicializa los contadores financieros a $0.00 (borra los movimientos
-// actuales de finanzas tras confirmar con modal de advertencia).
+// ============================================
+// FINANZAS · BASES DE REINICIO DE CONTADORES
+// Los contadores (Ingresos/Gastos/Ganancia) se calculan en vivo desde los
+// registros de "finanzas". Para reiniciarlos a $0.00 SIN borrar el historial
+// guardamos en la tabla "settings" cuánto sumaban al momento del reinicio;
+// así el tab calcula: contador = máx(0, suma_real − base_reinicio).
+// ============================================
+
+async function cargarBaseFinanzas() {
+  const base = { ingresos: 0, gastos: 0 };
+  try {
+    const { data, error } = await window.supabase
+      .from("settings")
+      .select("llave, valor");
+    if (error) throw error;
+    (data || []).forEach((row) => {
+      const v = Number(row.valor) || 0;
+      if (row.llave === "fin_ingresos_inicial") base.ingresos = v;
+      if (row.llave === "fin_gastos_inicial") base.gastos = v;
+    });
+  } catch (e) {
+    // Si la tabla settings no existe, usamos 0 (no rompe el tab).
+    console.warn("⚠️ Sin tabla settings, contadores sin base de reinicio:", e.message);
+  }
+  return base;
+}
+
+async function guardarBaseFinanzas(ingresosBase, gastosBase) {
+  const { error } = await window.supabase.from("settings").upsert(
+    [
+      { llave: "fin_ingresos_inicial", valor: ingresosBase },
+      { llave: "fin_gastos_inicial", valor: gastosBase },
+    ],
+    { onConflict: "llave" },
+  );
+  if (error) throw error;
+}
+
+// Reinicia los contadores financieros a $0.00 conservando el historial de
+// movimientos. Solo el botón "Limpiar base de datos" borra los movimientos.
 function reiniciarContadoresFinanzas() {
   if (typeof modalConfirmar === "function") {
     modalConfirmar(
-      "⚠️ Esto borrará TODOS los movimientos financieros actuales y pondrá los contadores de Ingresos, Gastos y Ganancia en $0.00. Esta acción NO se puede deshacer. ¿Continuar?",
+      "⚠️ Esto pondrá los contadores de Ingresos, Gastos y Ganancia en $0.00 a partir de ahora. El HISTORIAL de movimientos NO se borra. Esta acción NO se puede deshacer. ¿Continuar?",
       async () => {
         try {
-          const { error } = await window.supabase
+          const { data, error } = await window.supabase
             .from("finanzas")
-            .delete()
-            .neq("id", "00000000-0000-0000-0000-000000000000");
+            .select("tipo, monto");
           if (error) throw error;
+
+          const ingresosBase = (data || [])
+            .filter((f) => f.tipo === "ingreso")
+            .reduce((s, f) => s + (Number(f.monto) || 0), 0);
+          const gastosBase = (data || [])
+            .filter((f) => f.tipo === "gasto")
+            .reduce((s, f) => s + (Number(f.monto) || 0), 0);
+
+          await guardarBaseFinanzas(ingresosBase, gastosBase);
           mostrarModalAlerta(
-            "✅ Contadores reiniciados a $0.00. Los movimientos financieros fueron eliminados.",
+            "✅ Contadores reiniciados a $0.00. El historial de movimientos se conserva intacto.",
           );
           if (typeof cargarFinanzas === "function") cargarFinanzas();
         } catch (error) {
@@ -2658,29 +2704,37 @@ async function cargarFinanzas() {
     '<div class="text-center text-dim py-3">Cargando...</div>';
 
   try {
-    const { data, error } = await window.supabase
-      .from("finanzas")
-      .select("*")
-      .order("fecha", { ascending: false });
+    const [{ data, error }, base] = await Promise.all([
+      window.supabase.from("finanzas").select("*").order("fecha", { ascending: false }),
+      cargarBaseFinanzas(),
+    ]);
     if (error) {
       container.innerHTML =
         '<p class="text-danger text-center">❌ Error al cargar</p>';
       return;
     }
 
-    if (!data || !data.length) {
+    const registros = data && data.length ? data : [];
+    const ingresosRaw = registros
+      .filter((f) => f.tipo === "ingreso")
+      .reduce((s, f) => s + (Number(f.monto) || 0), 0);
+    const gastosRaw = registros
+      .filter((f) => f.tipo === "gasto")
+      .reduce((s, f) => s + (Number(f.monto) || 0), 0);
+    const ingresos = Math.max(0, ingresosRaw - (base.ingresos || 0));
+    const gastos = Math.max(0, gastosRaw - (base.gastos || 0));
+    const ganancia = ingresos - gastos;
+
+    if (!registros.length) {
+      // No hay movimientos tras reinicio o limpieza → muestro contadores a 0.
+      document.getElementById("ingresosHoy").textContent = formatearMoneda(0);
+      document.getElementById("gastosHoy").textContent = formatearMoneda(0);
+      document.getElementById("gananciaHoy").textContent = formatearMoneda(0);
+      document.getElementById("gananciaHoy").className = "dashboard-metric-number text-dim";
       container.innerHTML =
         '<p class="text-center text-dim py-3">💰 No hay movimientos</p>';
       return;
     }
-
-    const ingresos = data
-      .filter((f) => f.tipo === "ingreso")
-      .reduce((s, f) => s + f.monto, 0);
-    const gastos = data
-      .filter((f) => f.tipo === "gasto")
-      .reduce((s, f) => s + f.monto, 0);
-    const ganancia = ingresos - gastos;
 
     const totalIngresos = document.getElementById("totalIngresos");
     const totalGastos = document.getElementById("totalGastos");

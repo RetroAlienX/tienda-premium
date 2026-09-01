@@ -673,7 +673,24 @@ async function aplicarCargoPago(id, esCargo, monto) {
       .eq("id", id);
     if (upError) throw upError;
 
+    // Solo el ABONO genera un movimiento de ingreso en Finanzas
+    // (suma a Ingresos y Ganancia). Los cargos y las moras NO se
+    // reflejan en Finanzas: solo modifican el adeudo del cliente.
+    // Los gastos nunca se tocan desde la tab Pagos.
+    if (!esCargo && monto > 0) {
+      const { error: finError } = await window.supabase.from("finanzas").insert([
+        {
+          tipo: "ingreso",
+          categoria: "abono",
+          descripcion: `Abono de ${data.cliente || "cliente"}`,
+          monto: monto,
+        },
+      ]);
+      if (finError) throw finError;
+    }
+
     cargarPagos();
+    if (typeof cargarFinanzas === "function") cargarFinanzas();
     mostrarModalAlerta(
       esCargo
         ? `✅ Cargo añadido: +${formatearMoneda(monto)}`

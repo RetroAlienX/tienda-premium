@@ -781,14 +781,14 @@
                         <button id="btnRefrescarFinanzas" class="btn-premium-outline"
                             style="padding:10px 16px;font-size:0.75rem; width: auto;">🔄 Refrescar</button>
                         <button class="btn-premium danger"
-                            onclick="limpiarTabla('finanzas', 'Esto borra TODOS los movimientos financieros.', cargarFinanzas)"
+                            onclick="limpiarTabla('finanzas', 'Esto borra TODOS los movimientos financieros.', function(){ cargarFinanzas(); guardarBaseFinanzas(0,0); })"
                             style="padding:10px 16px;font-size:0.75rem; width: auto; background:var(--regio-red); color:white; border:none;"
                             title="⚠️ BORRA todos los movimientos de finanzas de forma permanente (pide confirmación).">🧹
                             Limpiar base de datos</button>
                         <button class="btn-premium danger"
                             onclick="reiniciarContadoresFinanzas()"
                             style="padding:10px 16px;font-size:0.75rem; width: auto; background:#b45309; color:white; border:none;"
-                            title="Pone Ingresos, Gastos y Ganancia en $0.00 eliminando los movimientos financieros actuales (pide confirmación).">🔁
+                            title="Pone Ingresos, Gastos y Ganancia en $0.00 SIN borrar el historial de movimientos (pide confirmación).">🔁
                             Reiniciar contadores a $0.00</button>
                         <button id="btnAgregarFinanza" class="btn-premium"
                             style="padding:10px 16px;font-size:0.75rem; width: auto;"><i class="fas fa-plus"></i>
