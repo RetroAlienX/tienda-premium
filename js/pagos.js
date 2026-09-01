@@ -101,13 +101,14 @@ async function cargarPagos() {
                 <thead>
                     <tr>
                         <th>Cliente</th>
-                        <th style="text-align:center; white-space:nowrap;" title="Cantidad total que el cliente debe cubrir.">Adeudo actual</th>
                         <th style="text-align:center; white-space:nowrap;" title="Estado actual del pago: en mora, al corriente o liquidado.">Estado</th>
+                        <th style="text-align:center; white-space:nowrap;" title="Fecha en que se liquidó el pago (si aplica).">Fecha liquidación</th>
                         <th style="text-align:center; white-space:nowrap; width:90px;" title="Cuántas quincenas faltan por cubrir.">Q. pendientes</th>
                         <th style="text-align:center; white-space:nowrap; width:90px;" title="Cuántas quincenas ya pagó el cliente.">Q. pagadas</th>
                         <th style="text-align:center; white-space:nowrap; width:90px;" title="Total de quincenas acordadas para este pago.">Q. totales</th>
                         <th style="text-align:center; white-space:nowrap; width:80px;" title="Cargos extras acumulados por morosidad/recargos.">Cargos</th>
-                        <th style="text-align:center; white-space:nowrap;" title="Fecha en que se liquidó el pago (si aplica).">Fecha liquidación</th>
+                        <th style="text-align:center; white-space:nowrap;" title="Cantidad que el cliente debe cubrir (sin incluir cargos).">Adeudo actual</th>
+                        <th style="text-align:center; white-space:nowrap;" title="Adeudo actual + cargos. Total que el cliente debe pagar.">Adeudo total</th>
                         <th style="text-align:center; white-space:nowrap; min-width:360px;">Acciones</th>
                     </tr>
                 </thead>
@@ -123,22 +124,22 @@ async function cargarPagos() {
                             : st === "al_corriente"
                               ? "#ffd166"
                               : "#ff4d4d";
+                        const montoActual = Number(r.monto_actual) || 0;
+                        const cargosVal = Number(r.cargos) || 0;
+                        const adeudoTotal = montoActual + cargosVal;
                         return `
                         <tr data-pago-id="${r.id}"
                             data-cliente="${
                               r.cliente || ""
                             }"
-                            data-monto="${Number(r.monto_actual) || 0}"
+                            data-monto="${montoActual}"
                             data-totales="${r.quincenas_totales ?? 0}"
                             data-pagadas="${r.quincenas_pagadas ?? 0}"
                             data-pendientes="${r.quincenas_pendientes ?? 0}"
-                            data-cargos="${Number(r.cargos) || 0}">
+                            data-cargos="${cargosVal}">
                             <td><strong style="color:var(--text-main);">${
                               r.cliente || "—"
                             }</strong></td>
-                            <td style="text-align:center;"><span style="color:var(--accent); font-weight:600; white-space:nowrap;">${formatearMoneda(
-                              Number(r.monto_actual) || 0,
-                            )}</span></td>
                             <td style="text-align:center; white-space:nowrap;">
                                 <select class="form-select form-select-sm estado-select" title="Cambiar el estado de este pago."
                                     style="color:${estadoColor}; border-color:${estadoColor}; font-weight:600;"
@@ -154,6 +155,9 @@ async function cargarPagos() {
                                     }>💰 Liquidado</option>
                                 </select>
                             </td>
+                            <td style="text-align:center; white-space:nowrap;">${formatearFechaLatam(
+                              r.fecha_liquidacion,
+                            )}</td>
                             <td style="text-align:center; white-space:nowrap;"><span style="font-weight:600;">${
                               r.quincenas_pendientes ?? 0
                             }</span></td>
@@ -164,11 +168,14 @@ async function cargarPagos() {
                               r.quincenas_totales ?? 0
                             }</td>
                             <td style="text-align:center; white-space:nowrap;"><span style="color:#ffd166;">${formatearMoneda(
-                              Number(r.cargos) || 0,
+                              cargosVal,
                             )}</span></td>
-                            <td style="text-align:center; white-space:nowrap;">${formatearFechaLatam(
-                              r.fecha_liquidacion,
-                            )}</td>
+                            <td style="text-align:center;"><span style="color:var(--accent); font-weight:600; white-space:nowrap;">${formatearMoneda(
+                              montoActual,
+                            )}</span></td>
+                            <td style="text-align:center;"><span style="color:#f472b6; font-weight:600; white-space:nowrap;">${formatearMoneda(
+                              adeudoTotal,
+                            )}</span></td>
                             <td style="white-space:nowrap;">
                                 <div class="acciones-pago">
                                 <button onclick="aumentarQuincenaPago('${
