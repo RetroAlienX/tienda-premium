@@ -3,8 +3,6 @@
 // ============================================
 
 function iniciarSupabase() {
-  console.log("✦ Iniciando Supabase...");
-
   const config = window.CONFIG || {};
   const SUPABASE_URL = config.SUPABASE_URL || null;
   const SUPABASE_ANON_KEY = config.SUPABASE_ANON_KEY || null;
@@ -30,7 +28,6 @@ function iniciarSupabase() {
       SUPABASE_ANON_KEY
     );
     window.supabase = supabaseClient;
-    console.log("✅ Supabase configurado");
     document.dispatchEvent(new Event("supabaseReady"));
   } catch (error) {
     console.error("❌ Error al crear cliente Supabase:", error);

@@ -1310,6 +1310,9 @@ select.input-luxury {
   appearance: none;
   -webkit-appearance: none;
   cursor: pointer;
+  color: var(--text-dim);
+  font-weight: 300;
+  color-scheme: dark;
 }
 
 select.input-luxury option {
@@ -1317,9 +1320,29 @@ select.input-luxury option {
   color: var(--text-main);
 }
 
+select.input-luxury option:checked,
+select.input-luxury option:hover,
+select.input-luxury option:focus,
+select.input-luxury option:active {
+  background: var(--bg-input);
+  color: var(--text-main);
+}
+
 .input-group-flex {
   display: flex;
   gap: 20px;
+}
+
+.campo-hint {
+  font-size: 0.8rem;
+  color: var(--text-silver);
+  background: var(--bg-input);
+  border-left: 3px solid var(--accent);
+  padding: 8px 12px;
+  margin: 8px 0 18px;
+  border-radius: 4px;
+  line-height: 1.5;
+  font-weight: 400;
 }
 
 .input-group-flex .qty {
@@ -2282,8 +2305,8 @@ select.input-luxury option {
 }
 
 .producto-picker-item-img {
-  width: 38px;
-  height: 38px;
+  width: 104px;
+  height: 104px;
   object-fit: cover;
   flex-shrink: 0;
   background: var(--bg-input);
@@ -2294,7 +2317,7 @@ select.input-luxury option {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1rem;
+  font-size: 2.2rem;
 }
 
 .producto-picker-item-info {

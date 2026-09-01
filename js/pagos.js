@@ -1,8 +1,12 @@
 // ============================================
 // CONTROL DE PAGOS - CRUD (Supabase)
-// Tabla: pagos (id, cliente, monto_actual, quincenas_totales,
-//        quincenas_pagadas, quincenas_liquidadas, quincenas_pendientes,
-//        cargos, estado, fecha_liquidacion, created_at, updated_at)
+// Tabla: pagos (id, cliente, adeudo_total,
+//        quincenas_totales, quincenas_pagadas, quincenas_liquidadas,
+//        quincenas_pendientes, estado, fecha_liquidacion, created_at, updated_at)
+// Nota: adeudo_total = deuda actual. Cargos (+), abonos (−) y moras (+50)
+//       afectan SOLO adeudo_total y NO tocan las quincenas. Al llegar a 0 el
+//       adeudo_total se marca "liquidado"; con cargo/abono/mora >0 se marca
+//       "al_corriente". El estado "en_mora" se ajusta SOLO manualmente.
 // ============================================
 
 const CARGO_MOROSIDAD = 50; // $50 MXN por cada aviso de morosidad
@@ -106,10 +110,8 @@ async function cargarPagos() {
                         <th style="text-align:center; white-space:nowrap; width:90px;" title="Cuántas quincenas faltan por cubrir.">Q. pendientes</th>
                         <th style="text-align:center; white-space:nowrap; width:90px;" title="Cuántas quincenas ya pagó el cliente.">Q. pagadas</th>
                         <th style="text-align:center; white-space:nowrap; width:90px;" title="Total de quincenas acordadas para este pago.">Q. totales</th>
-                        <th style="text-align:center; white-space:nowrap; width:80px;" title="Cargos extras acumulados por morosidad/recargos.">Cargos</th>
-                        <th style="text-align:center; white-space:nowrap;" title="Cantidad que el cliente debe cubrir (sin incluir cargos).">Adeudo actual</th>
-                        <th style="text-align:center; white-space:nowrap;" title="Adeudo actual + cargos. Total que el cliente debe pagar.">Adeudo total</th>
-                        <th style="text-align:center; white-space:nowrap; min-width:360px;">Acciones</th>
+                        <th style="text-align:center; white-space:nowrap;" title="Deuda actual del cliente (cargos +, abonos −, moras +).">Adeudo total</th>
+                        <th style="text-align:center; white-space:nowrap;">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -124,19 +126,16 @@ async function cargarPagos() {
                             : st === "al_corriente"
                               ? "#ffd166"
                               : "#ff4d4d";
-                        const montoActual = Number(r.monto_actual) || 0;
-                        const cargosVal = Number(r.cargos) || 0;
-                        const adeudoTotal = montoActual + cargosVal;
+                        const adeudoTotal = Number(r.adeudo_total) || 0;
                         return `
                         <tr data-pago-id="${r.id}"
                             data-cliente="${
                               r.cliente || ""
                             }"
-                            data-monto="${montoActual}"
                             data-totales="${r.quincenas_totales ?? 0}"
                             data-pagadas="${r.quincenas_pagadas ?? 0}"
                             data-pendientes="${r.quincenas_pendientes ?? 0}"
-                            data-cargos="${cargosVal}">
+                            data-adeudototal="${adeudoTotal}">
                             <td><strong style="color:var(--text-main);">${
                               r.cliente || "—"
                             }</strong></td>
@@ -167,12 +166,6 @@ async function cargarPagos() {
                             <td style="text-align:center; white-space:nowrap;">${
                               r.quincenas_totales ?? 0
                             }</td>
-                            <td style="text-align:center; white-space:nowrap;"><span style="color:#ffd166;">${formatearMoneda(
-                              cargosVal,
-                            )}</span></td>
-                            <td style="text-align:center;"><span style="color:var(--accent); font-weight:600; white-space:nowrap;">${formatearMoneda(
-                              montoActual,
-                            )}</span></td>
                             <td style="text-align:center;"><span style="color:#f472b6; font-weight:600; white-space:nowrap;">${formatearMoneda(
                               adeudoTotal,
                             )}</span></td>
@@ -189,7 +182,7 @@ async function cargarPagos() {
                                 }')" class="btn btn-danger btn-sm btn-accion" title="Liquidar: salda el adeudo a $0, quincenas pendientes a 0 y guarda la fecha de liquidación.">💾 Liquidar</button>
                                 <button onclick="cargarMorosidadPago('${
                                   r.id
-                                }')" class="btn btn-warning btn-sm btn-accion" title="Cargar morosidad: aumenta el adeudo en $50 MXN y suma una quincena pendiente.">⏱️ +$50 Mora</button>
+                                }')" class="btn btn-warning btn-sm btn-accion" title="Cargar morosidad: aumenta el adeudo total en $50 MXN (no modifica las quincenas).">⏱️ +$50 Mora</button>
                                 <button onclick="abrirCargoPago('${
                                   r.id
                                 }', true)" class="btn btn-info btn-sm btn-accion" title="Añadir cargo: suma un recargo extra al adeudo.">＋ Cargo</button>
@@ -223,11 +216,9 @@ function abrirModalPago(id) {
     pagoEditando = null;
     document.getElementById("pagoId").value = "";
     document.getElementById("pagoCliente").value = "";
-    document.getElementById("pagoMonto").value = "";
+    document.getElementById("pagoAdeudoTotal").value = "";
     document.getElementById("pagoQuincenasTotales").value = "";
-    document.getElementById("pagoQuincenasPendientes").value = "";
-    const cargosField = document.getElementById("pagoCargos");
-    if (cargosField) cargosField.value = "";
+    document.getElementById("pagoQuincenasPagadas").value = "";
     document.getElementById("pagoModalTitulo").textContent =
       "💳 Agregar Pago";
     const m = document.getElementById("mensajePago");
@@ -249,11 +240,9 @@ function abrirModalPago(id) {
   const d = row.dataset || {};
   document.getElementById("pagoId").value = id;
   document.getElementById("pagoCliente").value = (d.cliente || "").trim();
-  document.getElementById("pagoMonto").value = d.monto ?? "";
+  document.getElementById("pagoAdeudoTotal").value = d.adeudototal ?? "";
   document.getElementById("pagoQuincenasTotales").value = d.totales ?? "";
-  document.getElementById("pagoQuincenasPendientes").value = d.pendientes ?? "";
-  const cargosField = document.getElementById("pagoCargos");
-  if (cargosField) cargosField.value = d.cargos ?? "0";
+  document.getElementById("pagoQuincenasPagadas").value = d.pagadas ?? "";
   document.getElementById("pagoModalTitulo").textContent = "✏️ Editar Pago";
 
   const m = document.getElementById("mensajePago");
@@ -264,35 +253,27 @@ function abrirModalPago(id) {
   document.getElementById("modalPago").style.display = "flex";
 }
 
-// Mantiene pendientes = totales cuando el usuario escribe las totales
-// (caso común: comprar a N quincenas => N pendientes al inicio).
+// Mantiene quincenas pagadas dentro de [0, totales] (nunca negativas ni
+// mayores que las totales).
 function sincronizarQuincenas() {
   const tot = document.getElementById("pagoQuincenasTotales");
-  const pen = document.getElementById("pagoQuincenasPendientes");
-  if (!tot || !pen) return;
+  const pag = document.getElementById("pagoQuincenasPagadas");
+  if (!tot || !pag) return;
   const t = parseInt(tot.value) || 0;
-  let p = parseInt(pen.value) || 0;
-  if (pen.value === "" || t === 0) {
-    pen.value = t > 0 ? t : "";
-    return;
-  }
-  // Nunca permitir pendientes > totales ni negativas.
+  let p = parseInt(pag.value) || 0;
   p = Math.min(Math.max(0, p), t);
-  pen.value = t === 0 && pen.value === "" ? "" : String(p);
+  pag.value = pag.value === "" ? "" : String(p);
 }
 
 async function guardarPago() {
   const msg = document.getElementById("mensajePago");
   const cliente = document.getElementById("pagoCliente").value.trim();
-  const monto = parseFloat(document.getElementById("pagoMonto").value) || 0;
+  const adeudoTotal =
+    parseFloat(document.getElementById("pagoAdeudoTotal").value) || 0;
   const qTotales =
     parseInt(document.getElementById("pagoQuincenasTotales").value) || 0;
-  const qPendientes =
-    parseInt(document.getElementById("pagoQuincenasPendientes").value) || 0;
-  const cargosField = document.getElementById("pagoCargos");
-  const cargos = cargosField
-    ? Math.max(0, parseFloat(cargosField.value) || 0)
-    : 0;
+  const qPagadas =
+    parseInt(document.getElementById("pagoQuincenasPagadas").value) || 0;
 
   if (!cliente) {
     return mostrarMensajePago(
@@ -301,10 +282,10 @@ async function guardarPago() {
       "error",
     );
   }
-  if (monto <= 0) {
+  if (adeudoTotal < 0) {
     return mostrarMensajePago(
       msg,
-      "❌ El monto del adeudo debe ser mayor a 0.",
+      "❌ El adeudo total no puede ser negativo.",
       "error",
     );
   }
@@ -315,24 +296,18 @@ async function guardarPago() {
       "error",
     );
   }
-  if (qPendientes < 0) {
+  if (qPagadas < 0 || qPagadas > qTotales) {
     return mostrarMensajePago(
       msg,
-      "❌ Las quincenas pendientes no pueden ser negativas.",
-      "error",
-    );
-  }
-  if (qPendientes > qTotales) {
-    return mostrarMensajePago(
-      msg,
-      `❌ Las quincenas pendientes (${qPendientes}) no pueden superar las totales (${qTotales}).`,
+      `❌ Las quincenas pagadas (${qPagadas}) deben estar entre 0 y las totales (${qTotales}).`,
       "error",
     );
   }
 
-  const qPend = qPendientes; // ya validado entre 0 y totales
-  const qPagadas = qTotales - qPend;
-  const quedaLiquidado = qPend === 0;
+  const qPend = qTotales - qPagadas;
+  const liquida = adeudoTotal <= 0;
+  const estado = liquida ? "liquidado" : "al_corriente";
+  const fecha = liquida ? new Date().toISOString() : null;
 
   try {
     if (pagoEditando) {
@@ -344,21 +319,16 @@ async function guardarPago() {
       if (prevErr) throw prevErr;
       const updates = {
         cliente,
-        monto_actual: monto,
-        cargos,
+        adeudo_total: adeudoTotal,
         quincenas_totales: qTotales,
         quincenas_pendientes: qPend,
         quincenas_pagadas: qPagadas,
         quincenas_liquidadas: qPagadas,
-        estado: quedaLiquidado
-          ? "liquidado"
-          : prev.estado === "liquidado"
-            ? "liquidado"
-            : prev.estado || "en_mora",
+        estado,
         updated_at: new Date().toISOString(),
       };
-      if (quedaLiquidado && !prev.fecha_liquidacion) {
-        updates.fecha_liquidacion = new Date().toISOString();
+      if (liquida && !prev.fecha_liquidacion) {
+        updates.fecha_liquidacion = fecha;
       }
       const { error } = await window.supabase
         .from("pagos")
@@ -369,14 +339,13 @@ async function guardarPago() {
       const { error } = await window.supabase.from("pagos").insert([
         {
           cliente,
-          monto_actual: monto,
+          adeudo_total: adeudoTotal,
           quincenas_totales: qTotales,
           quincenas_pendientes: qPend,
           quincenas_pagadas: qPagadas,
           quincenas_liquidadas: qPagadas,
-          cargos,
-          estado: quedaLiquidado ? "liquidado" : "en_mora",
-          fecha_liquidacion: quedaLiquidado ? new Date().toISOString() : null,
+          estado,
+          fecha_liquidacion: fecha,
         },
       ]);
       if (error) throw error;
@@ -461,7 +430,7 @@ async function liquidarPago(id) {
           const { error: upError } = await window.supabase
             .from("pagos")
             .update({
-              monto_actual: 0,
+              adeudo_total: 0,
               quincenas_pendientes: 0,
               quincenas_pagadas: totales,
               quincenas_liquidadas: totales,
@@ -489,7 +458,7 @@ async function liquidarPago(id) {
 async function cargarMorosidadPago(id) {
   if (typeof modalConfirmar === "function") {
     modalConfirmar(
-      `¿Cargar morosidad? El adeudo aumentará $${CARGO_MOROSIDAD} MXN (solo en cargos; NO modifica las quincenas).`,
+      `¿Cargar morosidad? El adeudo total aumentará $${CARGO_MOROSIDAD} MXN (NO modifica las quincenas).`,
       async () => {
         try {
           const { data, error } = await window.supabase
@@ -498,20 +467,20 @@ async function cargarMorosidadPago(id) {
             .eq("id", id)
             .single();
           if (error) throw error;
-          const nuevoMonto = (Number(data.monto_actual) || 0) + CARGO_MOROSIDAD;
+          const baseAdeudo = Number(data.adeudo_total) || 0;
+          const update = {
+            adeudo_total: baseAdeudo + CARGO_MOROSIDAD,
+            estado: "al_corriente",
+            updated_at: new Date().toISOString(),
+          };
           const { error: upError } = await window.supabase
             .from("pagos")
-            .update({
-              monto_actual: nuevoMonto,
-              cargos: (Number(data.cargos) || 0) + CARGO_MOROSIDAD,
-              estado: "en_mora",
-              updated_at: new Date().toISOString(),
-            })
+            .update(update)
             .eq("id", id);
           if (upError) throw upError;
           cargarPagos();
           mostrarModalAlerta(
-            `✅ Morosidad cargada: +$${CARGO_MOROSIDAD} MXN (cargos)`,
+            `✅ Morosidad cargada: +$${CARGO_MOROSIDAD} MXN al adeudo total`,
           );
         } catch (error) {
           console.error("Error cargando morosidad:", error);
@@ -682,21 +651,16 @@ async function aplicarCargoPago(id, esCargo, monto) {
       .single();
     if (error) throw error;
 
-    let nuevoMonto = Number(data.monto_actual) || 0;
-    let nuevosCargos = Number(data.cargos) || 0;
-    if (esCargo) {
-      nuevoMonto += monto;
-      nuevosCargos += monto;
-    } else {
-      nuevoMonto = Math.max(0, nuevoMonto - monto);
-      nuevosCargos = Math.max(0, nuevosCargos - monto);
-    }
+    const adeudo = Number(data.adeudo_total) || 0;
 
-    const quedaLiquidado = nuevoMonto <= 0;
+    const nuevoAdeudo = esCargo
+      ? adeudo + monto
+      : Math.max(0, adeudo - monto);
+
+    const quedaLiquidado = nuevoAdeudo <= 0;
     const updates = {
-      monto_actual: nuevoMonto,
-      cargos: nuevosCargos,
-      estado: quedaLiquidado ? "liquidado" : data.estado,
+      adeudo_total: nuevoAdeudo,
+      estado: quedaLiquidado ? "liquidado" : "al_corriente",
       updated_at: new Date().toISOString(),
     };
     if (quedaLiquidado && !data.fecha_liquidacion) {
@@ -754,23 +718,21 @@ async function cargarPagosDummySiVacio() {
       await window.supabase.from("pagos").insert([
         {
           cliente: "Cliente Demo 1",
-          monto_actual: 1200,
+          adeudo_total: 1200,
           quincenas_totales: 4,
           quincenas_pagadas: 0,
           quincenas_liquidadas: 0,
           quincenas_pendientes: 4,
-          cargos: 0,
           estado: "en_mora",
           fecha_liquidacion: null,
         },
         {
           cliente: "Cliente Demo 2",
-          monto_actual: 500,
+          adeudo_total: 500,
           quincenas_totales: 2,
           quincenas_pagadas: 1,
           quincenas_liquidadas: 1,
           quincenas_pendientes: 1,
-          cargos: 0,
           estado: "al_corriente",
           fecha_liquidacion: null,
         },

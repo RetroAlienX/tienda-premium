@@ -23,7 +23,7 @@
         }
 
         .container-admin {
-            max-width: 1400px;
+            max-width: 1800px;
             margin: 0 auto;
             padding: 20px;
         }
@@ -362,9 +362,9 @@
             width: auto !important;
             height: auto !important;
             min-width: 0 !important;
-            padding: 6px 10px !important;
+            padding: 4px 7px !important;
             white-space: nowrap !important;
-            font-size: 0.68rem !important;
+            font-size: 0.65rem !important;
             gap: 4px !important;
         }
 
@@ -505,6 +505,27 @@
             .stat-grid {
                 grid-template-columns: 1fr 1fr;
             }
+
+            /* Tablas responsivas: texto envuelve para evitar scroll horizontal. */
+            .table {
+                font-size: 0.72rem !important;
+            }
+
+            .table thead th,
+            .table tbody td {
+                padding: 8px 6px !important;
+                white-space: normal !important;
+            }
+
+            /* En pagos las acciones se mantienen en una sola línea (scroll suave si hace falta). */
+            .table td:has(.acciones-pago) {
+                white-space: nowrap !important;
+            }
+
+            .acciones-pago .btn {
+                font-size: 0.6rem !important;
+                padding: 3px 6px !important;
+            }
         }
 
         @media(max-width: 480px) {
@@ -550,17 +571,17 @@
            horizontal "desfasada" bajo la tabla). */
         .acciones-pago {
             display: flex;
-            flex-wrap: wrap;
+            flex-wrap: nowrap;
             align-items: center;
-            justify-content: center;
-            gap: 8px;
-            max-width: 360px;
-            margin: 0 auto;
+            justify-content: flex-start;
+            gap: 4px;
+            max-width: none;
+            margin: 0;
         }
 
         .btn-accion {
-            font-size: 0.72rem;
-            padding: 6px 12px;
+            font-size: 0.68rem;
+            padding: 4px 8px;
             line-height: 1;
             white-space: nowrap;
             margin: 0;
@@ -764,6 +785,11 @@
                             style="padding:10px 16px;font-size:0.75rem; width: auto; background:var(--regio-red); color:white; border:none;"
                             title="⚠️ BORRA todos los movimientos de finanzas de forma permanente (pide confirmación).">🧹
                             Limpiar base de datos</button>
+                        <button class="btn-premium danger"
+                            onclick="reiniciarContadoresFinanzas()"
+                            style="padding:10px 16px;font-size:0.75rem; width: auto; background:#b45309; color:white; border:none;"
+                            title="Pone Ingresos, Gastos y Ganancia en $0.00 eliminando los movimientos financieros actuales (pide confirmación).">🔁
+                            Reiniciar contadores a $0.00</button>
                         <button id="btnAgregarFinanza" class="btn-premium"
                             style="padding:10px 16px;font-size:0.75rem; width: auto;"><i class="fas fa-plus"></i>
                             Registrar</button>
@@ -781,6 +807,10 @@
                     style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:15px;">
                     <h5 style="margin:0;">🧾 Ticket · Impresión | Reimpresión | Venta Directa</h5>
                     <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                        <button type="button" id="btnMostrarLugaresTicket" class="btn-premium-outline"
+                            style="padding:8px 16px;font-size:0.75rem; width:auto;"
+                            title="Muestra los lugares de entrega y su costo de envío, para copiarlo al ticket manualmente.">🚚
+                            Mostrar lugares de entrega</button>
                         <button id="btnRefrescarTicket" class="btn-premium-outline"
                             style="padding:8px 16px;font-size:0.75rem; width:auto;">🔄 Refrescar</button>
                         <button type="button" id="btnLimpiarTicket" class="btn-premium-outline"
@@ -789,12 +819,13 @@
                 </div>
 
                 <label style="display:block; font-size:0.7rem; color:var(--text-silver); margin-bottom:6px;">
-                    Elige "Venta nueva" para registrar una venta (descuenta stock). O elige un pedido existente para
-                    imprimir/reimprimir su ticket (informativo, no descuenta stock ni crea otra venta).
+                    Precarga aquí un pedido existente para imprimir/reimprimir su ticket (informativo, no descuenta
+                    stock ni crea otra venta). O déjalo así para llenar manualmente una venta directa desde cero
+                    (descuenta stock) e imprimir su ticket.
                 </label>
                 <select id="ticketPedidoSelect" class="input-luxury" style="margin-bottom:18px;"
-                    title="Elige un pedido ya existente para reimprimir su ticket, o deja 'Venta nueva' para vender desde cero.">
-                    <option value="">Venta nueva (sin pedido existente)...</option>
+                    title="Precarga aquí un pedido existente (para imprimir/reimprimir su ticket), o déjalo así para llenar manualmente una venta directa e imprimir su ticket.">
+                    <option value="">Precarga pedidos existentes para imprimir o reimprimir ticket, o llena manualmente para una venta directa, generar el pedido e imprimir su ticket.</option>
                 </select>
 
                 <form id="formTicketVenta">
@@ -1346,9 +1377,10 @@
             <label
                 style="display:block; font-size:0.7rem; color:var(--text-silver); margin:12px 0 6px; line-height:1.5;">
                 Controla los pagos a plazos de tus clientes: <strong>liquidar</strong> (salda el adeudo),
-                <strong>cargar morosidad</strong> (aumenta el adeudo en <strong>$50 MXN</strong> y suma una quincena
-                pendiente), <strong>añadir cargo</strong> (recargo extra) o <strong>deducir cargo</strong>
-                (abono que baja el adeudo). Pasa el cursor sobre cada botón para ver qué hace.
+                <strong>cargar morosidad</strong> (aumenta el adeudo total en <strong>$50 MXN</strong>, sin tocar
+                quincenas), <strong>añadir cargo</strong> (recargo extra al adeudo total) o <strong>deducir
+                    cargo</strong> (abono que baja el adeudo total). Pasa el cursor sobre cada botón para ver qué
+                hace.
             </label>
             <div id="listaPagos" class="table-responsive">
                 <div style="text-align:center; padding:40px; color:var(--text-silver);">Cargando...</div>
@@ -1364,25 +1396,41 @@
             <div id="mensajePago" style="margin-bottom:12px;"></div>
             <input type="text" id="pagoCliente" class="input-luxury" placeholder="Nombre del cliente *"
                 title="Nombre del cliente que tiene este crédito/pago.">
-            <input type="number" id="pagoMonto" class="input-luxury" placeholder="Monto del adeudo *" step="0.01"
-                min="0" title="Cantidad total que el cliente debe pagar.">
-            <input type="number" id="pagoCargos" class="input-luxury" placeholder="Cargos acumulados" step="0.01"
-                min="0" title="Cargos extras acumulados por morosidad/recargos. Solo afectan el monto y la columna Cargos; NO modifican las quincenas.">
+            <input type="number" id="pagoAdeudoTotal" class="input-luxury" placeholder="Adeudo total *" step="0.01"
+                min="0" title="Deuda actual del cliente. Los cargos (+) y abonos (−) y las moras (+$50) se aplican a este valor. Al llegar a 0 se marca como liquidado.">
             <input type="number" id="pagoQuincenasTotales" class="input-luxury" placeholder="Quincenas totales *"
                 min="1" step="1" oninput="sincronizarQuincenas()"
                 title="Número total de quincenas acordadas para cubrir el pago. Ej: si vendes a 10 quincenas, escribe 10.">
-            <input type="number" id="pagoQuincenasPendientes" class="input-luxury" placeholder="Quincenas pendientes *"
-                min="0" step="1"
-                title="Cuántas quincenas faltan por pagar. No puede superar las totales ni ser negativa. Normalmente se deja igual que las totales (todas pendientes al inicio).">
+            <input type="number" id="pagoQuincenasPagadas" class="input-luxury" placeholder="Quincenas pagadas"
+                min="0" step="1" oninput="sincronizarQuincenas()"
+                title="Cuántas quincenas ya ha pagado el cliente. No puede superar las totales ni ser negativa.">
             <label style="display:block; font-size:0.7rem; color:var(--text-silver); margin-bottom:6px;">
-                💳 Quincenas: <strong>pagadas = totales − pendientes</strong>. Al cargar totales, las pendientes se
-                igualan automáticamente.
+                💳 Quincenas: <strong>pendientes = totales − pagadas</strong>. Las quincenas pagadas se limitan
+                automáticamente a las totales.
             </label>
             <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:20px;">
                 <button type="button" class="btn-premium-outline" style="width: auto;"
                     onclick="document.getElementById('modalPago').style.display='none';">Cancelar</button>
                 <button type="button" class="btn-premium" style="width: auto;" onclick="guardarPago()"><i
                         class="fas fa-save"></i> Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL LUGARES DE ENTREGA (tab Ticket) -->
+    <div id="modalLugaresEntrega" class="modal-box">
+        <div class="modal-content" style="max-width:520px;">
+            <h5 style="font-weight:400; margin-bottom:8px;">🚚 Lugares de entrega</h5>
+            <p style="font-size:0.72rem; color:var(--text-silver); margin:0 0 12px 0; line-height:1.5;">
+                Haz clic sobre una fila para copiar su <strong>costo de envío</strong> al campo de envío del ticket
+                (llenado manual).
+            </p>
+            <div id="listaModalLugares" class="table-responsive" style="margin-top:0; max-height:380px; overflow-y:auto;">
+                <div style="text-align:center; padding:24px; color:var(--text-silver);">Cargando...</div>
+            </div>
+            <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:16px;">
+                <button type="button" class="btn-premium-outline" style="width:auto;"
+                    onclick="document.getElementById('modalLugaresEntrega').style.display='none';">Cerrar</button>
             </div>
         </div>
     </div>
@@ -1397,7 +1445,7 @@
             <p id="cargoClienteInfo" style="font-size:0.8rem; color:var(--text-silver); margin:0 0 8px 0;"></p>
             <input type="number" id="cargoMonto" class="input-luxury"
                 placeholder="Ej: 50 (monto en pesos MXN a aplicar)" step="0.01" min="0.01"
-                title="Cantidad en pesos MXN a sumar (cargo) o restar (abono) del adeudo actual. Debe ser mayor a 0.">
+                title="Cantidad en pesos MXN a sumar (cargo) o restar (abono) del adeudo total. Debe ser mayor a 0.">
             <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:20px;">
                 <button type="button" class="btn-premium-outline" style="width:auto;"
                     title="Cerrar sin aplicar cambios a este pago."

@@ -3,8 +3,6 @@
 // ============================================
 
 (function () {
-  console.log("✦ Configurando Netlify...");
-
   const urlMeta = document.querySelector('meta[name="supabase-url"]');
   const keyMeta = document.querySelector('meta[name="supabase-key"]');
 
@@ -19,7 +17,6 @@
         SUPABASE_URL: url,
         SUPABASE_ANON_KEY: key,
       };
-      console.log("✅ Configuración desde meta tags");
       return;
     }
   }

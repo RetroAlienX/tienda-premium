@@ -1098,6 +1098,10 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     });
 
+  document
+    .getElementById("btnMostrarLugaresTicket")
+    ?.addEventListener("click", abrirModalLugaresEntrega);
+
   esperarSupabase(function () {
     cargarProductosTicket();
     cargarPedidosParaTicket();
@@ -2250,6 +2254,32 @@ async function limpiarTabla(tablas, descripcion, refrescar) {
   }
 }
 
+// Reinicializa los contadores financieros a $0.00 (borra los movimientos
+// actuales de finanzas tras confirmar con modal de advertencia).
+function reiniciarContadoresFinanzas() {
+  if (typeof modalConfirmar === "function") {
+    modalConfirmar(
+      "⚠️ Esto borrará TODOS los movimientos financieros actuales y pondrá los contadores de Ingresos, Gastos y Ganancia en $0.00. Esta acción NO se puede deshacer. ¿Continuar?",
+      async () => {
+        try {
+          const { error } = await window.supabase
+            .from("finanzas")
+            .delete()
+            .neq("id", "00000000-0000-0000-0000-000000000000");
+          if (error) throw error;
+          mostrarModalAlerta(
+            "✅ Contadores reiniciados a $0.00. Los movimientos financieros fueron eliminados.",
+          );
+          if (typeof cargarFinanzas === "function") cargarFinanzas();
+        } catch (error) {
+          console.error("Error reiniciando contadores:", error);
+          mostrarModalAlerta("❌ Error al reiniciar: " + error.message);
+        }
+      },
+    );
+  }
+}
+
 async function abrirModalEditarPedido(id) {
   const row = document.querySelector(`tr[data-pedido-id="${id}"]`);
   if (!row) {
@@ -2824,14 +2854,31 @@ async function cargarPedidosParaTicket() {
     if (error) throw error;
 
     select.innerHTML =
-      '<option value="">Venta nueva (sin pedido existente)...</option>';
+      '<option value="">Precarga pedidos existentes para imprimir o reimprimir ticket, o llena manualmente para una venta directa, generar el pedido e imprimir su ticket.</option>';
 
     (data || []).forEach((p) => {
       const opt = document.createElement("option");
       opt.value = p.id;
+      const productosText = (p.productos || [])
+        .map((x) => `${x.nombre} x${x.cantidad}`)
+        .join(", ");
+      const estadoLabel =
+        p.estado === "pendiente"
+          ? "📋 Pendiente"
+          : p.estado === "confirmado"
+            ? "✅ Confirmado"
+            : p.estado === "vendido"
+              ? "💰 Vendido"
+              : p.estado === "entregado"
+                ? "📦 Entregado"
+                : p.estado === "cancelado"
+                  ? "❌ Cancelado"
+                  : p.estado === "devuelto"
+                    ? "↩️ Devuelto"
+                    : (p.estado || "—");
       opt.textContent = `${p.numero_pedido || "S/N"} - ${
         p.cliente_nombre
-      } (${p.estado})`;
+      } · ${estadoLabel} (${productosText})`;
       opt.dataset.pedido = JSON.stringify(p);
       select.appendChild(opt);
     });
@@ -4412,6 +4459,92 @@ function aplicarCostoLugarTicket(sel) {
   if (envio && opt && opt.value !== "") envio.value = costo;
 }
 
+// Abre un modal con los lugares de entrega y su costo de envío (columna #,
+// Lugar y Costo de envío) para llenar el ticket manualmente. Al hacer clic en
+// una fila se copia el costo al campo de envío del ticket y se cierra.
+async function abrirModalLugaresEntrega() {
+  const container = document.getElementById("listaModalLugares");
+  if (!container) return;
+  container.innerHTML =
+    '<div style="text-align:center; padding:24px; color:var(--text-silver);">Cargando...</div>';
+  document.getElementById("modalLugaresEntrega").style.display = "flex";
+
+  let lugares = [];
+  try {
+    if (window.supabase && typeof window.supabase.from === "function") {
+      const { data, error } = await window.supabase
+        .from("lugares_entrega")
+        .select("lugar, costo, orden")
+        .order("orden", { ascending: true });
+      if (!error && data) lugares = data;
+    }
+  } catch (e) {
+    lugares = [];
+  }
+
+  if (!lugares.length) {
+    lugares = [
+      { lugar: "Punto de entrega", costo: 0 },
+      { lugar: "San Nicolas", costo: 100 },
+      { lugar: "Apodaca", costo: 80 },
+      { lugar: "Escobedo", costo: 100 },
+      { lugar: "Monterrey", costo: 150 },
+      { lugar: "Cienega de Flores", costo: 100 },
+      { lugar: "Zuazua", costo: 130 },
+      { lugar: "Marin", costo: 130 },
+      { lugar: "San Pedro", costo: 150 },
+      { lugar: "Garcia", costo: 150 },
+    ];
+  }
+
+  container.innerHTML = `
+    <table class="table table-dark table-hover table-sm" style="margin:0;">
+        <thead>
+            <tr>
+                <th style="width:40px; text-align:center;">#</th>
+                <th>Lugar</th>
+                <th style="text-align:center;">Costo de envío</th>
+            </tr>
+        </thead>
+        <tbody>
+            ${lugares
+              .map(
+                (l, i) => `
+                <tr style="cursor:pointer;" onclick="copiarCostoLugarTicket(${
+                  Number(l.costo) || 0
+                })" title="Clic para copiar $${Number(l.costo) || 0} al envío del ticket.">
+                    <td style="text-align:center;">${i + 1}</td>
+                    <td><strong>${l.lugar}</strong></td>
+                    <td style="text-align:center;"><span style="color:var(--accent); font-weight:600; white-space:nowrap;">${formatearMoneda(
+                      Number(l.costo) || 0,
+                    )}</span></td>
+                </tr>
+            `,
+              )
+              .join("")}
+        </tbody>
+    </table>
+    <div style="margin-top:8px; color:var(--text-dim); font-size:0.7rem;">
+        <i class="fas fa-info-circle"></i> Haz clic en una fila para copiar su costo de envío al ticket.
+    </div>
+  `;
+}
+
+// Copia el costo al campo de envío del ticket y cierra el modal.
+function copiarCostoLugarTicket(costo) {
+  const envio = document.getElementById("ticketEnvio");
+  if (envio) envio.value = costo;
+  const modal = document.getElementById("modalLugaresEntrega");
+  if (modal) modal.style.display = "none";
+  const msgt = document.getElementById("mensajeTicket");
+  if (msgt) {
+    msgt.innerHTML = `<div class="alert alert-success" style="padding:8px 12px; margin:10px 0 0; font-size:0.8rem;">✅ Costo de envío copiado: ${formatearMoneda(
+      costo,
+    )}</div>`;
+    msgt.className = "";
+  }
+}
+
 // ============================================
 // CRUD DE MARCAS (tab Promociones)
 // ============================================
@@ -4632,6 +4765,7 @@ window.cargarPedidosPendientes = cargarPedidosPendientes;
 window.cargarProductos = cargarProductos;
 window.cargarInventario = cargarInventario;
 window.cargarFinanzas = cargarFinanzas;
+window.reiniciarContadoresFinanzas = reiniciarContadoresFinanzas;
 window.editarProducto = editarProducto;
 window.pedirEliminar = pedirEliminar;
 window.verDetallePedido = verDetallePedido;
@@ -4668,6 +4802,8 @@ window.guardarLugar = guardarLugar;
 window.cargarLugaresEntregaAdmin = cargarLugaresEntregaAdmin;
 window.cargarLugaresTicketAdmin = cargarLugaresTicketAdmin;
 window.aplicarCostoLugarTicket = aplicarCostoLugarTicket;
+window.abrirModalLugaresEntrega = abrirModalLugaresEntrega;
+window.copiarCostoLugarTicket = copiarCostoLugarTicket;
 window.cargarMarcas = cargarMarcas;
 window.mostrarFormMarca = mostrarFormMarca;
 window.ocultarFormMarca = ocultarFormMarca;

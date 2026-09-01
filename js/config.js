@@ -3,8 +3,6 @@
 // ============================================
 
 (function () {
-  console.log("✦ Route66 Market - Iniciando configuración...");
-
   // 1. Intentar desde window (inyectado por Netlify)
   if (window.SUPABASE_URL && window.SUPABASE_ANON_KEY) {
     const url = window.SUPABASE_URL;
@@ -15,7 +13,6 @@
         SUPABASE_URL: url,
         SUPABASE_ANON_KEY: key,
       };
-      console.log("✅ Configuración cargada desde window");
       return;
     }
   }
@@ -46,5 +43,3 @@ window.TIENDA_CONFIG = {
   EMAIL: "theroute66jvmarket@outlook.com",
   HORARIO: "Lunes a Viernes: 9:00 AM - 8:00 PM | Sábado: 10:00 AM - 6:00 PM",
 };
-
-console.log("✅ Configuración de tienda cargada");

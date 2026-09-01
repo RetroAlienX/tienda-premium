@@ -159,6 +159,16 @@
                 font-size: 0.8rem;
             }
         }
+
+        /* Campos de texto del formulario de pedido: crecen automáticamente
+           conforme se llenan (no se pueden redimensionar manualmente). */
+        #direccionCliente,
+        #notasPedido {
+            resize: none;
+            overflow: hidden;
+            line-height: 1.6;
+            min-height: 0;
+        }
     </style>
 </head>
 
@@ -527,19 +537,19 @@
                         <div class="col-12">
                             <input type="hidden" id="metodoPago" value="transferencia">
                             <div class="input-luxury" style="display:flex; align-items:center; justify-content:space-between; pointer-events:none; cursor:default;">
-                                <span style="font-size:0.95rem;">💳 Método de pago</span>
+                                <span style="font-size:0.95rem;">💳 Único método de pago disponible</span>
                                 <strong style="color:var(--regio-green);">Transferencia</strong>
                             </div>
-                            <p style="font-size:0.85rem; color:var(--text-silver); margin:8px 0 0 2px; font-weight:500;">
-                                📲 Te contactaremos por WhatsApp o correo registrado con las instrucciones de pago.
+                            <p class="campo-hint">
+                                📲 Al confirmar, te contactaremos por WhatsApp o correo con las instrucciones para completar tu pago.
                             </p>
                         </div>
                         <div class="col-12">
                             <select id="diaEntrega" class="input-luxury" required>
                                 <option value="" disabled selected>Selecciona tu día de entrega...</option>
                             </select>
-                            <p style="font-size:0.85rem; color:var(--text-silver); margin:8px 0 0 2px; font-weight:500;">
-                                📦 Las entregas se realizan los fines de semana, sujetas a los horarios disponibles.
+                            <p class="campo-hint">
+                                📦 Las entregas se realizan los fines de semana, sujetas a los horarios disponibles. Elige el día y horario que te convenga.
                             </p>
                         </div>
                         <div class="col-12">
@@ -891,9 +901,6 @@
             }
         });
 
-        console.log('🛣️ The Route66 Market · Premium USA Imports');
-        console.log('✦ 5 clics en el logo para acceder al panel admin');
-
         // LIMPIAR MENSAJE DE CANCELACIÓN DESPUÉS DE 5 SEGUNDOS
         const mensajeCancelacion = document.getElementById('mensajeCancelacion');
         if (mensajeCancelacion) {
@@ -902,6 +909,19 @@
                 mensajeCancelacion.classList.remove('visible');
             }, 5000);
         }
+
+        // AUTO-RESIZE: los campos de texto crecen automáticamente conforme se llenan.
+        function autoResizeTextarea(el) {
+            el.style.height = 'auto';
+            el.style.height = el.scrollHeight + 'px';
+        }
+        ['direccionCliente', 'notasPedido'].forEach(function (id) {
+            const el = document.getElementById(id);
+            if (el) {
+                el.addEventListener('input', function () { autoResizeTextarea(el); });
+                autoResizeTextarea(el);
+            }
+        });
     </script>
 
 </body>
