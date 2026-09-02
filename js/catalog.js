@@ -226,19 +226,21 @@ function hacerPedido(id) {
 🎁 ${p.nombre}
 💰 Precio: ${formatearMoneda(p.precio)}
 🔢 Cantidad: ¿Cuántas unidades necesitas?
-📍 Dirección: ¿A dónde te lo enviamos?
+📱 Teléfono: 10 dígitos (ej: 8126878080)
 💳 Pago: Solo por transferencia bancaria
-📍 Entrega: Los sábados y domingos, horario de 8:00 AM a 4:00 PM
+📍 Entrega: Los sábados y domingos. Tenemos puntos fijos de entrega (Apodaca, San Nicolás y Costco Escobedo) con horario asignado y envío GRATIS; y zonas coordinadas (San Pedro, Monterrey y Guadalupe) donde acordamos punto y horario.
 📅 Nota: Si realizas tu pedido en viernes después de las 10:00 PM, se entregará hasta el siguiente fin de semana (próximo sábado o domingo) por disponibilidad de horario.
 🎟️ Cupón: ¿Tienes algún cupón? Indícanos el código
 ✅ ¡Gracias!
 
 📋 *POR FAVOR LEE NUESTRAS POLÍTICAS* 👇
-📲 *Siguiente paso:* te contactaremos por correo o WhatsApp para enviarte los datos de pago. Realiza tu transferencia y envíanos el comprobante para confirmar tu fecha y hora de entrega. 🚚
+📍 *Puntos fijos (envío gratis):* Apodaca centro (frente a iglesia) 8:00–8:30 AM · San Nicolás centro (plaza presidencia) 9:00–9:30 AM · Costco Escobedo 10:00–10:30 AM. Acude a recoger tu pedido en el horario asignado.
+📍 *Zonas coordinadas ($200):* San Pedro, Monterrey y Guadalupe. El punto y horario exactos se acuerdan contigo por WhatsApp.
+📲 *Siguiente paso:* te contactaremos por correo o WhatsApp para enviarte los datos de pago. Realiza tu transferencia y envíanos el comprobante para confirmar tu fecha y punto de entrega. 🚚
 🎟️ *Cupones:* si aplicaste uno, tu descuento ya está calculado sobre productos + envío.
 💳 *Pago:* si tu pedido no se paga dentro de los 3 días posteriores a la compra, se cancelará automáticamente.
 ⏳ *Cancelación:* puedes solicitar la cancelación dentro de los 3 días posteriores a tu compra. Después de ese periodo no es posible cancelar el pedido.
-🚚 *Entrega:* contamos con 15 minutos de tolerancia para recibir tu pedido. Si no es posible la entrega, se reprograma con un nuevo cargo de envío. Un segundo intento fallido devuelve la mercancía a nuestro stock.
+🚚 *Entrega:* contamos con 15 minutos de tolerancia para entregarte tu pedido. Si no es posible la entrega, se reprograma con un nuevo cargo de envío. Un segundo intento fallido devuelve la mercancía a nuestro stock.
 📅 *Nota:* los pedidos realizados en viernes después de las 10:00 PM se entregan hasta el siguiente fin de semana por disponibilidad de horario.
 📦 *Permanencia:* reservamos tus productos durante 1 semana completa. Si dentro de ese plazo no se completa la entrega (por no poder recibir o no acudir al punto acordado), el pedido se dará por concluido, los productos regresarán a stock y el pago realizado no será reembolsable. 💰`;
 
@@ -469,6 +471,19 @@ async function enviarCorreoConfirmacion(
       })(),
       dia_entrega: formatearDiaEntrega(pedido.dia_entrega),
       hora_entrega: formatearHoraEntrega(pedido.hora_entrega),
+      lugar_entrega: pedido.lugar_entrega || "Por confirmar",
+      instruccion_entrega: (() => {
+        const lt =
+          lugaresCargados.find((l) => l.lugar === pedido.lugar_entrega) ||
+          null;
+        const hf = lt ? lt.horario_fijo : null;
+        if (hf) {
+          return `📍 Punto fijo de entrega: acude a "${pedido.lugar_entrega}" en el horario asignado (${formatearHorarioFijo(
+            hf,
+          )}). ¡El envío es GRATIS!`;
+        }
+        return `📍 Punto y horario a convenir. Te contactaremos por WhatsApp para coordinar la entrega en "${pedido.lugar_entrega}".`;
+      })(),
       total: formatearMoneda(total),
       metodo_pago: "Transferencia Bancaria",
       direccion:
@@ -1119,7 +1134,7 @@ function poblarHorariosEntrega() {
 // POLÍTICAS DE ENTREGA Y PERMANENCIA (texto reutilizable)
 // ============================================
 const TEXTO_POLITICAS_ENTREGA =
-  "🚚 Entrega: contamos con 15 minutos de tolerancia para recibir tu pedido. Si no es posible la entrega, se reprograma con un nuevo cargo de envío. Un segundo intento fallido devuelve la mercancía a stock.";
+  "🚚 Entrega: contamos con 15 minutos de tolerancia para entregarte tu pedido. Contamos con puntos fijos de entrega con envío GRATIS (Apodaca centro · 8:00-8:30 AM, San Nicolás centro · 9:00-9:30 AM y Costco Escobedo · 10:00-10:30 AM) y zonas coordinadas (San Pedro, Monterrey y Guadalupe) donde el punto y horario se acuerdan por WhatsApp con un costo de $200. Si no es posible la entrega, se reprograma con un nuevo cargo de envío. Un segundo intento fallido devuelve la mercancía a stock.";
 const TEXTO_CANCELACION_3DIAS =
   "⏳ Puedes solicitar la cancelación dentro de los 3 días posteriores a tu compra. Después de ese periodo el pedido ya no puede cancelarse.";
 
@@ -1127,17 +1142,35 @@ const TEXTO_CANCELACION_3DIAS =
 // LUGARES DE ENTREGA (desde Supabase, con respaldo local)
 // ============================================
 const LUGARES_FALLBACK = [
-  { lugar: "Punto de entrega", costo: 0 },
-  { lugar: "San Nicolas", costo: 100 },
-  { lugar: "Apodaca", costo: 80 },
-  { lugar: "Escobedo", costo: 100 },
-  { lugar: "Monterrey", costo: 150 },
-  { lugar: "Cienega de Flores", costo: 100 },
-  { lugar: "Zuazua", costo: 130 },
-  { lugar: "Marin", costo: 130 },
-  { lugar: "San Pedro", costo: 150 },
-  { lugar: "Garcia", costo: 150 },
+  { lugar: "Apodaca centro (frente a iglesia)", costo: 0, horario_fijo: "08:00-08:30" },
+  { lugar: "San Nicolas centro (plaza presidencia)", costo: 0, horario_fijo: "09:00-09:30" },
+  { lugar: "Costco Escobedo", costo: 0, horario_fijo: "10:00-10:30" },
+  { lugar: "San Pedro (punto y horario a convenir)", costo: 200, horario_fijo: null },
+  { lugar: "Monterrey (punto y horario a convenir)", costo: 200, horario_fijo: null },
+  { lugar: "Guadalupe (punto y horario a convenir)", costo: 200, horario_fijo: null },
 ];
+
+// Traduce un horario "HH:MM-HH:MM" a "8:00 AM – 8:30 AM"
+function formatearHorarioFijo(rango) {
+  if (!rango) return null;
+  const [ini, fin] = rango.split("-");
+  const fmt = (t) => {
+    const [h, m] = t.split(":");
+    const hora = parseInt(h, 10) || 0;
+    const min = m || "00";
+    const sufijo = hora >= 12 ? "PM" : "AM";
+    const h12 = hora % 12 || 12;
+    return `${h12}:${min} ${sufijo}`;
+  };
+  return ini && fin ? `${fmt(ini)} – ${fmt(fin)}` : null;
+}
+
+// ¿El lugar es un punto fijo (con horario asignado) o un punto coordinado?
+function esPuntoFijo(lugar) {
+  return !!(lugar && lugar.horario_fijo);
+}
+
+let lugaresCargados = [];
 
 async function cargarLugaresEntrega() {
   const sel = document.getElementById("lugarEntrega");
@@ -1149,7 +1182,7 @@ async function cargarLugaresEntrega() {
       if (window.supabase && typeof window.supabase.from === "function") {
         const { data, error } = await window.supabase
           .from("lugares_entrega")
-          .select("lugar, costo")
+          .select("lugar, costo, horario_fijo")
           .order("orden", { ascending: true });
         if (!error && data && data.length) lugares = data;
       }
@@ -1163,16 +1196,107 @@ async function cargarLugaresEntrega() {
 
   const lugares = await obtenerLugares();
   const lista = lugares && lugares.length ? lugares : LUGARES_FALLBACK;
+  lugaresCargados = lista;
 
   sel.innerHTML =
     '<option value="" disabled selected>Selecciona tu lugar de entrega...</option>';
   lista.forEach((l) => {
     const costo = Number(l.costo) || 0;
-    sel.innerHTML += `<option value="${l.lugar}" data-costo="${costo}">${l.lugar} — ${formatearMoneda(
-      costo,
-    )}</option>`;
+    const horario = formatearHorarioFijo(l.horario_fijo);
+    sel.innerHTML += `<option value="${l.lugar}" data-costo="${costo}" ${
+      horario ? `data-horario-fijo="${l.horario_fijo}"` : ""
+    }>${l.lugar} — ${formatearMoneda(costo)}${
+      horario ? ` · ${horario}` : ""
+    }</option>`;
   });
 }
+
+// Lógica que se dispara al cambiar el lugar de entrega (botón en el form):
+//  - Punto fijo: habilita día, bloquea horario con el rango asignado, aviso.
+//  - Punto coordinado: bloquea día y horario, aviso de "a convenir".
+function cambiarLugarEntrega(sel) {
+  const opt = sel ? sel.options[sel.selectedIndex] : null;
+  const lugar = opt ? opt.value : "";
+  const horarioFijo = opt ? opt.getAttribute("data-horario-fijo") || "" : "";
+  const esFijo = !!horarioFijo;
+
+  const diaSel = document.getElementById("diaEntrega");
+  const horaSel = document.getElementById("horaEntrega");
+  const aviso = document.getElementById("avisoLugarEntrega");
+
+  // Restaurar estado editable de ambos select antes de re-aplicar.
+  if (diaSel) {
+    diaSel.disabled = false;
+    diaSel.style.opacity = "";
+  }
+  if (horaSel) {
+    horaSel.disabled = false;
+    horaSel.style.opacity = "";
+  }
+  if (aviso) {
+    aviso.style.display = "none";
+    aviso.classList.remove("aviso-fijo", "aviso-coordinado");
+  }
+
+  if (!lugar) return;
+
+  if (esFijo) {
+    // Punto fijo: el día queda libre (sábado/domingo); el horario se fija.
+    if (diaSel) {
+      diaSel.disabled = false;
+    }
+    // Restaurar las opciones de horario y seleccionar el rango fijo.
+    if (horaSel) {
+      horaSel.disabled = true;
+      horaSel.style.opacity = "0.6";
+      poblarHorariosEntrega();
+      const label = formatearHorarioFijo(horarioFijo);
+      // Buscar la opción cuyo texto coincide con el rango fijo.
+      let encontrado = false;
+      for (let i = 0; i < horaSel.options.length; i++) {
+        if (horaSel.options[i].text.indexOf(label) !== -1) {
+          horaSel.selectedIndex = i;
+          encontrado = true;
+          break;
+        }
+      }
+      // Si no existe ese rango (por ejemplo 8:00-8:30), agregarlo manualmente.
+      if (!encontrado) {
+        const [ini] = String(horarioFijo).split("-");
+        const opt = document.createElement("option");
+        opt.value = ini + ":00";
+        opt.text = label;
+        horaSel.appendChild(opt);
+        horaSel.value = ini + ":00";
+      }
+    }
+    if (aviso) {
+      aviso.textContent = `📍 Punto fijo de entrega: acude a "${lugar}" en el horario asignado. ¡El envío es GRATIS!`;
+      aviso.classList.add("aviso-fijo");
+      aviso.style.display = "block";
+    }
+  } else {
+    // Punto coordinado: día y horario se bloquean; se acuerda por WhatsApp.
+    if (diaSel) {
+      diaSel.disabled = true;
+      diaSel.style.opacity = "0.6";
+      diaSel.value = "";
+    }
+    if (horaSel) {
+      horaSel.disabled = true;
+      horaSel.style.opacity = "0.6";
+      horaSel.value = "";
+    }
+    if (aviso) {
+      aviso.textContent = `📍 Punto y horario a convenir. Te contactaremos por WhatsApp para coordinar la entrega en "${lugar}". Envío: $200 MXN.`;
+      aviso.classList.add("aviso-coordinado");
+      aviso.style.display = "block";
+    }
+  }
+}
+
+// Expoone para poder llamarla desde el atributo onchange del form.
+window.cambiarLugarEntrega = cambiarLugarEntrega;
 
 
 document.addEventListener("DOMContentLoaded", function () {
@@ -1372,13 +1496,39 @@ document.addEventListener("DOMContentLoaded", function () {
         return;
       }
 
-      if (!diaEntrega || !horaEntrega) {
-        mostrarMensaje(
-          mensaje,
-          "❌ Selecciona tu día y horario de entrega.",
-          "error",
-        );
-        return;
+      // Determinar si el lugar elegido es punto fijo o coordinado para
+      // validar día/horario según corresponda.
+      const lugarSeleccionado =
+        lugaresCargados.find((l) => l.lugar === lugarEntrega) || null;
+      const esFijoSeleccionado = esPuntoFijo(lugarSeleccionado);
+
+      if (esFijoSeleccionado) {
+        // Punto fijo: el día es obligatorio; el horario se asigna solo.
+        if (!diaEntrega) {
+          mostrarMensaje(
+            mensaje,
+            "❌ Selecciona tu día de entrega (sábado o domingo).",
+            "error",
+          );
+          return;
+        }
+        // Asegurar que el horario quedó fijo (lo auto-pone cambiarLugarEntrega).
+        if (!horaEntrega) {
+          const lt =
+            lugaresCargados.find((l) => l.lugar === lugarEntrega) || null;
+          const hf = lt ? lt.horario_fijo : null;
+          if (hf) {
+            const [ini] = String(hf).split("-");
+            document.getElementById("horaEntrega").value = ini + ":00";
+          }
+        }
+      } else {
+        // Punto coordinado: no se exige día ni horario (se coordina por WhatsApp).
+        // Limpiar cualquier valor previo para que no quede un dato incorrecto.
+        const dSel = document.getElementById("diaEntrega");
+        const hSel = document.getElementById("horaEntrega");
+        if (dSel) dSel.value = "";
+        if (hSel) hSel.value = "";
       }
 
       // Validación: un mismo cupón no puede usarse 2 veces con el mismo correo
@@ -1483,9 +1633,13 @@ document.addEventListener("DOMContentLoaded", function () {
           document.getElementById("modalLugarEntregaInfo").textContent =
             `${lugarEntrega} · Envío ${formatearMoneda(costoEnvio)}`;
           document.getElementById("modalDiaEntregaInfo").textContent =
-            diaEntrega ? formatearDiaEntrega(diaEntrega) : "—";
+            diaEntrega ? formatearDiaEntrega(diaEntrega) : "A convenir";
           document.getElementById("modalHoraEntregaInfo").textContent =
-            horaEntrega ? formatearHoraEntrega(horaEntrega) : "—";
+            horaEntrega
+              ? formatearHoraEntrega(horaEntrega)
+              : esFijoSeleccionado
+                ? "Horario fijo asignado"
+                : "A convenir";
           document.getElementById("modalTotalInfo").textContent =
             formatearMoneda(total);
           document.getElementById("modalMetodoPagoInfo").textContent =

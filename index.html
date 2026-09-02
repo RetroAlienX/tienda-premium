@@ -530,9 +530,10 @@
                             <input type="number" id="cantidadProducto" class="input-luxury" placeholder="Cantidad requerida *" min="1" value="" required>
                         </div>
                         <div class="col-12">
-                            <select id="lugarEntrega" class="input-luxury" required>
+                            <select id="lugarEntrega" class="input-luxury" required onchange="cambiarLugarEntrega(this)">
                                 <option value="" disabled selected>Cargando lugares de entrega...</option>
                             </select>
+                            <p class="campo-hint" id="avisoLugarEntrega" style="display:none; margin-top:8px;"></p>
                         </div>
                         <div class="col-12">
                             <input type="hidden" id="metodoPago" value="transferencia">
@@ -549,13 +550,16 @@
                                 <option value="" disabled selected>Selecciona tu día de entrega...</option>
                             </select>
                             <p class="campo-hint">
-                                📦 Las entregas se realizan los fines de semana, sujetas a los horarios disponibles. Elige el día y horario que te convenga.
+                                📦 Para los puntos fijos (Apodaca, San Nicolás y Costco Escobedo) elige tu día (sábado o domingo); el horario se asigna automáticamente.
                             </p>
                         </div>
                         <div class="col-12">
                             <select id="horaEntrega" class="input-luxury" required>
                                 <option value="" disabled selected>Selecciona tu horario de entrega...</option>
                             </select>
+                            <p class="campo-hint">
+                                ⏰ En los puntos fijos el horario se fija solo; en las zonas coordinadas (San Pedro, Monterrey, Guadalupe) se acuerda por WhatsApp.
+                            </p>
                         </div>
                         <div class="col-12">
                             <textarea id="direccionCliente" class="input-luxury" rows="2"
@@ -704,8 +708,13 @@
                 <div class="politica-card">
                     <h4 style="margin:0 0 6px 0; font-size:1.0rem; color:var(--regio-green);">🚚 Entrega</h4>
                     <p style="margin:0 0 10px 0; font-size:0.88rem; line-height:1.6; color:var(--text-silver);">Las entregas se realizan
-                        únicamente los <strong>sábados y domingos</strong> en horario de <strong>8:00 AM a 4:00 PM</strong>.
-                        Contamos con <strong>15 minutos de tolerancia</strong> para recibir tu pedido. Si no es posible la
+                        únicamente los <strong>sábados y domingos</strong>. Tenemos dos tipos de entrega:</p>
+                    <ul style="margin:0 0 10px 0; padding-left:18px; font-size:0.85rem; line-height:1.7; color:var(--text-silver);">
+                        <li><strong>📍 Puntos fijos (envío GRATIS):</strong> Apodaca centro (frente a iglesia) · 8:00–8:30 AM, San Nicolás centro (plaza presidencia) · 9:00–9:30 AM y Costco Escobedo · 10:00–10:30 AM. Acudes a recoger tu pedido en el horario asignado.</li>
+                        <li><strong>📞 Zonas coordinadas ($200 MXN):</strong> San Pedro, Monterrey y Guadalupe. El punto y horario exactos se acuerdan contigo por WhatsApp.</li>
+                    </ul>
+                    <p style="margin:0 0 10px 0; font-size:0.88rem; line-height:1.6; color:var(--text-silver);">Contamos con
+                        <strong>15 minutos de tolerancia</strong> para entregarte tu pedido. Si no es posible la
                         entrega, se reprograma y <strong>se cobra el envío de nuevo</strong>. Un segundo intento fallido devuelve
                         la mercancía a nuestro stock.</p>
                     <p style="margin:0; font-size:0.88rem; line-height:1.6; color:var(--text-silver);">📅 <strong>Nota:</strong> los pedidos

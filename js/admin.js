@@ -680,6 +680,18 @@ async function enviarCorreoManual(e) {
       envio: envioNum,
       descuento: descuentoNum,
       monto_descuento: descuentoNum > 0 ? descuentoMonto.toFixed(2) : "",
+      instruccion_entrega: (() => {
+        const PUNTOS_FIJOS = [
+          "Apodaca centro (frente a iglesia)",
+          "San Nicolas centro (plaza presidencia)",
+          "Costco Escobedo",
+        ];
+        if (!lugarEntrega) return "";
+        if (PUNTOS_FIJOS.includes(lugarEntrega)) {
+          return `📍 Punto fijo de entrega: acude a "${lugarEntrega}" en el horario asignado. ¡El envío es GRATIS!`;
+        }
+        return `📍 Punto y horario a convenir. Te contactaremos por WhatsApp para coordinar la entrega en "${lugarEntrega}".`;
+      })(),
       mensaje_adicional:
         mensajeAdicional ||
         (lugarEntrega
@@ -2332,6 +2344,9 @@ async function abrirModalEditarPedido(id) {
     mostrarModalAlerta("❌ No se encontraron datos del pedido para editar.");
     return;
   }
+
+  // Asegurar que el select de lugares esté actualizado con los lugares de BD.
+  cargarLugaresEditarPedido();
 
   // Traemos datos frescos desde la base para un llenado preciso.
   let pedido = null;
@@ -4301,6 +4316,7 @@ async function cargarLugaresEntregaAdmin() {
                     <th>#</th>
                     <th>Lugar</th>
                     <th style="text-align:center;">Costo de envío</th>
+                    <th style="text-align:center;">Horario fijo</th>
                     <th style="text-align:center;">Orden</th>
                     <th style="text-align:center;">Acciones</th>
                 </tr>
@@ -4315,6 +4331,11 @@ async function cargarLugaresEntregaAdmin() {
                         <td style="text-align:center;"><span style="color:var(--accent); font-weight:600; white-space:nowrap;">${formatearMoneda(
                           Number(l.costo) || 0,
                         )}</span></td>
+                        <td style="text-align:center;">${
+                          l.horario_fijo
+                            ? `<span style="color:var(--regio-green); white-space:nowrap;">${l.horario_fijo}</span>`
+                            : `<span style="color:var(--text-dim);">Coordinado</span>`
+                        }</td>
                         <td style="text-align:center;">${l.orden ?? 0}</td>
                         <td style="text-align:center; white-space:nowrap;">
                             <button onclick="editarLugar('${l.id}')" class="btn btn-outline-warning btn-sm">✏️</button>
@@ -4356,6 +4377,8 @@ function mostrarFormLugar(data = null) {
     document.getElementById("lugarNombre").value = data.lugar || "";
     document.getElementById("lugarCosto").value = data.costo ?? 0;
     document.getElementById("lugarOrden").value = data.orden ?? 1;
+    document.getElementById("lugarHorarioFijo").value =
+      data.horario_fijo || "";
   } else {
     lugarEditando = null;
     document.getElementById("formLugarTitulo").textContent =
@@ -4368,6 +4391,7 @@ function mostrarFormLugar(data = null) {
     document.getElementById("formLugar").reset();
     document.getElementById("lugarId").value = "";
     document.getElementById("lugarOrden").value = ultimoTotalLugares + 1;
+    document.getElementById("lugarHorarioFijo").value = "";
   }
 }
 
@@ -4403,6 +4427,8 @@ async function guardarLugar(e) {
   const datos = {
     lugar: document.getElementById("lugarNombre").value.trim(),
     costo: parseFloat(document.getElementById("lugarCosto").value) || 0,
+    horario_fijo:
+      (document.getElementById("lugarHorarioFijo").value || "").trim() || null,
     orden: (() => {
       const o = parseInt(document.getElementById("lugarOrden").value, 10);
       return isNaN(o) ? ultimoTotalLugares + 1 : o;
@@ -4447,9 +4473,46 @@ async function guardarLugar(e) {
   }
 }
 
+// Llena el select de "Editar pedido" (editarLugarEntrega) con los lugares
+// de la base de datos, en lugar de tenerlos fijos en el HTML.
+async function cargarLugaresEditarPedido() {
+  const sel = document.getElementById("editarLugarEntrega");
+  if (!sel) return;
+  let lugares = [];
+  try {
+    if (window.supabase && typeof window.supabase.from === "function") {
+      const { data, error } = await window.supabase
+        .from("lugares_entrega")
+        .select("lugar, costo")
+        .order("orden", { ascending: true });
+      if (!error && data) lugares = data;
+    }
+  } catch (e) {
+    lugares = [];
+  }
+  const valorActual = sel.value;
+  sel.innerHTML =
+    '<option value="" selected>Selecciona lugar de entrega...</option>';
+  (lugares.length ? lugares : LUGARES_FALLBACK_ADMIN).forEach((l) => {
+    const costo = Number(l.costo) || 0;
+    sel.innerHTML += `<option value="${l.lugar}">${l.lugar} — ${formatearMoneda(
+      costo,
+    )}</option>`;
+  });
+  if (valorActual) sel.value = valorActual;
+}
+
+const LUGARES_FALLBACK_ADMIN = [
+  { lugar: "Apodaca centro (frente a iglesia)", costo: 0 },
+  { lugar: "San Nicolas centro (plaza presidencia)", costo: 0 },
+  { lugar: "Costco Escobedo", costo: 0 },
+  { lugar: "San Pedro (punto y horario a convenir)", costo: 200 },
+  { lugar: "Monterrey (punto y horario a convenir)", costo: 200 },
+  { lugar: "Guadalupe (punto y horario a convenir)", costo: 200 },
+];
+
 function pedirEliminarLugar(id) {
-  modalConfirmar("¿Eliminar este lugar de entrega permanentemente?", async function () {
-    try {
+  modalConfirmar("¿Eliminar este lugar de entrega permanentemente?", async function () {    try {
       const { error } = await window.supabase
         .from("lugares_entrega")
         .delete()
@@ -4474,7 +4537,7 @@ async function cargarLugaresTicketAdmin() {
     if (window.supabase && typeof window.supabase.from === "function") {
       const { data, error } = await window.supabase
         .from("lugares_entrega")
-        .select("lugar, costo")
+        .select("lugar, costo, horario_fijo")
         .order("orden", { ascending: true });
       if (!error && data) lugares = data;
     }
@@ -4485,16 +4548,12 @@ async function cargarLugaresTicketAdmin() {
     '<option value="" selected>Selecciona tu lugar de entrega...</option>';
   if (!lugares.length) {
     lugares = [
-      { lugar: "Punto de entrega", costo: 0 },
-      { lugar: "San Nicolas", costo: 100 },
-      { lugar: "Apodaca", costo: 80 },
-      { lugar: "Escobedo", costo: 100 },
-      { lugar: "Monterrey", costo: 150 },
-      { lugar: "Cienega de Flores", costo: 100 },
-      { lugar: "Zuazua", costo: 130 },
-      { lugar: "Marin", costo: 130 },
-      { lugar: "San Pedro", costo: 150 },
-      { lugar: "Garcia", costo: 150 },
+      { lugar: "Apodaca centro (frente a iglesia)", costo: 0, horario_fijo: "08:00-08:30" },
+      { lugar: "San Nicolas centro (plaza presidencia)", costo: 0, horario_fijo: "09:00-09:30" },
+      { lugar: "Costco Escobedo", costo: 0, horario_fijo: "10:00-10:30" },
+      { lugar: "San Pedro (punto y horario a convenir)", costo: 200, horario_fijo: null },
+      { lugar: "Monterrey (punto y horario a convenir)", costo: 200, horario_fijo: null },
+      { lugar: "Guadalupe (punto y horario a convenir)", costo: 200, horario_fijo: null },
     ];
   }
   lugares.forEach((l) => {

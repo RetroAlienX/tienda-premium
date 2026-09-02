@@ -1269,6 +1269,11 @@
                 </label>
                 <input type="number" id="lugarOrden" class="input-luxury" placeholder="Orden (0, 1, 2...)" min="0"
                     title="Orden en el que aparece. Acepta 0 y números positivos." required>
+                <label style="display:block; font-size:0.7rem; color:var(--text-silver); margin:10px 0 6px 0;">
+                    Horario fijo (opcional). Déjalo vacío si es punto coordinado.
+                </label>
+                <input type="text" id="lugarHorarioFijo" class="input-luxury" placeholder="Ej: 08:00-08:30 o vacío"
+                    title="Rango fijo de entrega en formato HH:MM-HH:MM. Vacío = punto coordinado (se acuerda por WhatsApp).">
                 <div style="display:flex; gap:10px; margin-top:10px;">
                     <button type="submit" class="btn-premium" style="width:100%;"><i class="fas fa-save"></i>
                         Guardar</button>
@@ -1579,16 +1584,6 @@
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                 <select id="editarLugarEntrega" class="input-luxury">
                     <option value="" selected>Selecciona lugar de entrega...</option>
-                    <option value="Punto de entrega">Punto de entrega</option>
-                    <option value="San Nicolas">San Nicolás</option>
-                    <option value="Apodaca">Apodaca</option>
-                    <option value="Escobedo">Escobedo</option>
-                    <option value="Monterrey">Monterrey</option>
-                    <option value="Cienega de Flores">Ciénega de Flores</option>
-                    <option value="Zuazua">Zuazua</option>
-                    <option value="Marin">Marín</option>
-                    <option value="San Pedro">San Pedro</option>
-                    <option value="Garcia">García</option>
                 </select>
                 <select id="editarMetodoPago" class="input-luxury">
                     <option value="efectivo">Efectivo</option>

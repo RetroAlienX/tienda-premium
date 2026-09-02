@@ -1345,6 +1345,18 @@ select.input-luxury option:active {
   font-weight: 400;
 }
 
+.aviso-fijo {
+  border-left-color: var(--regio-green) !important;
+  color: var(--regio-green) !important;
+  font-weight: 600;
+}
+
+.aviso-coordinado {
+  border-left-color: #ffd166 !important;
+  color: #ffd166 !important;
+  font-weight: 600;
+}
+
 .input-group-flex .qty {
   width: 80px;
   flex-shrink: 0;
