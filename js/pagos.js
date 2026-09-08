@@ -14,6 +14,15 @@ const ESTADOS = ["en_mora", "al_corriente", "liquidado"];
 
 let pagoEditando = null;
 
+// Caché de la lista actual para no reordenar al editar.
+let pagosCache = [];
+
+// Búsqueda por nombre en el tab de pagos (filtro en memoria).
+let pagosFiltroNombre = "";
+
+// Filtro por estado en el tab de pagos (todos, en_mora, al_corriente, liquidado).
+let pagosFiltroEstado = "todos";
+
 function estadoLabel(estado) {
   if (estado === "liquidado") return "Liquidado";
   if (estado === "al_corriente") return "Al corriente";
@@ -78,6 +87,9 @@ async function cargarPagos() {
   const container = document.getElementById("listaPagos");
   if (!container) return;
 
+  // Guardar posición del scroll antes de reemplazar el DOM.
+  const scrollAntes = window.scrollY;
+
   container.innerHTML =
     '<div class="text-center text-dim py-3"><span class="spinner-border spinner-border-sm me-1"></span>Cargando...</div>';
 
@@ -90,55 +102,47 @@ async function cargarPagos() {
     const { data, error } = await window.supabase
       .from("pagos")
       .select("*")
-      .order("created_at", { ascending: false });
+      .order("cliente", { ascending: true })
+      .order("id", { ascending: true });
 
     if (error) throw error;
 
-    if (!data || data.length === 0) {
-      container.innerHTML =
-        '<p class="text-center text-dim py-3">💳 No hay pagos registrados.</p>';
-      return;
-    }
+    // Orden alfabético A→Z por cliente.
+    pagosCache = (data || [])
+      .slice()
+      .sort((a, b) =>
+        String(a.cliente || "").localeCompare(String(b.cliente || ""), "es"),
+      );
+    pintarPagos();
+  } catch (error) {
+    console.error("Error cargando pagos:", error);
+    container.innerHTML =
+      '<p class="text-danger text-center">❌ Error al cargar pagos. ¿Ejecutaste el SQL para crear la tabla "pagos"?</p>';
+  }
 
-    container.innerHTML = `
-            <table class="table table-dark table-hover table-sm">
-                <thead>
-                    <tr>
-                        <th>Cliente</th>
-                        <th style="text-align:center; white-space:nowrap;" title="Estado actual del pago: en mora, al corriente o liquidado.">Estado</th>
-                        <th style="text-align:center; white-space:nowrap;" title="Fecha en que se liquidó el pago (si aplica).">Fecha liquidación</th>
-                        <th style="text-align:center; white-space:nowrap; width:90px;" title="Cuántas quincenas faltan por cubrir.">Q. pendientes</th>
-                        <th style="text-align:center; white-space:nowrap; width:90px;" title="Cuántas quincenas ya pagó el cliente.">Q. pagadas</th>
-                        <th style="text-align:center; white-space:nowrap; width:90px;" title="Total de quincenas acordadas para este pago.">Q. totales</th>
-                        <th style="text-align:center; white-space:nowrap;" title="Deuda actual del cliente (cargos +, abonos −, moras +).">Adeudo total</th>
-                        <th style="text-align:center; white-space:nowrap;">Acciones</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${data
-                      .map((r) => {
-                        const st = ESTADOS.includes(r.estado)
-                          ? r.estado
-                          : "en_mora";
-                        const estadoColor =
-                          st === "liquidado"
-                            ? "#4ade80"
-                            : st === "al_corriente"
-                              ? "#ffd166"
-                              : "#ff4d4d";
-                        const adeudoTotal = Number(r.adeudo_total) || 0;
-                        const puedeLiquidarOAbonar = adeudoTotal > 0;
-                        const liquidarDisabled = puedeLiquidarOAbonar
-                          ? ""
-                          : 'disabled style="opacity:0.4; pointer-events:none;"';
-                        const abonoDisabled = puedeLiquidarOAbonar
-                          ? ""
-                          : 'disabled style="opacity:0.4; pointer-events:none;"';
-                        return `
+  // Restaurar posición del scroll para que la edición no mueva la vista.
+  try { window.scrollTo(0, scrollAntes); } catch (_) {}
+}
+
+function renderFilaPago(r) {
+  const st = ESTADOS.includes(r.estado) ? r.estado : "en_mora";
+  const estadoColor =
+    st === "liquidado"
+      ? "#4ade80"
+      : st === "al_corriente"
+        ? "#ffd166"
+        : "#ff4d4d";
+  const adeudoTotal = Number(r.adeudo_total) || 0;
+  const puedeLiquidarOAbonar = adeudoTotal > 0;
+  const liquidarDisabled = puedeLiquidarOAbonar
+    ? ""
+    : 'disabled style="opacity:0.4; pointer-events:none;"';
+  const abonoDisabled = puedeLiquidarOAbonar
+    ? ""
+    : 'disabled style="opacity:0.4; pointer-events:none;"';
+  return `
                         <tr data-pago-id="${r.id}"
-                            data-cliente="${
-                              r.cliente || ""
-                            }"
+                            data-cliente="${r.cliente || ""}"
                             data-totales="${r.quincenas_totales ?? 0}"
                             data-pagadas="${r.quincenas_pagadas ?? 0}"
                             data-pendientes="${r.quincenas_pendientes ?? 0}"
@@ -164,15 +168,15 @@ async function cargarPagos() {
                             <td style="text-align:center; white-space:nowrap;">${formatearFechaLatam(
                               r.fecha_liquidacion,
                             )}</td>
-                            <td style="text-align:center; white-space:nowrap;"><span style="font-weight:600;">${
+                            <td style="text-align:center; white-space:nowrap;"><span style="color:#ff4d4d; font-weight:600;">${
                               r.quincenas_pendientes ?? 0
                             }</span></td>
-                            <td style="text-align:center; white-space:nowrap;"><span style="color:#6ee7b7; font-weight:600;">${
+                            <td style="text-align:center; white-space:nowrap;"><span style="color:#ffd166; font-weight:600;">${
                               r.quincenas_pagadas ?? 0
                             }</span></td>
-                            <td style="text-align:center; white-space:nowrap;">${
+                            <td style="text-align:center; white-space:nowrap;"><span style="color:#4ade80; font-weight:600;">${
                               r.quincenas_totales ?? 0
-                            }</td>
+                            }</span></td>
                             <td style="text-align:center;"><span style="color:#f472b6; font-weight:600; white-space:nowrap;">${formatearMoneda(
                               adeudoTotal,
                             )}</span></td>
@@ -206,16 +210,90 @@ async function cargarPagos() {
                             </td>
                         </tr>
                     `;
-                      })
-                      .join("")}
+}
+
+// Búsqueda por nombre en el tab de pagos (filtro en memoria).
+function filtrarPagosNombre() {
+  const input = document.getElementById("buscarPagoNombre");
+  pagosFiltroNombre = (input?.value || "").trim().toLowerCase();
+  pintarPagos();
+}
+
+// Filtro por estado en el tab de pagos (filtro en memoria).
+function filtrarPagosEstado() {
+  const select = document.getElementById("filtroEstadoPagos");
+  pagosFiltroEstado = select?.value || "todos";
+  pintarPagos();
+}
+
+// Pinta la tabla desde pagosCache SIN reordenar, para que al editar
+// un pago este permanezca en su misma posición.
+
+function pintarPagos() {
+  const container = document.getElementById("listaPagos");
+  if (!container) return;
+  const data = pagosCache;
+
+  if (!data || data.length === 0) {
+    container.innerHTML =
+      '<p class="text-center text-dim py-3">💳 No hay pagos registrados.</p>';
+    return;
+  }
+
+  let visibles = pagosFiltroNombre
+    ? data.filter((r) =>
+        String(r.cliente || "")
+          .toLowerCase()
+          .includes(pagosFiltroNombre),
+      )
+    : data;
+
+  if (pagosFiltroEstado && pagosFiltroEstado !== "todos") {
+    visibles = visibles.filter(
+      (r) => (ESTADOS.includes(r.estado) ? r.estado : "en_mora") === pagosFiltroEstado,
+    );
+  }
+
+  if (visibles.length === 0) {
+    container.innerHTML =
+      '<p class="text-center text-dim py-3">🔍 Sin resultados para la búsqueda/filtro.</p>';
+    return;
+  }
+
+  container.innerHTML = `
+            <table class="table table-dark table-hover table-sm">
+                <thead>
+                    <tr>
+                        <th>Cliente</th>
+                        <th style="text-align:center; white-space:nowrap;" title="Estado actual del pago: en mora, al corriente o liquidado.">Estado</th>
+                        <th style="text-align:center; white-space:nowrap;" title="Fecha en que se liquidó el pago (si aplica).">Fecha liquidación</th>
+                        <th style="text-align:center; white-space:nowrap; width:90px;" title="Cuántas quincenas faltan por cubrir.">Q. pendientes</th>
+                        <th style="text-align:center; white-space:nowrap; width:90px;" title="Cuántas quincenas ya pagó el cliente.">Q. pagadas</th>
+                        <th style="text-align:center; white-space:nowrap; width:90px;" title="Total de quincenas acordadas para este pago.">Q. totales</th>
+                        <th style="text-align:center; white-space:nowrap;" title="Deuda actual del cliente (cargos +, abonos −, moras +).">Adeudo total</th>
+                        <th style="text-align:center; white-space:nowrap;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${visibles.map(renderFilaPago).join("")}
                 </tbody>
             </table>
         `;
-  } catch (error) {
-    console.error("Error cargando pagos:", error);
-    container.innerHTML =
-      '<p class="text-danger text-center">❌ Error al cargar pagos. ¿Ejecutaste el SQL para crear la tabla "pagos"?</p>';
-  }
+}
+
+// Actualiza solo la fila editada (misma posición), sin reordenar la lista.
+async function reemplazarFilaPago(id) {
+  if (!id) return;
+  const { data, error } = await window.supabase
+    .from("pagos")
+    .select("*")
+    .eq("id", id)
+    .single();
+  if (error || !data) return;
+  const idx = pagosCache.findIndex((x) => x.id === id);
+  if (idx >= 0) pagosCache[idx] = data;
+  else pagosCache.push(data);
+  pintarPagos();
 }
 
 function abrirModalPago(id) {
@@ -312,6 +390,7 @@ async function guardarPago() {
   }
 
   const qPend = qTotales - qPagadas;
+  // El estado "liquidado" se determina únicamente por el adeudo en $0.
   const liquida = adeudoTotal <= 0;
   const estado = liquida ? "liquidado" : "al_corriente";
   const fecha = liquida ? new Date().toISOString() : null;
@@ -363,7 +442,13 @@ async function guardarPago() {
     }
 
     document.getElementById("modalPago").style.display = "none";
-    cargarPagos();
+    if (pagoEditando) {
+      // Edición: actualiza la fila en su mismo lugar (no reordena).
+      await reemplazarFilaPago(pagoEditando);
+    } else {
+      // Creación: recarga para colocarlo en su lugar alfabético.
+      cargarPagos();
+    }
     mostrarModalAlerta(
       pagoEditando
         ? "✅ Pago actualizado correctamente"
@@ -394,6 +479,14 @@ async function cambiarEstadoPago(id, nuevoEstado) {
             .single();
           if (error) throw error;
           const esLiquidado = nuevoEstado === "liquidado";
+          const adeudoActual = Number(data.adeudo_total) || 0;
+          // 1 · El estado "en mora" solo puede estar activo con adeudo > 0.
+          if (nuevoEstado === "en_mora" && adeudoActual <= 0) {
+            mostrarModalAlerta(
+              "⚠️ El estado “En mora” solo puede aplicarse cuando el adeudo total es mayor a $0. Si el adeudo es $0, el cliente está liquidado o al corriente.",
+            );
+            return;
+          }
           const updates = {
             estado: nuevoEstado,
             updated_at: new Date().toISOString(),
@@ -414,7 +507,7 @@ async function cambiarEstadoPago(id, nuevoEstado) {
             .update(updates)
             .eq("id", id);
           if (upError) throw upError;
-          cargarPagos();
+          reemplazarFilaPago(id);
           mostrarModalAlerta(
             `✅ Estado actualizado a "${estadoLabel(nuevoEstado)}"`,
           );
@@ -478,7 +571,7 @@ async function liquidarPago(id) {
               ]);
             if (finError) throw finError;
           }
-          cargarPagos();
+          reemplazarFilaPago(id);
           if (typeof cargarFinanzas === "function") cargarFinanzas();
           mostrarModalAlerta(
             "✅ Adeudo liquidado y fecha de liquidación guardada",
@@ -520,7 +613,7 @@ async function cargarMorosidadPago(id) {
             .update(update)
             .eq("id", id);
           if (upError) throw upError;
-          cargarPagos();
+          reemplazarFilaPago(id);
           mostrarModalAlerta(
             `✅ Morosidad cargada: +$${CARGO_MOROSIDAD} MXN al adeudo total`,
           );
@@ -536,6 +629,13 @@ async function cargarMorosidadPago(id) {
 }
 
 // Ajusta quincenas pagadas/liquidadas/pendientes manteniendo consistencia.
+// Reglas:
+//  · AGREGAR quincena solo si hay pendientes (totales > pagadas) Y, si ya pagó
+//    todas las totales, solo si aún tiene adeudo > 0.
+//  · QUITAR quincena solo si las pagadas > 0 (no bajar de cero).
+//  · El estado pasa a "liquidado" cuando: quincenas pagadas == totales,
+//    pendientes == 0 Y adeudo total == 0. En ese caso se guarda la fecha de
+//    liquidación. Si no se cumplen las tres, queda "al corriente".
 async function ajustarQuincenas(id, delta, exitoMsg) {
   try {
     const { data, error } = await window.supabase
@@ -546,6 +646,8 @@ async function ajustarQuincenas(id, delta, exitoMsg) {
     if (error) throw error;
 
     const totales = Number(data.quincenas_totales) || 0;
+    const pagadasActuales = Number(data.quincenas_pagadas) || 0;
+    const adeudoNum = Number(data.adeudo_total) || 0;
 
     if (totales <= 0) {
       mostrarModalAlerta(
@@ -554,34 +656,47 @@ async function ajustarQuincenas(id, delta, exitoMsg) {
       return;
     }
 
-    const pagadas = Math.min(
-      Math.max(0, (Number(data.quincenas_pagadas) || 0) + delta),
-      totales,
-    );
+    const esQuitar = delta < 0;
+
+    // 2.4 · Quitar quincena: no se puede si las pagadas ya están en 0.
+    if (esQuitar && pagadasActuales <= 0) {
+      mostrarModalAlerta(
+        "⚠️ No se pueden quitar más quincenas porque las quincenas pagadas ya están en 0.",
+      );
+      return;
+    }
+
+    // 2.3 · Agregar quincena SOLO si hay quincenas totales sin pagar
+    // (totales > pagadas) Y el adeudo es mayor a cero.
+    if (!esQuitar) {
+      const quedanPendientes = totales > pagadasActuales;
+      if (!quedanPendientes) {
+        mostrarModalAlerta(
+          "⚠️ Ya marcaste todas las quincenas totales como pagadas, así que no hay más quincenas por agregar. Para gestionar más quincenas o el adeudo, usa el botón ✏️ Editar.",
+        );
+        return;
+      }
+      if (adeudoNum <= 0) {
+        mostrarModalAlerta(
+          "⚠️ No se puede marcar una quincena como pagada porque el adeudo total está en $0. Si el adeudo ya está saldado, el pedido está liquidado.",
+        );
+        return;
+      }
+    }
+
+    // Calcular nuevos valores.
+    const pagadas = esQuitar
+      ? Math.max(0, pagadasActuales - 1)
+      : Math.min(totales, pagadasActuales + 1);
     const pendientes = Math.max(0, totales - pagadas);
 
-    // Reglas de estado al ajustar quincenas:
-    //  · QUITAR quincena: solo vuelve a "liquidado" si las quincenas pagadas
-    //    son iguales a las totales Y el adeudo total está en $0 (ambas).
-    //    Si estaba liquidado pero no cumple ambas, pasa a "al corriente".
-    //  · AGREGAR quincena: si el cliente estaba "liquidado" pasa a
-    //    "al corriente" (posiblemente volvió a comprar) y se reinicia la
-    //    fecha de liquidación.
-    const adeudoNum = Number(data.adeudo_total) || 0;
-    const esQuitar = delta < 0;
-    let nuevoEstado = data.estado;
-    let nuevaFechaLiquidacion; // undefined = no tocar la fecha
-
-    if (esQuitar) {
-      if (pagadas === totales && adeudoNum === 0) {
-        nuevoEstado = "liquidado";
-        nuevaFechaLiquidacion = new Date().toISOString();
-      } else if (data.estado === "liquidado") {
-        nuevoEstado = "al_corriente";
-        nuevaFechaLiquidacion = null;
-      }
-    } else if (data.estado === "liquidado") {
-      nuevoEstado = "al_corriente";
+    // 2.2 · Estado "liquidado" solo si las tres condiciones se cumplen.
+    const esLiquidado = pagadas === totales && pendientes === 0 && adeudoNum === 0;
+    const nuevoEstado = esLiquidado ? "liquidado" : "al_corriente";
+    let nuevaFechaLiquidacion;
+    if (esLiquidado && !data.fecha_liquidacion) {
+      nuevaFechaLiquidacion = new Date().toISOString();
+    } else if (!esLiquidado && data.fecha_liquidacion) {
       nuevaFechaLiquidacion = null;
     }
 
@@ -629,7 +744,7 @@ async function ajustarQuincenas(id, delta, exitoMsg) {
         .update(fallbackUpdate)
         .eq("id", id);
       if (fbErr) throw fbErr;
-      cargarPagos();
+      reemplazarFilaPago(id);
       mostrarModalAlerta(
         exitoMsg +
           " (las quincenas pagadas se mostrarán en 0 hasta re-ejecutar el SQL de pagos)",
@@ -638,7 +753,7 @@ async function ajustarQuincenas(id, delta, exitoMsg) {
     }
     if (upError) throw upError;
 
-    cargarPagos();
+    reemplazarFilaPago(id);
     mostrarModalAlerta(exitoMsg);
   } catch (error) {
     console.error("Error ajustando quincena:", error);
@@ -792,7 +907,7 @@ async function aplicarCargoPago(id, esCargo, monto) {
       if (finError) throw finError;
     }
 
-    cargarPagos();
+    reemplazarFilaPago(id);
     if (typeof cargarFinanzas === "function") cargarFinanzas();
     mostrarModalAlerta(
       esCargo
@@ -814,7 +929,8 @@ async function pedirEliminarPago(id) {
           .delete()
           .eq("id", id);
         if (error) throw error;
-        cargarPagos();
+        pagosCache = pagosCache.filter((x) => x.id !== id);
+        pintarPagos();
         mostrarModalAlerta("✅ Registro de pago eliminado");
       } catch (error) {
         console.error("Error al eliminar pago:", error);
@@ -876,3 +992,5 @@ window.abrirCargoPago = abrirCargoPago;
 window.confirmarCargoPago = confirmarCargoPago;
 window.pedirEliminarPago = pedirEliminarPago;
 window.cargarPagosDummySiVacio = cargarPagosDummySiVacio;
+window.filtrarPagosNombre = filtrarPagosNombre;
+window.filtrarPagosEstado = filtrarPagosEstado;

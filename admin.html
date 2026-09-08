@@ -5,6 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Panel Admin · Route66 Market</title>
+    <link rel="icon" type="image/jpeg" href="img/favicon.jpg">
+    <meta name="robots" content="noindex, nofollow">
 
     <meta name="supabase-url" id="supabase-url" content="https://xsactvcmsaxrjwyeaimf.supabase.co">
     <meta name="supabase-key" id="supabase-key"
@@ -368,6 +370,63 @@
             gap: 4px !important;
         }
 
+        /* ===== ETIQUETA DE PRODUCTO (código de barras) ===== */
+        .etiqueta-producto {
+            font-family: Arial, sans-serif;
+            color: #000;
+        }
+        .etiqueta-nombre {
+            font-size: 13px;
+            font-weight: 700;
+            margin-bottom: 6px;
+            word-break: break-word;
+        }
+        .etiqueta-marca {
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        .etiqueta-categoria {
+            font-size: 11px;
+            font-weight: 600;
+            color: #444;
+            margin-top: 3px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .etiqueta-codigo {
+            font-size: 11px;
+            letter-spacing: 1px;
+            margin-top: 2px;
+        }
+        .etiqueta-precio {
+            font-size: 22px;
+            font-weight: 700;
+            margin-top: 6px;
+        }
+        #etiquetaSVG {
+            width: 100%;
+            max-width: 100%;
+            height: auto;
+        }
+        @media print {
+            body.imprimiendoEtiqueta * {
+                visibility: hidden !important;
+            }
+            body.imprimiendoEtiqueta #contenidoEtiqueta,
+            body.imprimiendoEtiqueta #contenidoEtiqueta * {
+                visibility: visible !important;
+            }
+            body.imprimiendoEtiqueta #contenidoEtiqueta {
+                position: fixed;
+                left: 0;
+                top: 0;
+                width: 100%;
+                box-shadow: none;
+                background: #fff;
+            }
+        }
+
         .btn-premium {
             background: var(--bg-input);
             color: var(--text-main);
@@ -433,6 +492,36 @@
         .input-luxury:focus {
             border-color: var(--text-silver);
             outline: none;
+        }
+
+        .notificacion {
+            position: fixed;
+            top: 18px;
+            right: 18px;
+            z-index: 99999;
+            max-width: 340px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            line-height: 1.5;
+            background: #10251a;
+            border: 1px solid #22c55e;
+            color: #e8e8e8;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+            opacity: 0;
+            transform: translateY(-10px);
+            transition: all 0.25s ease;
+            pointer-events: none;
+        }
+
+        .notificacion.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .notificacion.error {
+            background: #2b1516;
+            border-color: #ef4444;
         }
 
         .tab-content {
@@ -627,14 +716,18 @@
 
 <body>
 
+    <div id="notificacion" class="notificacion" role="status"></div>
+
     <div class="container-admin">
         <div class="admin-header">
             <h1>⚡ ADMIN PANEL</h1>
             <div style="display:flex; gap:10px; align-items:center;">
                 <span class="admin-user" id="adminEmail">Cargando...</span>
-                <button class="btn-header primary" style="width:auto;" onclick="window.location.href='index.html'">Ver
+                <button class="btn-header primary" style="width:auto;" onclick="window.location.href='index.html'"
+                    title="Abrir la tienda pública en una pestaña nueva (así la ven tus clientes).">Ver
                     Tienda</button>
-                <button class="btn-header danger" style="width:auto;" onclick="cerrarSesion()">Salir</button>
+                <button class="btn-header danger" style="width:auto;" onclick="cerrarSesion()"
+                    title="Cerrar la sesión del administrador y volver al inicio de sesión.">Salir</button>
             </div>
         </div>
 
@@ -642,13 +735,22 @@
             <button class="tab-btn active" data-tab="productos"
                 title="Catálogo de productos que se venden en la tienda (precio, imagen, categoría)">📦 Productos ·
                 Panel Venta</button>
-            <button class="tab-btn" data-tab="pedidos">🛒 Pedidos</button>
+            <button class="tab-btn" data-tab="pedidos"
+                title="Pedidos recibidos de la tienda: ver estados y acciones (confirmar, marcar vendido/entregado, cancelar).">🛒
+                Pedidos</button>
             <button class="tab-btn" data-tab="inventario"
                 title="Movimientos de stock: entradas y salidas de cada producto">📊 Inventario</button>
-            <button class="tab-btn" data-tab="envios">📧 Enviar Email</button>
-            <button class="tab-btn" data-tab="ticket">🧾 Ticket · Impresión | Reimpresión | Venta Directa</button>
-            <button class="tab-btn" data-tab="finanzas">💰 Finanzas</button>
-            <button class="tab-btn" data-tab="promociones">🎯 Promociones</button>
+            <button class="tab-btn" data-tab="envios"
+                title="Enviar correo al cliente con los datos, total y políticas de su pedido (confirmación o personalizado).">📧
+                Enviar Email</button>
+            <button class="tab-btn" data-tab="ticket"
+                title="Ticket de 58mm: imprimir con impresora QZ o en navegador, reimprimir, ver vista previa o registrar venta directa.">🧾
+                Ticket · Impresión | Reimpresión | Venta Directa</button>
+            <button class="tab-btn" data-tab="finanzas"
+                title="Ingresos y gastos del negocio: registrar transacciones y ver totales.">💰 Finanzas</button>
+            <button class="tab-btn" data-tab="promociones"
+                title="Cupones de descuento, noticias del catálogo, lugares de entrega y marcas.">🎯
+                Promociones</button>
             <button class="tab-btn" data-tab="lealtad"
                 title="Programa de lealtad: clientes con productos comprados y sus productos de regalo">💎
                 Lealtad</button>
@@ -663,15 +765,22 @@
                     <h5>Gestión de Productos</h5>
                     <div style="display: flex; gap: 10px; width: auto;">
                         <button id="btnRefrescarProductos" class="btn-premium-outline"
-                            style="padding:10px 16px;font-size:0.75rem; width: auto;">🔄 Refrescar</button>
+                            style="padding:10px 16px;font-size:0.75rem; width: auto;"
+                            title="Recargar la lista de productos desde la base de datos.">🔄 Refrescar</button>
                         <button class="btn-premium danger"
                             onclick="limpiarTabla('productos', 'Esto incluye TODOS los productos del catálogo.', cargarProductos)"
                             style="padding:10px 16px;font-size:0.75rem; width: auto; background:var(--regio-red); color:white; border:none;"
                             title="⚠️ BORRA todos los productos del catálogo de forma permanente (pide confirmación).">🧹
                             Limpiar base de datos</button>
                         <button id="btnAgregarProducto" class="btn-premium"
-                            style="padding:10px 16px;font-size:0.75rem; width: auto;"><i class="fas fa-plus"></i>
+                            style="padding:10px 16px;font-size:0.75rem; width: auto;"
+                            title="Abrir el formulario para registrar un producto nuevo en el catálogo."><i
+                                class="fas fa-plus"></i>
                             Agregar Producto</button>
+                        <button class="btn-premium-outline" onclick="descargarEtiquetas(null)"
+                            style="padding:10px 16px;font-size:0.75rem; width: auto;"
+                            title="Descarga un archivo imprimible (HTML) con el código de barras y datos de TODOS los productos, listo para imprimir en tu impresora normal (USB/u otros).">⬇️
+                            Descargar etiquetas</button>
                     </div>
                 </div>
                 <div
@@ -680,9 +789,16 @@
                         <label style="font-size:0.72rem; color:var(--text-silver); display:block; margin-bottom:6px;">📷
                             Escáner de código de barras <em>(opcional)</em></label>
                         <input type="text" id="inputCodigoBarras" class="input-luxury" style="margin:0;"
-                            placeholder="Escanea o teclea el código y presiona Enter..." autocomplete="off">
+                            placeholder="Escanea o teclea el código y presiona Enter..." autocomplete="off"
+                            title="Si ya existe un producto con ese código, se carga para editar en segundos. Formato por escáner: nombre|marca|precio|categoría.">
                         <div id="resultadoBusquedaCodigo" style="margin-top:6px; font-size:0.75rem;"></div>
                     </div>
+                </div>
+                <div style="display:flex; gap:10px; flex-wrap:wrap; margin:12px 0; align-items:center;">
+                    <input type="text" id="buscarProducto" class="input-luxury"
+                        placeholder="🔍 Buscar por producto (nombre)..." style="max-width:260px; margin:0;"
+                        oninput="buscarProductosAdmin()"
+                        title="Filtrar la lista de productos escribiendo parte del nombre (búsqueda en vivo).">
                 </div>
                 <div id="listaProductos" class="table-responsive">
                     <div style="text-align:center; padding:40px; color:var(--text-silver);">Cargando...</div>
@@ -705,16 +821,25 @@
                     <h5>Control de Inventario</h5>
                     <div style="display: flex; gap: 10px; width: auto;">
                         <button id="btnRefrescarInventario" class="btn-premium-outline"
-                            style="padding:10px 16px;font-size:0.75rem; width: auto;">🔄 Refrescar</button>
+                            style="padding:10px 16px;font-size:0.75rem; width: auto;"
+                            title="Recargar la lista de movimientos de stock y las estadísticas.">🔄 Refrescar</button>
                         <button class="btn-premium danger"
                             onclick="limpiarTabla('inventario', 'Esto borra el historial de movimientos de stock.', cargarInventario)"
                             style="padding:10px 16px;font-size:0.75rem; width: auto; background:var(--regio-red); color:white; border:none;"
                             title="⚠️ BORRA todos los movimientos de inventario de forma permanente (pide confirmación).">🧹
                             Limpiar base de datos</button>
                         <button id="btnAgregarMovimiento" class="btn-premium"
-                            style="padding:10px 16px;font-size:0.75rem; width: auto;"><i class="fas fa-plus"></i>
+                            style="padding:10px 16px;font-size:0.75rem; width: auto;"
+                            title="Registrar una entrada (abastecer) o salida (venta/merma) de stock de algún producto."><i
+                                class="fas fa-plus"></i>
                             Movimiento</button>
                     </div>
+                </div>
+                <div style="display:flex; gap:10px; flex-wrap:wrap; margin:12px 0; align-items:center;">
+                    <input type="text" id="buscarProductoInventario" class="input-luxury"
+                        placeholder="🔍 Buscar por producto (nombre)..." style="max-width:260px; margin:0;"
+                        oninput="buscarInventarioAdmin()"
+                        title="Filtrar los movimientos de stock por nombre de producto (búsqueda en vivo).">
                 </div>
                 <div id="listaInventario" class="table-responsive">
                     <div style="text-align:center; padding:40px; color:var(--text-silver);">Cargando...</div>
@@ -728,7 +853,8 @@
                     <h5>Gestión de Pedidos</h5>
                     <div style="display:flex; gap:10px; flex-wrap:wrap;">
                         <button id="btnRefrescarPedidos" class="btn-premium-outline"
-                            style="padding:10px 16px;font-size:0.75rem; width: auto;">🔄 Refrescar</button>
+                            style="padding:10px 16px;font-size:0.75rem; width: auto;"
+                            title="Recargar la lista de pedidos desde la base de datos.">🔄 Refrescar</button>
                         <button class="btn-premium danger"
                             onclick="limpiarTabla('pedidos', 'Esto borra TODOS los pedidos registrados.', cargarPedidos)"
                             style="padding:10px 16px;font-size:0.75rem; width: auto; background:var(--regio-red); color:white; border:none;"
@@ -738,15 +864,31 @@
                 </div>
                 <div style="display: flex; gap: 10px; flex-wrap: wrap; margin: 15px 0; align-items:center;">
                     <input type="text" id="buscarNumeroPedido" class="input-luxury"
-                        placeholder="🔍 Buscar por N° de pedido..." style="max-width:260px; margin:0;">
+                        placeholder="🔍 Buscar por N° de pedido..." style="max-width:240px; margin:0;"
+                        title="Escribe parte del número de pedido para filtrar la lista.">
+                    <input type="text" id="buscarEmailPedido" class="input-luxury"
+                        placeholder="📧 Buscar por correo..." style="max-width:240px; margin:0;"
+                        title="Escribe parte del correo del cliente para filtrar la lista.">
+                    <input type="text" id="buscarNombrePedido" class="input-luxury"
+                        placeholder="👤 Buscar por nombre..." style="max-width:240px; margin:0;"
+                        title="Escribe parte del nombre del cliente para filtrar la lista.">
+                </div>
+                <div style="font-size:0.7rem; color:var(--text-silver); margin:-8px 0 10px;">
+                    📷 Genera el ticket y escanea su <strong>código de barras</strong> para encontrar el pedido al
+                    instante (el código del ticket es el mismo N° de pedido).
                 </div>
                 <div style="display: flex; gap: 10px; flex-wrap: wrap; margin: 15px 0;">
                     <button class="btn-premium-outline filtro-pedido active" data-estado="todos"
-                        style="padding:8px 16px;font-size:0.75rem;">Todos</button>
+                        style="padding:8px 16px;font-size:0.75rem;"
+                        title="Mostrar todos los pedidos sin filtrar por estado.">Todos</button>
                     <button class="btn-premium-outline filtro-pedido" data-estado="pendiente"
-                        style="padding:8px 16px;font-size:0.75rem;">📋 Pendientes</button>
+                        style="padding:8px 16px;font-size:0.75rem;"
+                        title="Pedidos recién recibidos, aún sin confirmar por el administrador.">📋
+                        Pendientes</button>
                     <button class="btn-premium-outline filtro-pedido" data-estado="confirmado"
-                        style="padding:8px 16px;font-size:0.75rem;">✅ Confirmados</button>
+                        style="padding:8px 16px;font-size:0.75rem;"
+                        title="Pedidos confirmados: se envió el correo de confirmación. Aún no se descuenta stock.">✅
+                        Confirmados</button>
                     <button class="btn-premium-outline filtro-pedido" data-estado="vendido"
                         title="Pedidos donde ya se descontó el stock (venta completada)"
                         style="padding:8px 16px;font-size:0.75rem;">💰 Vendidos</button>
@@ -754,7 +896,9 @@
                         title="Solo informativo: indica que se entregó físicamente al cliente. No afecta el stock."
                         style="padding:8px 16px;font-size:0.75rem;">📦 Entregados</button>
                     <button class="btn-premium-outline filtro-pedido" data-estado="cancelado"
-                        style="padding:8px 16px;font-size:0.75rem;">❌ Cancelados</button>
+                        style="padding:8px 16px;font-size:0.75rem;"
+                        title="Pedidos cancelados (por el cliente o por el administrador).">❌
+                        Cancelados</button>
                     <button class="btn-premium-outline filtro-pedido" data-estado="devuelto"
                         title="Pedidos vendidos que fueron regresados: el stock ya se restauró"
                         style="padding:8px 16px;font-size:0.75rem;">↩️ Devueltos</button>
@@ -779,7 +923,9 @@
                     <h5>Control Financiero</h5>
                     <div style="display: flex; gap: 10px; width: auto;">
                         <button id="btnRefrescarFinanzas" class="btn-premium-outline"
-                            style="padding:10px 16px;font-size:0.75rem; width: auto;">🔄 Refrescar</button>
+                            style="padding:10px 16px;font-size:0.75rem; width: auto;"
+                            title="Recargar los movimientos financieros y los totales desde la base de datos.">🔄
+                            Refrescar</button>
                         <button class="btn-premium danger"
                             onclick="limpiarTabla('finanzas', 'Esto borra TODOS los movimientos financieros.', function(){ cargarFinanzas(); guardarBaseFinanzas(0,0); })"
                             style="padding:10px 16px;font-size:0.75rem; width: auto; background:var(--regio-red); color:white; border:none;"
@@ -791,9 +937,23 @@
                             title="Pone Ingresos, Gastos y Ganancia en $0.00 SIN borrar el historial de movimientos (pide confirmación).">🔁
                             Reiniciar contadores a $0.00</button>
                         <button id="btnAgregarFinanza" class="btn-premium"
-                            style="padding:10px 16px;font-size:0.75rem; width: auto;"><i class="fas fa-plus"></i>
+                            style="padding:10px 16px;font-size:0.75rem; width: auto;"
+                            title="Abrir el formulario para registrar un ingreso o un gasto."><i
+                                class="fas fa-plus"></i>
                             Registrar</button>
                     </div>
+                </div>
+                <div style="display:flex; gap:10px; flex-wrap:wrap; margin:12px 0; align-items:center;">
+                    <select id="filtroCategoriaFinanzas" class="input-luxury" style="max-width:240px; margin:0;"
+                        title="Filtra los movimientos de finanzas por categoría contable."
+                        onchange="cargarFinanzas()">
+                        <option value="todas">🗂️ Todas las categorías</option>
+                        <option value="venta">Venta</option>
+                        <option value="compra">Compra</option>
+                        <option value="envio">Envío</option>
+                        <option value="abono">Abono</option>
+                        <option value="otros">Otros</option>
+                    </select>
                 </div>
                 <div id="listaFinanzas" class="table-responsive">
                     <div style="text-align:center; padding:40px; color:var(--text-silver);">Cargando...</div>
@@ -812,9 +972,13 @@
                             title="Muestra los lugares de entrega y su costo de envío, para copiarlo al ticket manualmente.">🚚
                             Mostrar lugares de entrega</button>
                         <button id="btnRefrescarTicket" class="btn-premium-outline"
-                            style="padding:8px 16px;font-size:0.75rem; width:auto;">🔄 Refrescar</button>
+                            style="padding:8px 16px;font-size:0.75rem; width:auto;"
+                            title="Recargar la lista de pedidos disponibles en el selector de arriba.">🔄
+                            Refrescar</button>
                         <button type="button" id="btnLimpiarTicket" class="btn-premium-outline"
-                            style="padding:8px 16px;font-size:0.75rem; width:auto;">🧹 Limpiar Campos</button>
+                            style="padding:8px 16px;font-size:0.75rem; width:auto;"
+                            title="Vaciar los campos del ticket y la lista de productos para empezar una venta nueva.">🧹
+                            Limpiar Campos</button>
                     </div>
                 </div>
 
@@ -822,6 +986,8 @@
                     Precarga aquí un pedido existente para imprimir/reimprimir su ticket (informativo, no descuenta
                     stock ni crea otra venta). O déjalo así para llenar manualmente una venta directa desde cero
                     (descuenta stock) e imprimir su ticket.
+                    <br><em>💡 El código de barras impreso en cada ticket es el mismo N° de pedido (código único por
+                    venta). Escanéalo en cualquier pestaña para buscar/reenviar/reimprimir el pedido al instante.</em>
                 </label>
                 <select id="ticketPedidoSelect" class="input-luxury" style="margin-bottom:18px;"
                     title="Precarga aquí un pedido existente (para imprimir/reimprimir su ticket), o déjalo así para llenar manualmente una venta directa e imprimir su ticket.">
@@ -887,8 +1053,15 @@
                             title="Subtotal menos el descuento aplicado. Este es el monto final a cobrar.">
                     </div>
 
-                    <button type="submit" class="btn-premium" style="width:100%; padding:15px; margin-top:15px;"><i
-                            class="fas fa-print"></i> Generar Ticket y Registrar Venta</button>
+                    <div style="display:flex; gap:10px; margin-top:15px;">
+                        <button type="submit" class="btn-premium" style="flex:1; padding:15px;"
+                            title="Registra la venta en pedidos y finanzas (descuenta stock) e imprime el ticket de la venta (o lo muestra en pantalla si no hay impresora)."><i
+                                class="fas fa-print"></i> Generar Ticket y Registrar Venta</button>
+                        <button type="button" class="btn-premium-outline" style="padding:15px;"
+                            onclick="verVistaPreviaVenta()"
+                            title="Ver cómo quedará el ticket en pantalla antes de imprimir (sin registrar ni cobrar)."><i
+                                class="fas fa-eye"></i> Vista Previa</button>
+                    </div>
                     <div id="mensajeTicket" class="mt-2" style="margin-top:10px;"></div>
                 </form>
             </div>
@@ -901,7 +1074,8 @@
                     <h5 style="margin:0;">📧 Enviar Email al Cliente</h5>
                     <div style="display:flex; gap:10px; flex-wrap:wrap;">
                         <button id="btnRefrescarEnvio" class="btn-premium-outline"
-                            style="padding:8px 16px;font-size:0.75rem; width:auto;">🔄 Refrescar</button>
+                            style="padding:8px 16px;font-size:0.75rem; width:auto;"
+                            title="Recargar la lista de pedidos disponibles para enviar correo.">🔄 Refrescar</button>
                         <button type="button" id="btnLimpiarEnvio" class="btn-premium-outline"
                             style="padding:8px 16px;font-size:0.75rem; width:auto;"
                             title="Solo limpia los campos del formulario (no borra la base de datos).">🧹 Limpiar
@@ -914,29 +1088,35 @@
                     </div>
                 </div>
                 <form id="formEnvioCorreo">
-                    <select id="selectPedidoEnvio" class="input-luxury">
+                    <select id="selectPedidoEnvio" class="input-luxury"
+                        title="Elige un pedido existente para precargar sus datos en el correo (se puede editar).">
                         <option value="">Selecciona un pedido (todos los estados)...</option>
                     </select>
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                        <input type="email" id="correoCliente" class="input-luxury" placeholder="Correo" readonly>
+                        <input type="email" id="correoCliente" class="input-luxury" placeholder="Correo" readonly
+                            title="Correo del cliente a quien irá el mensaje (viene del pedido).">
                         <input type="text" id="numeroPedidoCorreo" class="input-luxury" placeholder="N° Pedido"
-                            readonly>
+                            readonly title="Número único del pedido que se envía en el correo.">
                     </div>
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                        <input type="text" id="nombreClienteCorreo" class="input-luxury" placeholder="Cliente" readonly>
-                        <input type="text" id="telefonoCorreo" class="input-luxury" placeholder="Teléfono" readonly>
+                        <input type="text" id="nombreClienteCorreo" class="input-luxury" placeholder="Cliente" readonly
+                            title="Nombre del cliente que aparecerá en el saludo del correo.">
+                        <input type="text" id="telefonoCorreo" class="input-luxury" placeholder="Teléfono" readonly
+                            title="Teléfono de contacto mostrado en el correo.">
                     </div>
                     <textarea id="productosCorreo" class="input-luxury" rows="3" placeholder="Productos"
-                        readonly></textarea>
+                        readonly title="Lista de productos del pedido con cantidades y precios."></textarea>
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                        <input type="text" id="metodoPagoCorreo" class="input-luxury" placeholder="Método de pago">
-                        <input type="text" id="direccionCorreo" class="input-luxury" placeholder="Dirección" readonly>
+                        <input type="text" id="metodoPagoCorreo" class="input-luxury" placeholder="Método de pago"
+                            title="Método de pago del pedido (transferencia, efectivo, etc.).">
+                        <input type="text" id="direccionCorreo" class="input-luxury" placeholder="Dirección" readonly
+                            title="Dirección de entrega del pedido (si aplica).">
                     </div>
                     <input type="text" id="lugarEntregaCorreo" class="input-luxury" placeholder="Lugar de entrega"
-                        readonly>
+                        readonly title="Lugar de entrega elegido por el cliente en el catálogo.">
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                         <input type="text" id="envioLugarCorreo" class="input-luxury" placeholder="Envío (lugar)"
-                            readonly>
+                            readonly title="Lugar y costo del envío que se imprime en el correo.">
                         <input type="number" id="envioCorreo" class="input-luxury" placeholder="Costo de envío *"
                             step="0.01" required
                             title="Costo de envío en pesos. Se llena con el costo del lugar de entrega.">
@@ -946,14 +1126,18 @@
                             placeholder="Descuento % (opcional)" step="0.01" min="0" max="100"
                             title="Descuento en PORCENTAJE (0-100), se aplica sobre subtotal.">
                         <input type="text" id="mensajeAdicionalCorreo" class="input-luxury"
-                            placeholder="Mensaje adicional (opcional)">
+                            placeholder="Mensaje adicional (opcional)"
+                            title="Texto personalizado (saludo, instrucciones o aviso) que se incluye en el correo al cliente.">
                     </div>
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                        <input type="text" id="subtotalCorreo" class="input-luxury" placeholder="Subtotal" readonly>
-                        <input type="text" id="totalCorreo" class="input-luxury" placeholder="Total" readonly>
+                        <input type="text" id="subtotalCorreo" class="input-luxury" placeholder="Subtotal" readonly
+                            title="Suma de los productos más el envío, antes del descuento.">
+                        <input type="text" id="totalCorreo" class="input-luxury" placeholder="Total" readonly
+                            title="Subtotal menos el descuento. Este es el monto final del pedido.">
                     </div>
                     <div style="display:flex; gap:10px; margin-top:15px;">
-                        <button type="submit" class="btn-premium" style="width:100%; padding:15px;"><i
+                        <button type="submit" class="btn-premium" style="width:100%; padding:15px;"
+                            title="Envía el correo al cliente por EmailJS y marca el pedido como CONFIRMADO."><i
                                 class="fas fa-envelope"></i> Enviar Correo y Confirmar</button>
                     </div>
                     <div id="mensajeCorreo" style="margin-top:10px;"></div>
@@ -969,14 +1153,16 @@
                     <h5>🎯 Cupones del Carrusel</h5>
                     <div style="display:flex; gap:10px; flex-wrap:wrap;">
                         <button id="btnRefrescarPromociones" class="btn-premium-outline"
-                            style="padding:10px 16px;font-size:0.75rem; width:auto;">🔄 Refrescar</button>
+                            style="padding:10px 16px;font-size:0.75rem; width:auto;"
+                            title="Recargar cupones, noticias, lugares de entrega y marcas.">🔄 Refrescar</button>
                         <button class="btn-premium danger"
                             onclick="limpiarTabla(['cupones','noticias','lugares_entrega','marcas'], 'Borra TODOS los cupones, noticias, lugares de entrega y marcas.', function(){ cargarCupones(); cargarNoticias(); cargarLugaresEntregaAdmin(); cargarMarcas(); })"
                             style="padding:10px 16px;font-size:0.75rem; width:auto; background:var(--regio-red); color:white; border:none;"
                             title="⚠️ BORRA todos los cupones, noticias, lugares de entrega y marcas de forma permanente (pide confirmación).">🧹
                             Limpiar base de datos</button>
                         <button id="btnAgregarCupon" class="btn-premium"
-                            style="padding:10px 16px;font-size:0.75rem; width:auto;">
+                            style="padding:10px 16px;font-size:0.75rem; width:auto;"
+                            title="Abrir el formulario para crear un cupón de descuento nuevo.">
                             <i class="fas fa-plus"></i> Agregar Cupón
                         </button>
                     </div>
@@ -991,7 +1177,8 @@
                     style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:20px;">
                     <h5>📰 Noticias</h5>
                     <button id="btnAgregarNoticia" class="btn-premium"
-                        style="padding:10px 16px;font-size:0.75rem; width:auto;">
+                        style="padding:10px 16px;font-size:0.75rem; width:auto;"
+                        title="Abrir el formulario para publicar una noticia nueva.">
                         <i class="fas fa-plus"></i> Agregar Noticia
                     </button>
                 </div>
@@ -1005,7 +1192,8 @@
                     style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:20px;">
                     <h5>🚚 Lugares de Entrega y Costos de Envío</h5>
                     <button id="btnAgregarLugar" class="btn-premium"
-                        style="padding:10px 16px;font-size:0.75rem; width:auto;">
+                        style="padding:10px 16px;font-size:0.75rem; width:auto;"
+                        title="Abrir el formulario para agregar un lugar de entrega y su costo de envío.">
                         <i class="fas fa-plus"></i> Agregar Lugar
                     </button>
                 </div>
@@ -1023,7 +1211,8 @@
                     style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:20px;">
                     <h5>🏷️ Marcas</h5>
                     <button id="btnAgregarMarca" class="btn-premium"
-                        style="padding:10px 16px;font-size:0.75rem; width:auto;">
+                        style="padding:10px 16px;font-size:0.75rem; width:auto;"
+                        title="Abrir el formulario para agregar una marca que manejas.">
                         <i class="fas fa-plus"></i> Agregar Marca
                     </button>
                 </div>
@@ -1043,28 +1232,60 @@
             <h3 id="formProductoTitulo" style="font-weight:400; margin-bottom:20px;">➕ Agregar Producto</h3>
             <form id="formProducto">
                 <input type="hidden" id="prodId">
-                <input type="text" id="prodNombre" class="input-luxury" placeholder="Nombre del producto *" required>
-                <input type="number" id="prodPrecio" class="input-luxury" placeholder="Precio *" step="0.01" required>
+                <input type="text" id="prodNombre" class="input-luxury" placeholder="Nombre del producto *" required
+                    title="Nombre comercial del producto tal como lo verá el cliente en la tarjeta.">
+                <input type="text" id="prodMarca" class="input-luxury" placeholder="Marca del producto (ej: Bath and Body Works)"
+                    title="Marca o casa fabricante. Se muestra en la columna Marca del tab Productos y en la etiqueta impresa.">
+                <input type="number" id="prodPrecio" class="input-luxury" placeholder="Precio *" step="0.01" required
+                    title="Precio final de venta en pesos (el IVA ya está incluido en este precio).">
                 <input type="number" id="prodStock" class="input-luxury" placeholder="Stock *"
                     title="Cuántas unidades hay disponibles para vender ahora mismo.">
-                <input type="text" id="prodCodigoBarras" class="input-luxury" placeholder="Código de barras"
-                    title="Opcional. Código de barras físico del producto, solo como referencia interna.">
-                <input type="text" id="prodImagen" class="input-luxury" placeholder="URL de imagen (opcional)"
-                    title="Pega el enlace directo a una imagen del producto (debe empezar con http:// o https://).">
-                <p style="font-size:0.7rem; color:var(--text-silver); margin:-8px 0 6px; line-height:1.5;">
-                    <strong>¿Dónde subir la imagen?</strong> Usa un host gratuito como
-                    imgur.com o postimages.org (o Subir a Drive y hacerla pública). Copia el enlace
-                    DIRECTO (termina en .jpg, .png, .webp) y pégalo aquí. Si la liga no termina en
-                    una extensión de imagen, la tarjeta mostrará el ícono 📦.
+                <div style="display:flex; gap:8px; align-items:center;">
+                    <input type="text" id="prodCodigoBarras" class="input-luxury" placeholder="Código de barras"
+                        title="Opcional. Código de barras físico del producto, solo como referencia interna.">
+                    <button type="button" class="btn-premium-outline" style="padding:10px 14px; font-size:0.75rem; white-space:nowrap;"
+                        onclick="generarCodigoBarrasProducto()"
+                        title="Genera automáticamente el siguiente código EAN-13 (prefijo 750) y lo coloca en el campo.">⚙️ Generar</button>
+                </div>
+                <div style="display:flex; gap:8px; align-items:center;">
+                    <input type="text" id="prodImagen" class="input-luxury" placeholder="URL de imagen (opcional)"
+                        title="Pega el enlace directo a una imagen del producto (debe empezar con http:// o https://). Se muestra una mini vista previa debajo mientras escribes."
+                        oninput="vistaPreviaImagenProducto()" style="flex:1;">
+                    <button type="button" class="btn-premium-outline" style="padding:10px 14px; font-size:0.75rem; white-space:nowrap;"
+                        onclick="abrirImagenProducto()"
+                        title="Ver la foto del producto en grande (nueva ventana).">👁 Ver foto</button>
+                </div>
+                <div id="prodImagenPreview" style="display:none; margin:2px 0 2px 0;">
+                    <p style="font-size:0.7rem; color:var(--text-silver); margin:0 0 4px 0;">Vista previa:</p>
+                    <img id="prodImagenMini" alt="Vista previa de la imagen"
+                        style="max-width:130px; max-height:130px; object-fit:cover; border-radius:6px; border:1px solid var(--border);">
+                </div>
+                <div style="display:flex; align-items:center; gap:8px; margin:4px 0 6px 0;">
+                    <input type="file" id="prodImagenArchivo" accept="image/png,image/jpeg,image/webp,image/gif"
+                        onchange="subirImagenProducto(this)" style="display:none;">
+                    <button type="button" class="btn-premium-outline" style="padding:10px 14px; font-size:0.75rem; white-space:nowrap;"
+                        onclick="document.getElementById('prodImagenArchivo').click()"
+                        title="Selecciona la foto desde tu computadora: se sube a tu Storage de Supabase SIN redimensionar, en calidad y resolución originales.">📤
+                        Subir imagen</button>
+                    <span id="prodImagenSubidaMsg" style="font-size:0.7rem; color:var(--text-silver);"></span>
+                </div>
+                <p style="font-size:0.7rem; color:var(--text-silver); margin:0 0 6px; line-height:1.5;">
+                    Sube la foto desde tu computadora (no se comprime, se guarda la resolución original) o pega el
+                    enlace DIRECTO de la imagen (termina en .jpg, .png, .webp). Si la liga no termina en una
+                    extensión de imagen, la tarjeta mostrará el ícono 📦.
                 </p>
-                <input type="text" id="prodTienda" class="input-luxury" placeholder="Tienda de origen (ej: USA)"
-                    title="Opcional. De dónde se trae el producto, solo como referencia interna.">
+                <input type="text" id="prodTienda" class="input-luxury" placeholder="De dónde se trae (McAllen, Texas)"
+                    title="De dónde se trae/compra el producto. Por defecto: McAllen, Texas. Se puede editar.">
                 <select id="prodCategoria" class="input-luxury"
-                    title="Categoría bajo la cual se filtra este producto en la tienda pública.">
+                    title="Categoría bajo la cual se filtra este producto en la tienda pública (ej: Suplementos, Ropa Deportiva, Perfumes).">
                     <option value="">Selecciona categoría</option>
-                    <option value="perfumes">Perfumes</option>
-                    <option value="cuidado_personal">Cuidado Personal</option>
-                    <option value="otros">Otros</option>
+                    <option value="Suplementos">Suplementos</option>
+                    <option value="Accesorios">Accesorios</option>
+                    <option value="Ropa Deportiva">Ropa Deportiva</option>
+                    <option value="Ropa y Calzado">Ropa y Calzado</option>
+                    <option value="Perfumes">Perfumes</option>
+                    <option value="Cuidado Personal">Cuidado Personal</option>
+                    <option value="Otros">Otros</option>
                 </select>
                 <textarea id="prodDescripcion" class="input-luxury" rows="2" placeholder="Descripción"
                     title="Texto que ve el cliente en la tarjeta del producto."></textarea>
@@ -1146,22 +1367,26 @@
             <h3 id="formCuponTitulo" style="font-weight:400; margin-bottom:20px;">➕ Agregar Cupón</h3>
             <form id="formCupon">
                 <input type="hidden" id="cuponId">
-                <input type="text" id="cuponTitulo" class="input-luxury" placeholder="Título del cupón *" required>
-                <input type="text" id="cuponDescripcion" class="input-luxury" placeholder="Descripción *" required>
+                <input type="text" id="cuponTitulo" class="input-luxury" placeholder="Título del cupón *" required
+                    title="Título grande que se muestra en la tarjeta del cupón.">
+                <input type="text" id="cuponDescripcion" class="input-luxury" placeholder="Descripción *" required
+                    title="Texto de apoyo que explica en qué consiste el cupón.">
                 <label style="display:block; font-size:0.7rem; color:var(--text-silver); margin:-8px 0 6px;">
                     El código que el cliente debe mencionar o ingresar para aplicar el cupón.
                 </label>
-                <input type="text" id="cuponCodigo" class="input-luxury" placeholder="Código del cupón *" required>
+                <input type="text" id="cuponCodigo" class="input-luxury" placeholder="Código del cupón *" required
+                    title="El código que el cliente debe mencionar o ingresar al hacer su pedido.">
                 <label style="display:block; font-size:0.7rem; color:var(--text-silver); margin:-8px 0 6px;">
                     Porcentaje de descuento que aplicará el cupón (ej: 10 = 10% de descuento).
                 </label>
                 <input type="number" id="cuponDescuento" class="input-luxury" placeholder="Descuento % (ej: 10)" min="0"
-                    max="100" required>
+                    max="100" required title="Porcentaje de descuento que aplica el cupón (10 = 10%).">
                 <label style="display:block; font-size:0.7rem; color:var(--text-silver); margin:-8px 0 6px;">
                     Etiqueta pequeña que se muestra sobre el cupón en el carrusel (ej: 🔥 NUEVO, ⭐ EXCLUSIVO, 💎
                     VIP).
                 </label>
-                <input type="text" id="cuponTag" class="input-luxury" placeholder="Etiqueta (ej: 🔥 NUEVO) *" required>
+                <input type="text" id="cuponTag" class="input-luxury" placeholder="Etiqueta (ej: 🔥 NUEVO) *" required
+                    title="Etiqueta pequeña sobre el cupón en el carrusel (ej: 🔥 NUEVO, ⭐ EXCLUSIVO, 💎 VIP).">
                 <label style="display:block; font-size:0.7rem; color:var(--text-silver); margin:-8px 0 6px;">
                     Un solo emoji que se muestra como imagen/ícono del cupón.
                 </label>
@@ -1174,7 +1399,8 @@
                 </div>
                 <label style="display:block; font-size:0.7rem; color:var(--text-silver); margin-bottom:6px;">Vigencia
                     (hasta qué fecha es válido el cupón)</label>
-                <input type="date" id="cuponVigenciaPicker" class="input-luxury" required>
+                <input type="date" id="cuponVigenciaPicker" class="input-luxury" required
+                    title="Fecha hasta la cual el cupón sigue siendo válido. Después de esa fecha no se muestra.">
                 <label style="display:block; font-size:0.7rem; color:var(--text-silver); margin-bottom:6px;">
                     Orden en el que aparece dentro del carrusel de cupones (0 = primero, 1 = segundo, etc.). Ya se
                     sugiere el siguiente número disponible, pero lo puedes cambiar.
@@ -1184,7 +1410,8 @@
                 <label style="display:block; font-size:0.7rem; color:var(--text-silver); margin-bottom:6px;">
                     Inactivo = se guarda pero no se muestra en el sitio público.
                 </label>
-                <select id="cuponActivo" class="input-luxury">
+                <select id="cuponActivo" class="input-luxury"
+                    title="Activo = se muestra en el sitio público. Inactivo = se guarda pero no se muestra.">
                     <option value="true">✅ Activo</option>
                     <option value="false">❌ Inactivo</option>
                 </select>
@@ -1206,21 +1433,25 @@
             <form id="formNoticia">
                 <input type="hidden" id="noticiaId">
                 <input type="text" id="noticiaTitulo" class="input-luxury" placeholder="Título de la noticia *"
-                    required>
+                    required title="Título principal de la noticia, visible en negritas en la página.">
                 <textarea id="noticiaDescripcion" class="input-luxury" rows="3" placeholder="Descripción *"
-                    required></textarea>
+                    required title="Texto completo o resumen de la noticia que verá el cliente."></textarea>
                 <label
                     style="display:flex; align-items:center; gap:8px; font-size:0.7rem; color:var(--text-silver); margin:-8px 0 12px; cursor:pointer;">
-                    <input type="checkbox" id="noticiaFechaEsTexto" style="width:auto; margin:0;">
+                    <input type="checkbox" id="noticiaFechaEsTexto" style="width:auto; margin:0;"
+                        title="Marcar para usar una etiqueta especial (ej: ⚡ ¡ÚLTIMO MOMENTO!) en lugar de una fecha.">
                     Usar una etiqueta especial en vez de una fecha (ej: "⚡ ¡ÚLTIMO MOMENTO!")
                 </label>
-                <input type="date" id="noticiaFechaPicker" class="input-luxury">
+                <input type="date" id="noticiaFechaPicker" class="input-luxury"
+                    title="Fecha de la noticia tal como se muestra (si usas fecha normal).">
                 <input type="text" id="noticiaFechaTexto" class="input-luxury"
-                    placeholder="Etiqueta especial (ej: ⚡ ¡ÚLTIMO MOMENTO!)" style="display:none;">
+                    placeholder="Etiqueta especial (ej: ⚡ ¡ÚLTIMO MOMENTO!)" style="display:none;"
+                    title="Etiqueta que reemplaza a la fecha (ej: ⚡ ¡ÚLTIMO MOMENTO!).">
                 <label style="display:block; font-size:0.7rem; color:var(--text-silver); margin-bottom:6px;">
                     Destacado le da un estilo resaltado en la lista de noticias del sitio público.
                 </label>
-                <select id="noticiaDestacado" class="input-luxury">
+                <select id="noticiaDestacado" class="input-luxury"
+                    title="Destacado le da un estilo resaltado en la lista de noticias del sitio público.">
                     <option value="false">Normal</option>
                     <option value="true">⭐ Destacado</option>
                 </select>
@@ -1233,7 +1464,8 @@
                 <label style="display:block; font-size:0.7rem; color:var(--text-silver); margin-bottom:6px;">
                     Inactivo = se guarda pero no se muestra en el sitio público.
                 </label>
-                <select id="noticiaActivo" class="input-luxury">
+                <select id="noticiaActivo" class="input-luxury"
+                    title="Activo = se muestra en el sitio público. Inactivo = se guarda pero no se muestra.">
                     <option value="true">✅ Activo</option>
                     <option value="false">❌ Inactivo</option>
                 </select>
@@ -1314,7 +1546,8 @@
                     Descripción breve de la marca.
                 </label>
                 <input type="text" id="marcaDescripcion" class="input-luxury"
-                    placeholder="Descripción de la marca (opcional)">
+                    placeholder="Descripción de la marca (opcional)"
+                    title="Una frase breve de qué vende o representa esa marca (opcional).">
                 <label style="display:block; font-size:0.7rem; color:var(--text-silver); margin-bottom:6px;">
                     Orden en el que aparece (0 = primero).
                 </label>
@@ -1338,14 +1571,17 @@
                 <h5>💎 Programa de Lealtad</h5>
                 <div style="display: flex; gap: 10px; width: auto;">
                     <button id="btnRefrescarLealtad" class="btn-premium-outline"
-                        style="padding:10px 16px;font-size:0.75rem; width: auto;">🔄 Refrescar</button>
+                        style="padding:10px 16px;font-size:0.75rem; width: auto;"
+                        title="Recargar la lista de clientes del programa de lealtad.">🔄 Refrescar</button>
                     <button class="btn-premium danger"
                         onclick="limpiarTabla('lealtad', 'Borra TODOS los clientes del programa de lealtad.', cargarLealtad)"
                         style="padding:10px 16px;font-size:0.75rem; width: auto; background:var(--regio-red); color:white; border:none;"
                         title="⚠️ BORRA todos los clientes del programa de lealtad de forma permanente (pide confirmación).">🧹
                         Limpiar base de datos</button>
                     <button id="btnAgregarLealtad" class="btn-premium"
-                        style="padding:10px 16px;font-size:0.75rem; width: auto;"><i class="fas fa-plus"></i>
+                        style="padding:10px 16px;font-size:0.75rem; width: auto;"
+                        title="Abrir el formulario para registrar a un cliente nuevo en el programa de lealtad."><i
+                            class="fas fa-plus"></i>
                         Agregar Cliente</button>
                 </div>
             </div>
@@ -1353,6 +1589,12 @@
                 Registra a clientes con sus productos comprados acumulados para otorgar productos de regalo según tu
                 política de lealtad.
             </label>
+            <div style="display:flex; gap:10px; flex-wrap:wrap; margin:12px 0; align-items:center;">
+                <input type="text" id="buscarLealtadNombre" class="input-luxury"
+                    placeholder="👤 Buscar por nombre..." style="max-width:260px; margin:0;"
+                    oninput="filtrarLealtadNombre()"
+                    title="Filtrar los clientes del programa de lealtad por nombre (búsqueda en vivo).">
+            </div>
             <div id="listaLealtad" class="table-responsive">
                 <div style="text-align:center; padding:40px; color:var(--text-silver);">Cargando...</div>
             </div>
@@ -1387,6 +1629,20 @@
                     cargo</strong> (abono que baja el adeudo total). Pasa el cursor sobre cada botón para ver qué
                 hace.
             </label>
+            <div style="display:flex; gap:10px; flex-wrap:wrap; margin:12px 0; align-items:center;">
+                <input type="text" id="buscarPagoNombre" class="input-luxury"
+                    placeholder="👤 Buscar por nombre..." style="max-width:260px; margin:0;"
+                    oninput="filtrarPagosNombre()"
+                    title="Filtrar los clientes del control de pagos por nombre (búsqueda en vivo).">
+                <select id="filtroEstadoPagos" class="input-luxury" style="max-width:240px; margin:0;"
+                    title="Filtra los pagos por estado."
+                    onchange="filtrarPagosEstado()">
+                    <option value="todos">🗂️ Todos los estados</option>
+                    <option value="en_mora">⏰ En mora</option>
+                    <option value="al_corriente">💵 Al corriente</option>
+                    <option value="liquidado">💰 Liquidado</option>
+                </select>
+            </div>
             <div id="listaPagos" class="table-responsive">
                 <div style="text-align:center; padding:40px; color:var(--text-silver);">Cargando...</div>
             </div>
@@ -1468,10 +1724,13 @@
             <h5 style="font-weight:400; margin-bottom:20px;" id="lealtadModalTitulo">💎 Agregar Cliente</h5>
             <input type="hidden" id="lealtadId">
             <div id="mensajeLealtad" style="margin-bottom:12px;"></div>
-            <input type="text" id="lealtadNombreCliente" class="input-luxury" placeholder="Nombre del cliente *">
+            <input type="text" id="lealtadNombreCliente" class="input-luxury" placeholder="Nombre del cliente *"
+                title="Nombre del cliente participante del programa de lealtad.">
             <input type="number" id="lealtadProductosComprados" class="input-luxury" placeholder="Productos comprados *"
-                min="0" step="1">
-            <input type="text" id="lealtadProductoRegalo" class="input-luxury" placeholder="Producto de regalo">
+                min="0" step="1"
+                title="Cuántos productos ha comprado acumulados (se suma cada vez que compra).">
+            <input type="text" id="lealtadProductoRegalo" class="input-luxury" placeholder="Producto de regalo"
+                title="Producto que le toca de regalo según tu política de lealtad (opcional).">
             <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:20px;">
                 <button type="button" class="btn-premium-outline" style="width: auto;"
                     onclick="document.getElementById('modalLealtad').style.display='none';">Cancelar</button>
@@ -1487,8 +1746,10 @@
             <p id="modalMensaje" style="color:var(--text-silver);">¿Deseas eliminar este elemento?</p>
             <div style="display:flex; gap:10px; justify-content:center; margin-top:20px;">
                 <button id="modalConfirmar" class="btn-premium danger"
-                    style="background:var(--regio-red); color:white; border:none; width: auto;">Eliminar</button>
-                <button id="modalCancelar" class="btn-premium-outline" style="width: auto;">Cancelar</button>
+                    style="background:var(--regio-red); color:white; border:none; width: auto;"
+                    title="Confirmar la acción (eliminar u otra) sobre el elemento seleccionado.">Eliminar</button>
+                <button id="modalCancelar" class="btn-premium-outline" style="width: auto;"
+                    title="Cancelar y no hacer cambios.">Cancelar</button>
             </div>
         </div>
     </div>
@@ -1499,7 +1760,8 @@
             <h5 style="font-weight:400; font-size:1.3rem;" id="modalAlertaTitulo">ℹ️</h5>
             <p id="modalAlertaMensaje" style="color:var(--text-silver); margin-top:10px;"></p>
             <div style="display:flex; gap:10px; justify-content:center; margin-top:20px;">
-                <button id="modalAlertaOk" class="btn-premium" style="width: auto;">Aceptar</button>
+                <button id="modalAlertaOk" class="btn-premium" style="width: auto;"
+                    title="Cerrar el aviso.">Aceptar</button>
             </div>
         </div>
     </div>
@@ -1511,9 +1773,10 @@
             <p id="modalConfirmarAccionMensaje" style="color:var(--text-silver); margin-top:10px;"></p>
             <div style="display:flex; gap:10px; justify-content:center; margin-top:20px;">
                 <button id="modalConfirmarAccionCancel" class="btn-premium-outline"
-                    style="width: auto;">Cancelar</button>
+                    style="width: auto;" title="Cancelar y no hacer cambios.">Cancelar</button>
                 <button id="modalConfirmarAccionOk" class="btn-premium danger"
-                    style="background:var(--regio-red); color:white; border:none; width: auto;">Confirmar</button>
+                    style="background:var(--regio-red); color:white; border:none; width: auto;"
+                    title="Confirmar la acción.">Confirmar</button>
             </div>
         </div>
     </div>
@@ -1522,24 +1785,35 @@
         <div class="modal-content">
             <h5 style="font-weight:400; margin-bottom:20px;">📧 Enviar Correo al Cliente</h5>
             <input type="hidden" id="modalCorreoPedidoId">
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                <input type="text" id="modalCorreoNumero" class="input-luxury" placeholder="N° Pedido" readonly>
-                <input type="text" id="modalCorreoCliente" class="input-luxury" placeholder="Cliente" readonly>
+            <div style="font-size:0.7rem; color:var(--text-silver); margin-bottom:12px; line-height:1.5;">
+                📷 Escanea el código de barras del ticket para autocompletar este correo automáticamente.
             </div>
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                <input type="text" id="modalCorreoTelefono" class="input-luxury" placeholder="Teléfono" readonly>
-                <input type="email" id="modalCorreoEmail" class="input-luxury" placeholder="Correo" readonly>
+                <input type="text" id="modalCorreoNumero" class="input-luxury" placeholder="N° Pedido" readonly
+                    title="Número del pedido que se está enviando.">
+                <input type="text" id="modalCorreoCliente" class="input-luxury" placeholder="Cliente" readonly
+                    title="Nombre del cliente a quien va dirigido el correo.">
             </div>
-            <input type="text" id="modalCorreoDireccion" class="input-luxury" placeholder="Dirección" readonly>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <input type="text" id="modalCorreoTelefono" class="input-luxury" placeholder="Teléfono" readonly
+                    title="Teléfono del cliente, incluido en el correo.">
+                <input type="email" id="modalCorreoEmail" class="input-luxury" placeholder="Correo" readonly
+                    title="Correo del cliente a donde se envía el mensaje.">
+            </div>
+            <input type="text" id="modalCorreoDireccion" class="input-luxury" placeholder="Dirección" readonly
+                title="Dirección de entrega del pedido (si aplica).">
             <textarea id="modalCorreoProductos" class="input-luxury" rows="3" placeholder="Productos"
-                readonly></textarea>
+                readonly title="Lista de productos del pedido con cantidades y precios."></textarea>
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                <input type="text" id="modalCorreoTotal" class="input-luxury" placeholder="Total" readonly>
+                <input type="text" id="modalCorreoTotal" class="input-luxury" placeholder="Total" readonly
+                    title="Total del pedido que aparece en el correo.">
                 <input type="number" id="modalCorreoEnvio" class="input-luxury" placeholder="Costo de envío *"
-                    step="0.01" required>
+                    step="0.01" required
+                    title="Costo de envío en pesos que aparecerá en el correo.">
             </div>
             <textarea id="modalCorreoMensaje" class="input-luxury" rows="2"
-                placeholder="Mensaje adicional (opcional)"></textarea>
+                placeholder="Mensaje adicional (opcional)"
+                title="Texto personalizado (saludo, instrucciones o aviso) que se incluye en el correo."></textarea>
             <div id="mensajeModalCorreo" style="margin-bottom:15px;"></div>
             <div style="display:flex; gap:10px; justify-content:flex-end;">
                 <button type="button" class="btn-premium-outline" style="width: auto;"
@@ -1560,8 +1834,14 @@
             <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:20px;">
                 <button type="button" class="btn-premium-outline" style="width: auto;"
                     onclick="document.getElementById('modalVerDetallePedido').style.display='none';">Cerrar</button>
+                <button type="button" class="btn-premium-outline" style="width: auto;"
+                    onclick="verVistaPreviaDetallePedidoActual()"
+                    title="Ver un adelanto de cómo se vería la impresión de este pedido."><i class="fas fa-eye"></i>
+                    Vista Previa</button>
                 <button type="button" class="btn-premium" style="width: auto;"
-                    onclick="imprimirDetallePedidoActual()"><i class="fas fa-print"></i> Imprimir</button>
+                    onclick="imprimirDetallePedidoActual()"
+                    title="Imprimir el detalle de este pedido (con QZ si hay impresora, o en el navegador)."><i
+                        class="fas fa-print"></i> Imprimir</button>
             </div>
         </div>
     </div>
@@ -1574,18 +1854,31 @@
             <div id="mensajeEditarPedido" style="margin-bottom:12px;"></div>
 
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                <input type="text" id="editarCliente" class="input-luxury" placeholder="Cliente *">
-                <input type="tel" id="editarTelefono" class="input-luxury" placeholder="Teléfono *">
+                <input type="text" id="editarCliente" class="input-luxury" placeholder="Cliente *"
+                    title="Nombre completo del cliente.">
+                <input type="tel" id="editarTelefono" class="input-luxury" placeholder="Teléfono *"
+                    title="Teléfono de contacto del cliente.">
             </div>
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                <input type="email" id="editarEmail" class="input-luxury" placeholder="Correo">
-                <input type="text" id="editarDireccion" class="input-luxury" placeholder="Dirección">
+                <input type="email" id="editarEmail" class="input-luxury" placeholder="Correo"
+                    title="Correo del cliente (se usa para enviar el comprobante).">
+                <input type="text" id="editarDireccion" class="input-luxury" placeholder="Dirección"
+                    title="Dirección de entrega del pedido (si aplica).">
             </div>
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                <select id="editarLugarEntrega" class="input-luxury">
+                <select id="editarLugarEntrega" class="input-luxury"
+                    title="Lugar/zona de entrega del pedido.">
                     <option value="" selected>Selecciona lugar de entrega...</option>
                 </select>
-                <select id="editarMetodoPago" class="input-luxury">
+                <input type="text" id="editarPuntoEntrega" class="input-luxury"
+                    placeholder="Punto de entrega exacto (zona coordinada)"
+                    title="Punto exacto donde se entrega, para zonas coordinadas (se acuerda por WhatsApp).">
+            </div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top:15px;">
+                <input type="time" id="editarHoraAcordada" class="input-luxury" step="60"
+                    title="Hora EXACTA acordada con el comprador">
+                <select id="editarMetodoPago" class="input-luxury"
+                    title="Cómo pagará el cliente este pedido.">
                     <option value="efectivo">Efectivo</option>
                     <option value="transferencia">Transferencia</option>
                 </select>
@@ -1594,13 +1887,16 @@
             <label style="display:block; font-size:0.7rem; color:var(--text-silver); margin-top:12px;">Productos
                 (una línea por producto: Nombre | Cantidad | Precio unitario)</label>
             <textarea id="editarProductos" class="input-luxury" rows="4"
-                placeholder="Producto 1 | 2 | 150&#10;Producto 2 | 1 | 300"></textarea>
+                placeholder="Producto 1 | 2 | 150&#10;Producto 2 | 1 | 300"
+                title="Lista de productos del pedido, una por línea: Nombre | Cantidad | Precio unitario."></textarea>
 
             <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-top:15px;">
-                <input type="number" id="editarEnvio" class="input-luxury" placeholder="Envío" step="0.01" min="0">
+                <input type="number" id="editarEnvio" class="input-luxury" placeholder="Envío" step="0.01" min="0"
+                    title="Costo de envío en pesos aplicado al pedido.">
                 <input type="number" id="editarDescuento" class="input-luxury" placeholder="Descuento %" step="0.01"
-                    min="0" max="100">
-                <select id="editarEstado" class="input-luxury">
+                    min="0" max="100" title="Descuento en PORCENTAJE (0-100) aplicado al pedido.">
+                <select id="editarEstado" class="input-luxury"
+                    title="Estado actual del pedido (pendiente, confirmado, entregado, vendido, cancelado, devuelto).">
                     <option value="pendiente">📋 Pendiente</option>
                     <option value="confirmado">✅ Confirmado</option>
                     <option value="entregado">📦 Entregado</option>
@@ -1610,10 +1906,13 @@
                 </select>
             </div>
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top:15px;">
-                <input type="text" id="editarSubtotal" class="input-luxury" placeholder="Subtotal" readonly>
-                <input type="text" id="editarTotal" class="input-luxury" placeholder="Total" readonly>
+                <input type="text" id="editarSubtotal" class="input-luxury" placeholder="Subtotal" readonly
+                    title="Suma de los productos más el envío, antes del descuento. Se calcula solo.">
+                <input type="text" id="editarTotal" class="input-luxury" placeholder="Total" readonly
+                    title="Subtotal menos el descuento. Este es el monto final del pedido. Se calcula solo.">
             </div>
-            <textarea id="editarNotas" class="input-luxury" rows="2" placeholder="Notas (opcional)"></textarea>
+            <textarea id="editarNotas" class="input-luxury" rows="2" placeholder="Notas (opcional)"
+                title="Comentarios internos o instrucciones especiales para este pedido."></textarea>
 
             <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:20px;">
                 <button type="button" class="btn-premium-outline" style="width: auto;"
@@ -1643,6 +1942,13 @@
     <script src="js/supabase.js"></script>
     <script src="js/utils.js"></script>
     <script src="js/auth.js"></script>
+    <!-- SDK + impresión directa con QZ Tray (58mm) -->
+    <script src="js/qz-tray.js"></script>
+    <script src="js/forge.min.js"></script>
+    <script src="js/ticket-qz.js"></script>
+    <!-- Códigos de barras (JsBarcode) para etiquetas imprimibles -->
+    <script src="js/JsBarcode.all.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
     <script src="js/admin.js"></script>
     <script src="js/lealtad.js"></script>
     <script src="js/pagos.js"></script>
@@ -1737,6 +2043,66 @@
             });
         });
     </script>
+
+    <!-- MODAL ETIQUETA DE PRODUCTO (código de barras) -->
+    <div id="modalEtiqueta" class="modal-box">
+        <div class="modal-content" style="max-width:400px;">
+            <h5 style="font-weight:400; margin-bottom:12px;">🏷️ Etiqueta de Producto</h5>
+            <div id="contenidoEtiqueta"
+                style="background:#fff; color:#000; border-radius:6px; padding:14px; text-align:center; margin:10px 0;">
+            </div>
+            <div style="margin:6px 0 2px 0;">
+                <select id="protoEtiqueta"
+                    style="width:100%; font-size:13px; padding:6px 8px; border-radius:6px; border:1px solid #2a2a2a; background:#111; color:#ddd;"
+                    title="Protocolo que usa tu impresora: TSPL (etiquetas, recomendado), ESC/POS (térmico) o texto plano.">
+                    <option value="tspl">Protocolo: TSPL etiquetas (recomendado)</option>
+                    <option value="escpos">Protocolo: ESC/POS térmico</option>
+                    <option value="texto">Protocolo: Texto plano</option>
+                </select>
+            </div>
+            <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:14px;">
+                <button type="button" class="btn-premium-outline" style="width: auto;"
+                    onclick="enviarEtiquetaBluetooth()"
+                    title="Enviar la etiqueta por Bluetooth a tu impresora portátil."><i
+                        class="fas fa-bluetooth-b"></i> Enviar a Bluetooth</button>
+                <button type="button" class="btn-premium-outline" style="width: auto;"
+                    onclick="cerrarEtiqueta()" title="Cerrar esta ventana sin imprimir.">Cerrar</button>
+                <button type="button" class="btn-premium" style="width: auto;"
+                    onclick="imprimirEtiqueta()"
+                    title="Imprimir la etiqueta desde esta página (con QZ o en el navegador)."><i
+                        class="fas fa-print"></i> Imprimir</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL VISTA PREVIA DEL TICKET (en vez de ventana emergente) -->
+    <div id="modalTicketPreview" class="modal-box">
+        <div class="modal-content" style="max-width:440px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                <h5 style="font-weight:400;margin:0;">🧾 Vista previa del ticket</h5>
+                <button type="button" class="btn-premium-outline" style="width:auto; padding:6px 14px;"
+                    onclick="cerrarTicketPreview()">✕ Cerrar</button>
+            </div>
+            <iframe id="iframeTicketPreview"
+                style="width:100%;height:660px;border:none;border-radius:6px;background:#fff;"
+                title="Vista previa del ticket"></iframe>
+        </div>
+    </div>
+
+    <!-- MODAL VISTA PREVIA DE IMAGEN DE PRODUCTO -->
+    <div id="modalVistaPreviaImagen" class="modal-box">
+        <div class="modal-content" style="max-width:520px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                <h5 style="font-weight:400;margin:0;">🖼️ Vista previa de la imagen</h5>
+                <button type="button" class="btn-premium-outline" style="width:auto; padding:6px 14px;"
+                    onclick="cerrarImagenProducto()" title="Cerrar esta ventana.">✕ Cerrar</button>
+            </div>
+            <div style="background:#fff; border-radius:6px; padding:10px; text-align:center;">
+                <img id="imgVistaPreviaImagen" alt="Vista previa de la imagen del producto"
+                    style="max-width:100%; max-height:440px; object-fit:contain; border-radius:4px;">
+            </div>
+        </div>
+    </div>
 
 </body>
 

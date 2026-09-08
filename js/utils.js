@@ -22,6 +22,15 @@ function formatearMoneda(cantidad) {
   }).format(cantidad);
 }
 
+const TASA_IVA = 16;
+
+function desglosarIVA(montoConIva) {
+  const total = Number(montoConIva) || 0;
+  const iva = Math.round((total * TASA_IVA) / (100 + TASA_IVA) * 100) / 100;
+  const base = Math.round((total - iva) * 100) / 100;
+  return { base, iva, total };
+}
+
 function formatearFecha(fecha) {
   return new Date(fecha).toLocaleString("es-MX", {
     day: "2-digit",

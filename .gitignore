@@ -1,5 +1,6 @@
 # Configuración local (NO SUBIR A GITHUB)
 js/config.local.js
+js/config.netlify.generated.js
 .env
 .env.local
 

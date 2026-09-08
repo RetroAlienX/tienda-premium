@@ -5,6 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Recuperar · Route66 Market</title>
+    <link rel="icon" type="image/jpeg" href="img/favicon.jpg">
+    <meta name="robots" content="noindex, nofollow">
 
     <meta name="supabase-url" id="supabase-url" content="https://xsactvcmsaxrjwyeaimf.supabase.co">
     <meta name="supabase-key" id="supabase-key"
@@ -141,9 +143,11 @@
 
         <form id="recuperarForm">
             <div class="mb-3">
-                <input type="email" id="emailRecuperar" class="form-control" placeholder="Correo electrónico" required>
+                <input type="email" id="emailRecuperar" class="form-control" placeholder="Correo electrónico" required
+                    title="Correo con el que te registraste como administrador para recibir el enlace de recuperación.">
             </div>
-            <button type="submit" class="btn-recover">📧 Enviar enlace</button>
+            <button type="submit" class="btn-recover"
+                title="Enviar el enlace para restablecer tu contraseña a ese correo.">📧 Enviar enlace</button>
             <div id="mensajeRecuperar" class="mensaje"></div>
         </form>
 

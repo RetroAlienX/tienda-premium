@@ -5,9 +5,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ticket · Route66 Market</title>
+    <link rel="icon" type="image/jpeg" href="img/favicon.jpg">
     <link rel="stylesheet" href="css/custom.css">
     <style>
         @media print {
+            body {
+                background: #ffffff !important;
+            }
+
             body * {
                 visibility: hidden;
             }
@@ -17,19 +22,44 @@
                 visibility: visible;
             }
 
+            /* Fuerza a Chrome a imprimir colores reales (negro a plena tinta)
+               y evita que "Incluir fondo" desactivado aclare/borre el texto. */
+            * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
             #ticket-content {
                 position: absolute;
-                left: 0;
+                left: 50%;
                 top: 0;
-                width: 80mm;
-                padding: 5mm;
-                background: white;
-                color: black;
+                transform: translateX(-50%);
+                width: 48mm;
+                max-width: 48mm;
+                margin: 0 !important;
+                float: none !important;
+                padding: 1mm 0;
+                background: #ffffff !important;
+                color: #000000 !important;
+                border: none !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
+            #ticket-content * {
+                color: #000000 !important;
+                text-shadow: none !important;
+            }
+
+            /* El desglose de IVA solo es visible para el administrador en
+               pantalla (vista previa); jamás se imprime en el papel. */
+            .ticket-linea-iva {
+                display: none !important;
             }
 
             @page {
                 margin: 0;
-                size: 80mm auto;
+                size: 58mm auto;
             }
 
             .no-print {
@@ -38,13 +68,13 @@
         }
 
         .ticket-preview {
-            max-width: 80mm;
+            max-width: 48mm;
             margin: 0 auto;
-            padding: 5mm;
+            padding: 2mm 0;
             background: white;
             color: black;
             font-family: 'Courier New', Courier, monospace;
-            font-size: 11px;
+            font-size: 9px;
         }
 
         .ticket-header {
@@ -55,7 +85,7 @@
         }
 
         .ticket-header h2 {
-            font-size: 14px;
+            font-size: 12px;
             margin: 0;
             font-weight: 700;
             letter-spacing: 1px;
@@ -63,41 +93,43 @@
 
         .ticket-header .sub {
             font-size: 9px;
-            color: #666;
+            color: #000;
             letter-spacing: 2px;
             margin: 2px 0;
         }
 
         .ticket-header .info {
             font-size: 9px;
-            color: #444;
+            color: #111;
             margin: 2px 0;
         }
 
         .ticket-item {
             display: flex;
             justify-content: space-between;
-            padding: 3px 0;
-            font-size: 10px;
-            gap: 6px;
+            padding: 2px 0;
+            font-size: 9px;
+            gap: 4px;
         }
+
         .ticket-item-nombre {
             flex: 1;
             min-width: 0;
             overflow-wrap: break-word;
         }
+
         .ticket-item-detalle {
             white-space: nowrap;
-            color: #333;
+            color: #111;
         }
 
         .ticket-total {
-            font-size: 13px;
+            font-size: 12px;
             font-weight: bold;
             text-align: right;
             border-top: 2px solid #000;
-            padding-top: 8px;
-            margin-top: 8px;
+            padding-top: 6px;
+            margin-top: 6px;
         }
 
         .ticket-footer {
@@ -108,20 +140,20 @@
         }
 
         .ticket-footer .thanks {
-            font-size: 11px;
+            font-size: 10px;
             font-weight: bold;
             letter-spacing: 1px;
         }
 
         .ticket-footer .slogan {
             font-size: 9px;
-            color: #666;
+            color: #111;
             font-style: italic;
         }
 
         .no-print .btn-print {
-            background: var(--accent);
-            color: var(--bg-black);
+            background: #16a34a;
+            color: #fff;
             border: none;
             padding: 10px 28px;
             font-weight: 600;
@@ -130,43 +162,120 @@
             transition: all 0.3s ease;
             text-decoration: none;
             display: inline-block;
+            border-radius: 6px;
         }
 
         .no-print .btn-print:hover {
-            background: var(--accent-hover);
+            background: #15803d;
         }
 
-        .no-print .btn-close-ticket {
-            background: var(--bg-input);
-            color: var(--text-main);
-            border: 1px solid var(--border);
+        .no-print .btn-nav {
+            background: #2563eb;
+            color: #fff;
+            border: none;
             padding: 10px 28px;
-            font-weight: 300;
+            font-weight: 600;
             font-size: 0.85rem;
             cursor: pointer;
             transition: all 0.3s ease;
             text-decoration: none;
             display: inline-block;
+            border-radius: 6px;
+        }
+
+        .no-print .btn-nav:hover {
+            background: #1d4ed8;
+        }
+
+        .no-print .btn-close-ticket {
+            background: #374151;
+            color: #e5e7eb;
+            border: 1px solid #4b5563;
+            padding: 10px 28px;
+            font-weight: 500;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+            border-radius: 6px;
         }
 
         .no-print .btn-close-ticket:hover {
-            border-color: var(--text-silver);
+            background: #4b5563;
+            border-color: #6b7280;
+        }
+
+        .no-print .btn-ejemplo {
+            background: #7c3aed;
+            color: #fff;
+            border: none;
+            padding: 6px 20px;
+            font-size: 0.7rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+            border-radius: 6px;
+        }
+
+        .no-print .btn-ejemplo:hover {
+            background: #6d28d9;
+        }
+
+        .no-print #qzEstado {
+            margin-top: 12px;
+            padding: 8px 20px;
+            font-size: 0.7rem;
+            border: 1px dashed #6b7280;
+            display: block;
+            width: 100%;
+            box-sizing: border-box;
+            color: #9ca3af;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .ticket-actions {
+            width: 100%;
+            max-width: 300px;
+            padding: 24px 16px;
+            text-align: center;
+        }
+
+        .ticket-title {
+            font-weight: 300;
+            color: var(--text-main);
+            margin-bottom: 16px;
+        }
+
+        .ticket-btn-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .ticket-btn-group button {
+            width: 100%;
+            text-align: center;
+            padding: 12px 16px;
+            font-size: 0.85rem;
+            box-sizing: border-box;
         }
     </style>
 </head>
 
-<body style="background:var(--bg-black);min-height:100vh;">
+<body style="background:var(--bg-black);min-height:100vh;display:flex;flex-direction:column;align-items:center;">
 
-    <div class="no-print" style="padding:30px 0;text-align:center;">
-        <div class="container-premium">
-            <h5 style="font-weight:300;color:var(--text-main);margin-bottom:16px;">🧾 Ticket</h5>
-            <div class="d-flex gap-3 justify-content-center flex-wrap">
-                <button onclick="window.print()" class="btn-print">🖨️ Imprimir</button>
-                <button onclick="window.close()" class="btn-close-ticket">✕ Cerrar</button>
-            </div>
-            <button onclick="cargarEjemplo()" class="btn-close-ticket"
-                style="margin-top:12px;padding:6px 20px;font-size:0.7rem;">📋 Cargar ejemplo</button>
+    <div class="no-print ticket-actions" style="text-align:center;">
+        <h5 class="ticket-title">🧾 Ticket</h5>
+        <div class="ticket-btn-group">
+            <button onclick="imprimirConQZTicket()" class="btn-print">🖨️ Imprimir (QZ 58mm)</button>
+            <button onclick="window.print()" class="btn-nav">🖨️ Imprimir con Navegador</button>
+            <button onclick="window.close()" class="btn-close-ticket">✕ Cerrar ventana</button>
+            <button onclick="cargarEjemplo()" class="btn-ejemplo">📋 Cargar ejemplo</button>
         </div>
+        <div id="qzEstado"></div>
     </div>
 
     <div id="ticket-content" class="ticket-preview">
@@ -174,10 +283,17 @@
     </div>
 
     <script src="js/utils.js"></script>
+    <script src="js/JsBarcode.all.min.js"></script>
     <script src="js/ticket.js"></script>
+    <!-- SDK de QZ Tray (para imprimir directo a la térmica de 58mm) -->
+    <script src="js/qz-tray.js"></script>
+    <script src="js/forge.min.js"></script>
+    <script src="js/ticket-qz.js"></script>
     <script>
+        let ultimoDatosTicket = null;
+
         function cargarEjemplo() {
-            generarTicket({
+            const datos = {
                 cliente: 'María García',
                 telefono: '81 2687 8080',
                 direccion: 'Calle #123, Colonia Centro',
@@ -191,7 +307,32 @@
                 total: 2360,
                 fecha: new Date().toISOString(),
                 ticket_numero: 'T-20260819-0001'
-            });
+            };
+            ultimoDatosTicket = datos;
+            generarTicket(datos);
+        }
+
+        function imprimirConQZTicket() {
+            if (!ultimoDatosTicket) {
+                alert('Primero carga los datos del ticket (elige un pedido o usa "Cargar ejemplo").');
+                return;
+            }
+            imprimirConQZ(ultimoDatosTicket);
+        }
+
+        function comprobarQZ() {
+            const el = document.getElementById('qzEstado');
+            if (!el) return;
+            try {
+                const $ = window.qz;
+                if (!$ || typeof $.websocket !== 'object') {
+                    el.textContent = '⚠️ QZ Tray NO está instalado. Descárgalo en https://qz.io para imprimir a 58mm.';
+                } else {
+                    el.textContent = '✅ QZ Tray detectado. Listo para imprimir.';
+                }
+            } catch (e) {
+                el.textContent = '⚠️ Error al comprobar QZ Tray.';
+            }
         }
 
         document.addEventListener('DOMContentLoaded', function () {
@@ -201,28 +342,15 @@
             if (pedidoData) {
                 try {
                     const datos = JSON.parse(decodeURIComponent(pedidoData));
+                    ultimoDatosTicket = datos;
                     generarTicket(datos);
                 } catch (e) {
                     document.getElementById('ticketBody').innerHTML = '<p style="color:var(--regio-red);">❌ Error al cargar el ticket</p>';
                 }
             }
+            comprobarQZ();
         });
 
-        // Ventana SIEMPRE centrada (respaldo: algunos navegadores ignoran
-        // left/top en window.open y la abren pegada a la izquierda).
-        (function () {
-            try {
-                if (window.opener && window.moveTo && window.resizeTo && window.screen) {
-                    const ancho = 400;
-                    const alto = 700;
-                    window.resizeTo(ancho, alto);
-                    window.moveTo(
-                        Math.max(0, (window.screen.availWidth - ancho) / 2),
-                        Math.max(0, (window.screen.availHeight - alto) / 2)
-                    );
-                }
-            } catch (e) { /* el navegador bloqueó moveTo/resizeTo: no pasa nada */ }
-        })();
     </script>
 
 </body>

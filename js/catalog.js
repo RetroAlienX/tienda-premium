@@ -239,7 +239,7 @@ function hacerPedido(id) {
 📲 *Siguiente paso:* te contactaremos por correo o WhatsApp para enviarte los datos de pago. Realiza tu transferencia y envíanos el comprobante para confirmar tu fecha y punto de entrega. 🚚
 🎟️ *Cupones:* si aplicaste uno, tu descuento ya está calculado sobre productos + envío.
 💳 *Pago:* si tu pedido no se paga dentro de los 3 días posteriores a la compra, se cancelará automáticamente.
-⏳ *Cancelación:* puedes solicitar la cancelación dentro de los 3 días posteriores a tu compra. Después de ese periodo no es posible cancelar el pedido.
+⏳ *Cancelación/devolución:* puedes solicitarla dentro de los 3 días posteriores a la *recepción* del producto (los días corren a partir de que recibes tu pedido). Debe regresarse en su *empaque original*, sin daños y sin uso. En consumibles o productos sellados (alimentos, geles de manos, perfumes) deben estar *sellados como se recibieron*: si están abiertos o fueron usados, la devolución o garantía de calidad queda *invalidada*. Después de ese periodo no es posible cancelar el pedido.
 🚚 *Entrega:* contamos con 15 minutos de tolerancia para entregarte tu pedido. Si no es posible la entrega, se reprograma con un nuevo cargo de envío. Un segundo intento fallido devuelve la mercancía a nuestro stock.
 📅 *Nota:* los pedidos realizados en viernes después de las 10:00 PM se entregan hasta el siguiente fin de semana por disponibilidad de horario.
 📦 *Permanencia:* reservamos tus productos durante 1 semana completa. Si dentro de ese plazo no se completa la entrega (por no poder recibir o no acudir al punto acordado), el pedido se dará por concluido, los productos regresarán a stock y el pago realizado no será reembolsable. 💰`;
@@ -732,7 +732,7 @@ async function cargarCuponesDesdeDB() {
                         <p class="cupon-desc">${cupon.descripcion}</p>
                         <div class="cupon-code">
                             <span>${cupon.codigo}</span>
-                            <button class="btn-copy-code" onclick="copiarCodigo('${
+                            <button class="btn-copy-code" title="Copiar el código ${cupon.codigo} para usarlo en tu pedido." onclick="copiarCodigo('${
                               cupon.codigo
                             }')">📋</button>
                         </div>
@@ -1136,7 +1136,7 @@ function poblarHorariosEntrega() {
 const TEXTO_POLITICAS_ENTREGA =
   "🚚 Entrega: contamos con 15 minutos de tolerancia para entregarte tu pedido. Contamos con puntos fijos de entrega con envío GRATIS (Apodaca centro · 8:00-8:30 AM, San Nicolás centro · 9:00-9:30 AM y Costco Escobedo · 10:00-10:30 AM) y zonas coordinadas (San Pedro, Monterrey y Guadalupe) donde el punto y horario se acuerdan por WhatsApp con un costo de $200. Si no es posible la entrega, se reprograma con un nuevo cargo de envío. Un segundo intento fallido devuelve la mercancía a stock.";
 const TEXTO_CANCELACION_3DIAS =
-  "⏳ Puedes solicitar la cancelación dentro de los 3 días posteriores a tu compra. Después de ese periodo el pedido ya no puede cancelarse.";
+  "⏳ Puedes solicitar tu cancelación o devolución dentro de los 3 días posteriores a la recepción (los días corren a partir de que recibes tu pedido). Para que la devolución sea válida, el producto debe regresarse en su empaque original, sin daños y sin haber sido utilizado. En consumibles o productos sellados (alimentos, geles de manos, perfumes y similares), deben entregarse sellados tal como se recibieron; si ya fueron abiertos o usados, la devolución o garantía de calidad queda invalidada. 🙏";
 
 // ============================================
 // LUGARES DE ENTREGA (desde Supabase, con respaldo local)
@@ -1212,8 +1212,10 @@ async function cargarLugaresEntrega() {
 }
 
 // Lógica que se dispara al cambiar el lugar de entrega (botón en el form):
-//  - Punto fijo: habilita día, bloquea horario con el rango asignado, aviso.
-//  - Punto coordinado: bloquea día y horario, aviso de "a convenir".
+//  - Punto fijo: el día queda libre (sábado/domingo); el horario se fija solo.
+//  - Punto coordinado: el día queda libre; el horario se coordina por WhatsApp.
+//  En ambos casos el select de horario se reemplaza por un texto informativo
+//  (se esconden las opciones) para evitar confusiones, con el motivo.
 function cambiarLugarEntrega(sel) {
   const opt = sel ? sel.options[sel.selectedIndex] : null;
   const lugar = opt ? opt.value : "";
@@ -1223,35 +1225,63 @@ function cambiarLugarEntrega(sel) {
   const diaSel = document.getElementById("diaEntrega");
   const horaSel = document.getElementById("horaEntrega");
   const aviso = document.getElementById("avisoLugarEntrega");
+  const horaFijaBox = document.getElementById("horaEntregaFija");
+  const direccionEl = document.getElementById("direccionCliente");
+  const direccionNota = document.getElementById("avisoDireccionFija");
 
   // Restaurar estado editable de ambos select antes de re-aplicar.
   if (diaSel) {
     diaSel.disabled = false;
     diaSel.style.opacity = "";
   }
-  if (horaSel) {
-    horaSel.disabled = false;
-    horaSel.style.opacity = "";
-  }
   if (aviso) {
     aviso.style.display = "none";
     aviso.classList.remove("aviso-fijo", "aviso-coordinado");
+  }
+  // Restaurar el select de horario y ocultar la caja informativa.
+  if (horaSel) {
+    horaSel.disabled = false;
+    horaSel.style.opacity = "";
+    horaSel.style.display = "";
+  }
+  if (horaFijaBox) {
+    horaFijaBox.style.display = "none";
+    horaFijaBox.className = "campo-hint";
+  }
+  // Restaurar la dirección a su estado editable original.
+  if (direccionEl) {
+    direccionEl.disabled = false;
+    direccionEl.style.opacity = "";
+    direccionEl.required = true;
+    direccionEl.placeholder = "Dirección completa de entrega *";
+  }
+  if (direccionNota) {
+    direccionNota.style.display = "none";
   }
 
   if (!lugar) return;
 
   if (esFijo) {
-    // Punto fijo: el día queda libre (sábado/domingo); el horario se fija.
+    // Punto fijo: el día es seleccionable; el horario es fijo y se informa.
     if (diaSel) {
       diaSel.disabled = false;
     }
-    // Restaurar las opciones de horario y seleccionar el rango fijo.
+    // Modificación 1: en punto fijo la dirección NO es obligatoria porque el
+    // cliente acude a recoger su pedido en el punto. Se deshabilita y explica.
+    if (direccionEl) {
+      direccionEl.disabled = true;
+      direccionEl.style.opacity = "0.6";
+      direccionEl.value = "";
+      direccionEl.required = false;
+      direccionEl.placeholder = "No requerida (recoge en punto fijo)";
+    }
+    if (direccionNota) {
+      direccionNota.style.display = "block";
+    }
     if (horaSel) {
-      horaSel.disabled = true;
-      horaSel.style.opacity = "0.6";
-      poblarHorariosEntrega();
+      horaSel.disabled = false;
+      poblarHorariosEntrega(); // restablecer opciones estándar
       const label = formatearHorarioFijo(horarioFijo);
-      // Buscar la opción cuyo texto coincide con el rango fijo.
       let encontrado = false;
       for (let i = 0; i < horaSel.options.length; i++) {
         if (horaSel.options[i].text.indexOf(label) !== -1) {
@@ -1260,14 +1290,20 @@ function cambiarLugarEntrega(sel) {
           break;
         }
       }
-      // Si no existe ese rango (por ejemplo 8:00-8:30), agregarlo manualmente.
       if (!encontrado) {
         const [ini] = String(horarioFijo).split("-");
-        const opt = document.createElement("option");
-        opt.value = ini + ":00";
-        opt.text = label;
-        horaSel.appendChild(opt);
+        const opt2 = document.createElement("option");
+        opt2.value = ini + ":00";
+        opt2.text = label;
+        horaSel.appendChild(opt2);
         horaSel.value = ini + ":00";
+      }
+      // Esconder el select y mostrar el motivo en su lugar.
+      horaSel.style.display = "none";
+      if (horaFijaBox) {
+        horaFijaBox.style.display = "block";
+        horaFijaBox.className = "campo-hint aviso-fijo";
+        horaFijaBox.innerHTML = `⏰ <strong>Horario de entrega:</strong> tu rango asignado es <strong>${label}</strong>. Este horario es fijo para el punto "${lugar}" y no se puede cambiar. Acude a recoger tu pedido en ese horario.`;
       }
     }
     if (aviso) {
@@ -1276,16 +1312,20 @@ function cambiarLugarEntrega(sel) {
       aviso.style.display = "block";
     }
   } else {
-    // Punto coordinado: día y horario se bloquean; se acuerda por WhatsApp.
+    // Punto coordinado: el día es seleccionable; el horario se coordina.
     if (diaSel) {
-      diaSel.disabled = true;
-      diaSel.style.opacity = "0.6";
-      diaSel.value = "";
+      diaSel.disabled = false;
     }
     if (horaSel) {
       horaSel.disabled = true;
-      horaSel.style.opacity = "0.6";
       horaSel.value = "";
+      // Esconder el select y mostrar el motivo en su lugar.
+      horaSel.style.display = "none";
+      if (horaFijaBox) {
+        horaFijaBox.style.display = "block";
+        horaFijaBox.className = "campo-hint aviso-coordinado";
+        horaFijaBox.innerHTML = `📞 <strong>Horario de entrega:</strong> como elegiste "${lugar}", el punto y horario exactos se coordinan directamente por WhatsApp contigo. Por eso no se selecciona aquí.`;
+      }
     }
     if (aviso) {
       aviso.textContent = `📍 Punto y horario a convenir. Te contactaremos por WhatsApp para coordinar la entrega en "${lugar}". Envío: $200 MXN.`;
@@ -1523,11 +1563,18 @@ document.addEventListener("DOMContentLoaded", function () {
           }
         }
       } else {
-        // Punto coordinado: no se exige día ni horario (se coordina por WhatsApp).
-        // Limpiar cualquier valor previo para que no quede un dato incorrecto.
-        const dSel = document.getElementById("diaEntrega");
+        // Punto coordinado: el día es seleccionable y obligatorio; solo el
+        // horario se coordina por WhatsApp (queda vacío).
+        if (!diaEntrega) {
+          mostrarMensaje(
+            mensaje,
+            "❌ Selecciona tu día de entrega (sábado o domingo). El horario exacto se coordinará por WhatsApp.",
+            "error",
+          );
+          return;
+        }
+        // El horario queda vacío (se coordina); limpiar cualquier valor previo.
         const hSel = document.getElementById("horaEntrega");
-        if (dSel) dSel.value = "";
         if (hSel) hSel.value = "";
       }
 

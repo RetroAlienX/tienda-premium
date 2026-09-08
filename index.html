@@ -1,10 +1,74 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es-MX">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>The Route66 Market · Premium USA Imports</title>
+    <link rel="icon" type="image/jpeg" href="img/favicon.jpg">
+
+    <!-- SEO -->
+    <meta name="description"
+        content="The Route66 JV Market: productos premium importados de USA. Perfumes, cuidado personal, proteínas, creatina, termos y más. McAllen, TX · Monterrey, MX. Envíos los sábados y domingos.">
+    <meta name="keywords"
+        content="route66, jv market, imports, usa, perfumes, cuidado personal, proteina, creatina, termos, rote66 market, monterrey, mcallen">
+    <meta name="author" content="The Route66 JV Market">
+    <meta name="robots" content="index, follow">
+    <meta name="theme-color" content="#0a0a0a">
+    <meta name="googlebot" content="index, follow">
+    <link rel="canonical" href="https://theroute66jvmarket.netlify.app/">
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website">
+    <meta property="og:locale" content="es_MX">
+    <meta property="og:site_name" content="The Route66 JV Market">
+    <meta property="og:title" content="The Route66 Market · Premium USA Imports">
+    <meta property="og:description"
+        content="Productos premium importados de USA: perfumes, cuidado personal, proteínas, creatina y más. Envíos todos los sábados y domingos en Monterrey y zona metropolitana.">
+    <meta property="og:url" content="https://theroute66jvmarket.netlify.app/">
+    <meta property="og:image"
+        content="https://theroute66jvmarket.netlify.app/img/banner.jpg">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="The Route66 Market · Premium USA Imports">
+    <meta name="twitter:description"
+        content="Productos premium importados de USA: perfumes, cuidado personal, proteínas, creatina y más. Envíos los sábados y domingos.">
+    <meta name="twitter:image"
+        content="https://theroute66jvmarket.netlify.app/img/banner.jpg">
+
+    <!-- Datos estructurados: tienda -->
+    <script type="application/ld+json">
+        {
+            "@context": "https://schema.org",
+            "@type": "Store",
+            "name": "The Route66 JV Market",
+            "image": "https://theroute66jvmarket.netlify.app/img/banner.jpg",
+            "url": "https://theroute66jvmarket.netlify.app/",
+            "telephone": "+52 81 2687 8080",
+            "email": "theroute66jvmarket@outlook.com",
+            "priceRange": "$$",
+            "currenciesAccepted": "MXN",
+            "address": {
+                "@type": "PostalAddress",
+                "addressLocality": "Monterrey",
+                "addressCountry": "MX"
+            },
+            "areaServed": ["Monterrey", "San Pedro", "San Nicolás", "Guadalupe", "Apodaca", "Escobedo", "McAllen, Texas"],
+            "openingHoursSpecification": [
+                {
+                    "@type": "OpeningHoursSpecification",
+                    "dayOfWeek": ["Saturday", "Sunday"],
+                    "opens": "08:00",
+                    "closes": "12:00"
+                }
+            ],
+            "sameAs": [
+                "https://wa.me/5218126878080",
+                "mailto:theroute66jvmarket@outlook.com"
+            ]
+        }
+    </script>
 
     <meta name="supabase-url" id="supabase-url" content="https://xsactvcmsaxrjwyeaimf.supabase.co">
     <meta name="supabase-key" id="supabase-key"
@@ -223,7 +287,7 @@
                                     <p class="cupon-desc">10% OFF en tu primer pedido</p>
                                     <div class="cupon-code">
                                         <span>BIENVENIDO10</span>
-                                        <button class="btn-copy-code" onclick="copiarCodigo('BIENVENIDO10')">📋</button>
+                                        <button class="btn-copy-code" onclick="copiarCodigo('BIENVENIDO10')" title="Copiar el código BIENVENIDO10 para usarlo en tu pedido.">📋</button>
                                     </div>
                                     <span class="cupon-expiry">Válido hasta: 31/12/2026</span>
                                 </div>
@@ -238,7 +302,7 @@
                                     <p class="cupon-desc">Envío sin costo en compras +$2000</p>
                                     <div class="cupon-code">
                                         <span>ENVIO2026</span>
-                                        <button class="btn-copy-code" onclick="copiarCodigo('ENVIO2026')">📋</button>
+                                        <button class="btn-copy-code" onclick="copiarCodigo('ENVIO2026')" title="Copiar el código ENVIO2026 para usarlo en tu pedido.">📋</button>
                                     </div>
                                     <span class="cupon-expiry">Válido hasta: 15/01/2026</span>
                                 </div>
@@ -253,7 +317,7 @@
                                     <p class="cupon-desc">20% OFF en toda la tienda</p>
                                     <div class="cupon-code">
                                         <span>BLACK2026</span>
-                                        <button class="btn-copy-code" onclick="copiarCodigo('BLACK2026')">📋</button>
+                                        <button class="btn-copy-code" onclick="copiarCodigo('BLACK2026')" title="Copiar el código BLACK2026 para usarlo en tu pedido.">📋</button>
                                     </div>
                                     <span class="cupon-expiry">Válido hasta: 30/11/2026</span>
                                 </div>
@@ -504,21 +568,24 @@
                 <form id="formPedido">
                     <div class="row g-0">
                         <div class="col-12">
-                            <input type="text" id="nombreCliente" class="input-luxury" placeholder="Nombre completo *"
-                                required>
+<input type="text" id="nombreCliente" class="input-luxury" placeholder="Nombre completo *"
+                            required title="Tu nombre completo, tal como aparecerá en el pedido.">
                         </div>
                         <div class="col-12">
                             <input type="tel" id="telefonoCliente" class="input-luxury"
-                                placeholder="WhatsApp (10 dígitos) *" required>
+                                placeholder="WhatsApp (10 dígitos) *" required
+                                title="Tu WhatsApp a 10 dígitos (ej: 8112345678). Te contactamos aquí para el pago y la entrega.">
                         </div>
                         <div class="col-12">
                             <input type="email" id="emailCliente" class="input-luxury"
-                                placeholder="Correo electrónico *" required>
+                                placeholder="Correo electrónico *" required
+                                title="Tu correo para enviarte el comprobante y la confirmación del pedido.">
                         </div>
                         <div class="col-12">
                             <div class="producto-picker" id="productoPicker">
                                 <input type="hidden" id="productoSelect" value="">
-                                <button type="button" id="productoPickerBtn" class="input-luxury producto-picker-btn">
+                                <button type="button" id="productoPickerBtn" class="input-luxury producto-picker-btn"
+                                    title="Elige el producto que quieres pedir de la lista del catálogo.">
                                     <span id="productoPickerLabel" class="producto-picker-label">Selecciona un
                                         producto...</span>
                                     <span class="producto-picker-arrow">▾</span>
@@ -527,10 +594,12 @@
                             </div>
                         </div>
                         <div class="col-12">
-                            <input type="number" id="cantidadProducto" class="input-luxury" placeholder="Cantidad requerida *" min="1" value="" required>
+                            <input type="number" id="cantidadProducto" class="input-luxury" placeholder="Cantidad requerida *" min="1" value="" required
+                                title="Cuántas unidades de ese producto quieres pedir.">
                         </div>
                         <div class="col-12">
-                            <select id="lugarEntrega" class="input-luxury" required onchange="cambiarLugarEntrega(this)">
+                            <select id="lugarEntrega" class="input-luxury" required onchange="cambiarLugarEntrega(this)"
+                                title="Elige dónde quieres recibir tu pedido. Cada lugar tiene su costo de envío y horario.">
                                 <option value="" disabled selected>Cargando lugares de entrega...</option>
                             </select>
                             <p class="campo-hint" id="avisoLugarEntrega" style="display:none; margin-top:8px;"></p>
@@ -546,7 +615,8 @@
                             </p>
                         </div>
                         <div class="col-12">
-                            <select id="diaEntrega" class="input-luxury" required>
+                            <select id="diaEntrega" class="input-luxury" required
+                                title="Elige el día en que quieres recibir tu pedido.">
                                 <option value="" disabled selected>Selecciona tu día de entrega...</option>
                             </select>
                             <p class="campo-hint">
@@ -554,16 +624,22 @@
                             </p>
                         </div>
                         <div class="col-12">
-                            <select id="horaEntrega" class="input-luxury" required>
+                            <select id="horaEntrega" class="input-luxury" required
+                                title="Elige el horario de entrega. En los puntos fijos se asigna solo; en zonas coordinadas se acuerda por WhatsApp.">
                                 <option value="" disabled selected>Selecciona tu horario de entrega...</option>
                             </select>
+                            <p class="campo-hint" id="horaEntregaFija" style="display:none;"></p>
                             <p class="campo-hint">
                                 ⏰ En los puntos fijos el horario se fija solo; en las zonas coordinadas (San Pedro, Monterrey, Guadalupe) se acuerda por WhatsApp.
                             </p>
                         </div>
                         <div class="col-12">
                             <textarea id="direccionCliente" class="input-luxury" rows="2"
-                                placeholder="Dirección completa de entrega *" required></textarea>
+                                placeholder="Dirección completa de entrega *" required
+                                title="Tu dirección completa (colonia, calle, número, municipio, referencia). Solo la llenas si NO elegiste punto fijo."></textarea>
+                            <p class="campo-hint aviso-coordinado" id="avisoDireccionFija" style="display:none;">
+                                📍 Como elegiste un <strong>punto fijo</strong>, tu pedido se recoge ahí mismo. No necesitas capturar dirección de entrega.
+                            </p>
                         </div>
                         <div class="col-12">
                             <select id="cuponCliente" class="input-luxury"
@@ -573,10 +649,13 @@
                         </div>
                         <div class="col-12">
                             <textarea id="notasPedido" class="input-luxury" rows="1"
-                                placeholder="Notas adicionales (Opcional)"></textarea>
+                                placeholder="Notas adicionales (Opcional)"
+                                title="Cualquier detalle extra que quieras indicarnos (referencia, instrucciones, mensaje)."></textarea>
                         </div>
                     </div>
-                    <button type="submit" class="btn-submit-luxury">CONFIRMAR PEDIDO</button>
+                    <button type="submit" class="btn-submit-luxury"
+                        title="Enviar tu pedido. Te contactaremos por WhatsApp o correo para confirmar el pago.">CONFIRMAR
+                        PEDIDO</button>
                     <div id="mensajePedido" class="mt-3" style="text-align:center;"></div>
                 </form>
             </div>
@@ -606,10 +685,12 @@
                         <div class="row g-3 align-items-end">
                             <div class="col-md-8">
                                 <input type="text" id="numeroPedidoCancelar" class="input-luxury"
-                                    placeholder="Número de pedido (Ej: P-240817-0042)">
+                                    placeholder="Número de pedido (Ej: P-240817-0042)"
+                                    title="El número de pedido aparece en tu mensaje de confirmación. Escríbelo aquí para buscar y cancelar tu pedido.">
                             </div>
                             <div class="col-md-4">
-                                <button id="btnCancelarPedido" class="btn-cancel">Cancelar</button>
+                                <button id="btnCancelarPedido" class="btn-cancel"
+                                    title="Buscar el pedido con ese número y cancelarlo.">Cancelar</button>
                             </div>
                         </div>
 
@@ -702,8 +783,12 @@
                 <div class="politica-card">
                     <h4 style="margin:0 0 6px 0; font-size:1.0rem; color:var(--regio-green);">⏳ Cancelaciones y devoluciones</h4>
                     <p style="margin:0; font-size:0.88rem; line-height:1.6; color:var(--text-silver);">Puedes solicitar la
-                        cancelación dentro de los <strong>3 días posteriores</strong> a tu compra. Después de ese periodo el
-                        pedido <strong>ya no puede cancelarse</strong> ni reembolsarse.</p>
+                        cancelación o devolución dentro de los <strong>3 días posteriores a la recepción del producto</strong> (los
+                        días corren a partir de que recibes tu pedido). Para una devolución válida, regresa el producto en su
+                        <strong>empaque original</strong>, sin daños y sin haber sido utilizado. En el caso de <strong>consumibles
+                        o productos sellados</strong> (alimentos, geles de manos, perfumes y similares), deben entregarse
+                        <strong>sellados tal como se recibieron</strong>: si ya fueron abiertos o usados, la devolución o
+                        garantía de calidad <strong>queda invalidada</strong>.</p>
                 </div>
                 <div class="politica-card">
                     <h4 style="margin:0 0 6px 0; font-size:1.0rem; color:var(--regio-green);">🚚 Entrega</h4>
@@ -770,7 +855,8 @@
         <div class="secret-modal-box">
             <p class="secret-modal-message">Made with love for our future.<br>Always together, J&amp;V 2026.<br>I
                 love you eternally. 🐺🦦</p>
-            <button type="button" id="btnAceptarSecretHeart" class="secret-modal-btn">Aceptar</button>
+            <button type="button" id="btnAceptarSecretHeart" class="secret-modal-btn"
+                title="Cerrar esta ventana.">Aceptar</button>
         </div>
     </div>
 
@@ -780,7 +866,8 @@
     </a>
 
     <!-- SCROLL TOP -->
-    <button id="scrollTopBtn" class="scroll-top-btn" aria-label="Volver arriba">
+    <button id="scrollTopBtn" class="scroll-top-btn" aria-label="Volver arriba"
+        title="Volver al inicio de la página.">
         <i class="fas fa-chevron-up"></i>
     </button>
 
@@ -814,7 +901,7 @@
             </p>
             <ul
                 style="margin:10px 0 0 0; padding-left:18px; font-size:0.78rem; color:var(--text-silver); line-height:1.6; text-align:left;">
-                <li><strong>Cancelación:</strong> hasta 3 días después de tu compra.</li>
+                <li><strong>Devolución:</strong> hasta 3 días después de recibir tu producto, en su empaque original, sellado y sin uso.</li>
                 <li><strong>Pago:</strong> si no se paga en 3 días, el pedido se cancela automáticamente.</li>
                 <li><strong>Entrega:</strong> 15 min de tolerancia; se reprograma con nuevo cargo de envío.</li>
                 <li><strong>Permanencia:</strong> reservamos tus productos durante 1 semana completa. Si dentro de ese plazo no se completa la entrega (por no poder recibir o no acudir al punto acordado), el pedido se dará por concluido, los productos regresarán a stock y el pago realizado no será reembolsable.</li>
@@ -823,7 +910,8 @@
                 style="display:inline-block; margin-top:12px; font-size:0.8rem; color:var(--regio-green); text-decoration:underline; cursor:pointer;">
                 📋 Consulta nuestras políticas completas
             </a>
-            <button class="btn-cerrar-modal" id="cerrarModalConfirmacion">Cerrar y copiar mi información</button>
+            <button class="btn-cerrar-modal" id="cerrarModalConfirmacion"
+                title="Cerrar la ventana y copiar los datos de tu pedido.">Cerrar y copiar mi información</button>
         </div>
     </div>
 
@@ -835,8 +923,11 @@
                 ¿Estás seguro de que deseas cancelar el pedido <strong id="pedidoCancelarNumero"></strong>?
                 Esta acción no se puede deshacer.
             </p>
-            <button class="btn-confirmar-cancelar" id="confirmarCancelarBtn">Sí, cancelar pedido</button>
-            <button class="btn-cerrar-modal" id="cancelarCancelacionBtn" style="margin-top: 10px;">No, volver</button>
+            <button class="btn-confirmar-cancelar" id="confirmarCancelarBtn"
+                title="Confirmar y ejecutar la cancelación del pedido. No se puede deshacer.">Sí, cancelar
+                pedido</button>
+            <button class="btn-cerrar-modal" id="cancelarCancelacionBtn" style="margin-top: 10px;"
+                title="Volver sin cancelar nada.">No, volver</button>
         </div>
     </div>
 
@@ -851,7 +942,8 @@
             <p style="margin-top: 15px; font-size: 0.85rem; color: var(--text-silver); text-align: center;">
                 📧 Se ha enviado un correo de cancelación a tu correo y al administrador.
             </p>
-            <button class="btn-cerrar-modal" id="cerrarModalCancelacion">Cerrar</button>
+            <button class="btn-cerrar-modal" id="cerrarModalCancelacion"
+                title="Cerrar esta ventana.">Cerrar</button>
         </div>
     </div>
 
@@ -862,7 +954,8 @@
             <p id="modalAvisoMensaje"
                 style="margin:10px 0 0 0; font-size:0.9rem; color:var(--text-silver); text-align:center; line-height:1.5;">
             </p>
-            <button class="btn-cerrar-modal" id="cerrarModalAviso">Entendido</button>
+            <button class="btn-cerrar-modal" id="cerrarModalAviso"
+                title="Cerrar el aviso.">Entendido</button>
         </div>
     </div>
 

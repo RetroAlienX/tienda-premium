@@ -5,6 +5,10 @@
 // ============================================
 
 let lealtadEditando = null;
+let lealtadCache = [];
+
+// Búsqueda por nombre en el tab de lealtad (filtro en memoria).
+let lealtadFiltroNombre = "";
 
 function mostrarMensajeLealtad(el, msg, tipo) {
   if (!el) return;
@@ -35,34 +39,27 @@ async function cargarLealtad() {
     const { data, error } = await window.supabase
       .from("lealtad")
       .select("*")
-      .order("created_at", { ascending: false });
+      .order("nombre_cliente", { ascending: true });
 
     if (error) throw error;
 
-    const total = document.getElementById("totalLealtad");
-    if (total) total.textContent = data?.length || 0;
+    // Orden alfabético A→Z por nombre de cliente.
+    lealtadCache = (data || []).sort((a, b) =>
+      String(a.nombre_cliente || "").localeCompare(
+        String(b.nombre_cliente || ""),
+        "es",
+      ),
+    );
+    pintarLealtad();
+  } catch (error) {
+    console.error("Error cargando lealtad:", error);
+    container.innerHTML =
+      '<p class="text-danger text-center">❌ Error al cargar lealtad</p>';
+  }
+}
 
-    if (!data || data.length === 0) {
-      container.innerHTML =
-        '<p class="text-center text-dim py-3">💎 No hay clientes registrados en el programa de lealtad.</p>';
-      return;
-    }
-
-    container.innerHTML = `
-            <table class="table table-dark table-hover table-sm">
-                <thead>
-                    <tr>
-                        <th>Cliente</th>
-                        <th style="white-space:nowrap; text-align:center;">Productos comprados</th>
-                        <th>Producto de regalo</th>
-                        <th style="white-space:nowrap;">Registrado</th>
-                        <th style="white-space:nowrap; min-width:110px;">Acciones</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${data
-                      .map(
-                        (r) => `
+function renderFilaLealtad(r) {
+  return `
                         <tr data-lealtad-id="${r.id}">
                             <td><strong style="color:var(--text-main);">${
                               r.nombre_cliente
@@ -87,17 +84,78 @@ async function cargarLealtad() {
                                 }')" class="btn btn-outline-danger btn-sm" title="Eliminar cliente del programa">🗑️</button>
                             </td>
                         </tr>
-                    `,
-                      )
-                      .join("")}
+                    `;
+}
+
+// Pinta la tabla desde lealtadCache SIN reordenar, para que al editar
+// un cliente este permanezca en su misma posición.
+function pintarLealtad() {
+  const container = document.getElementById("listaLealtad");
+  if (!container) return;
+  const data = lealtadCache;
+
+  const total = document.getElementById("totalLealtad");
+  if (total) total.textContent = data?.length || 0;
+
+  if (!data || data.length === 0) {
+    container.innerHTML =
+      '<p class="text-center text-dim py-3">💎 No hay clientes registrados en el programa de lealtad.</p>';
+    return;
+  }
+
+  // Búsqueda por nombre (filtro en memoria; editando no se reordena).
+  const visibles = lealtadFiltroNombre
+    ? data.filter((r) =>
+        String(r.nombre_cliente || "")
+          .toLowerCase()
+          .includes(lealtadFiltroNombre),
+      )
+    : data;
+
+  if (visibles.length === 0) {
+    container.innerHTML =
+      '<p class="text-center text-dim py-3">🔍 Sin resultados para la búsqueda.</p>';
+    return;
+  }
+
+  container.innerHTML = `
+            <table class="table table-dark table-hover table-sm">
+                <thead>
+                    <tr>
+                        <th>Cliente</th>
+                        <th style="white-space:nowrap; text-align:center;">Productos comprados</th>
+                        <th>Producto de regalo</th>
+                        <th style="white-space:nowrap;">Registrado</th>
+                        <th style="white-space:nowrap; min-width:110px;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${visibles.map(renderFilaLealtad).join("")}
                 </tbody>
             </table>
         `;
-  } catch (error) {
-    console.error("Error cargando lealtad:", error);
-    container.innerHTML =
-      '<p class="text-danger text-center">❌ Error al cargar lealtad</p>';
-  }
+}
+
+// Filtro de búsqueda por nombre en el tab de Lealtad.
+function filtrarLealtadNombre() {
+  const input = document.getElementById("buscarLealtadNombre");
+  lealtadFiltroNombre = (input?.value || "").trim().toLowerCase();
+  pintarLealtad();
+}
+
+// Actualiza solo la fila editada (misma posición), sin reordenar la lista.
+async function reemplazarFilaLealtad(id) {
+  if (!id) return;
+  const { data, error } = await window.supabase
+    .from("lealtad")
+    .select("*")
+    .eq("id", id)
+    .single();
+  if (error || !data) return;
+  const idx = lealtadCache.findIndex((x) => x.id === id);
+  if (idx >= 0) lealtadCache[idx] = data;
+  else lealtadCache.push(data);
+  pintarLealtad();
 }
 
 function abrirModalLealtad(id) {
@@ -186,7 +244,13 @@ async function guardarLealtad() {
     }
 
     document.getElementById("modalLealtad").style.display = "none";
-    cargarLealtad();
+    if (lealtadEditando) {
+      // Edición: reemplaza la fila en su mismo lugar (no reordena).
+      await reemplazarFilaLealtad(lealtadEditando);
+    } else {
+      // Creación: recarga para colocarlo en su lugar alfabético.
+      cargarLealtad();
+    }
     mostrarModalAlerta(
       lealtadEditando
         ? "✅ Cliente actualizado correctamente"
@@ -234,4 +298,5 @@ window.cargarLealtad = cargarLealtad;
 window.abrirModalLealtad = abrirModalLealtad;
 window.guardarLealtad = guardarLealtad;
 window.pedirEliminarLealtad = pedirEliminarLealtad;
+window.filtrarLealtadNombre = filtrarLealtadNombre;
 

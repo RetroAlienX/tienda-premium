@@ -5,6 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login · Route66 Market</title>
+    <link rel="icon" type="image/jpeg" href="img/favicon.jpg">
+    <meta name="robots" content="noindex, nofollow">
 
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800;900&display=swap"
         rel="stylesheet">
@@ -145,12 +147,15 @@
         <form id="loginForm">
             <div class="mb-3">
                 <!-- ⚠️ Placeholder ficticio, NO usar tu correo real aquí -->
-                <input type="email" id="email" class="form-control" placeholder="admin@ejemplo.com" required>
+                <input type="email" id="email" class="form-control" placeholder="admin@ejemplo.com" required
+                        title="Correo con el que te registraste como administrador.">
             </div>
             <div class="mb-3">
-                <input type="password" id="password" class="form-control" placeholder="••••••••" required>
+                <input type="password" id="password" class="form-control" placeholder="••••••••" required
+                    title="Tu contraseña de administrador.">
             </div>
-            <button type="submit" class="btn-login">🔐 Iniciar Sesión</button>
+            <button type="submit" class="btn-login"
+                title="Iniciar sesión y entrar al panel de administración.">🔐 Iniciar Sesión</button>
             <div id="mensajeLogin" class="mensaje"></div>
         </form>
 

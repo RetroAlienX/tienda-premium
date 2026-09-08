@@ -24,6 +24,42 @@ function abrirVentanaCentrada(url, width, height) {
     `width=${width},height=${height},left=${left},top=${top}`,
   );
 }
+
+// Notificación tipo "toast" dentro del panel (evita los alert() del navegador).
+function notificar(mensaje, tipo) {
+  const t = document.getElementById("notificacion");
+  if (!t) {
+    if (tipo === "error") alert(mensaje);
+    return;
+  }
+  t.textContent = mensaje;
+  t.className = "notificacion visible" + (tipo === "error" ? " error" : "");
+  clearTimeout(t._tm);
+  t._tm = setTimeout(() => {
+    t.className = "notificacion";
+  }, 4500);
+}
+
+// Abre la vista previa del ticket dentro del panel (modal) en vez de un popup.
+function abrirTicketPreviewModal(url) {
+  const m = document.getElementById("modalTicketPreview");
+  const f = document.getElementById("iframeTicketPreview");
+  if (!m || !f) {
+    if (typeof abrirVentanaCentrada === "function") {
+      abrirVentanaCentrada(url, 400, 700);
+    }
+    return;
+  }
+  f.src = url;
+  m.style.display = "flex";
+}
+
+function cerrarTicketPreview() {
+  const m = document.getElementById("modalTicketPreview");
+  const f = document.getElementById("iframeTicketPreview");
+  if (m) m.style.display = "none";
+  if (f) f.src = "about:blank";
+}
 let productosDisponibles = [];
 
 // 🔥 CONFIGURACIÓN DE EMAILJS (GMAIL CONECTADO)
@@ -362,20 +398,44 @@ function recalcularTotalCorreo() {
   totalEl.value = `$${total.toFixed(2)}`;
 }
 
-function abrirModalCorreo(pedidoId) {
-  const row = document.querySelector(`tr[data-pedido-id="${pedidoId}"]`);
-  if (!row) {
-    mostrarModalAlerta("❌ No se encontraron datos del pedido");
-    return;
+async function buscarPedidoPorId(id) {
+  try {
+    const { data, error } = await window.supabase
+      .from("pedidos")
+      .select("*")
+      .eq("id", id)
+      .maybeSingle();
+    if (error) throw error;
+    return data || null;
+  } catch (error) {
+    console.error("Error buscando pedido por id:", error);
+    return null;
   }
+}
 
-  const cliente = row.dataset.cliente || "";
-  const telefono = row.dataset.telefono || "";
-  const email = row.dataset.email || "";
-  const numeroPedido = row.dataset.numero || "";
-  const direccion = row.dataset.direccion || "";
-  const productos = row.dataset.productos || "[]";
-  const total = row.dataset.total || "0";
+// Busca un pedido por su N° de pedido (que es el mismo valor que se imprime
+// como CÓDIGO DE PEDIDO en el código de barras del ticket).
+async function buscarPedidoPorNumero(codigo) {
+  const c = String(codigo || "").trim();
+  if (!c) return null;
+  try {
+    const { data, error } = await window.supabase
+      .from("pedidos")
+      .select("*")
+      .ilike("numero_pedido", c)
+      .limit(1)
+      .maybeSingle();
+    if (error) throw error;
+    return data || null;
+  } catch (error) {
+    console.error("Error buscando pedido por código:", error);
+    return null;
+  }
+}
+
+// Rellena el modal "Enviar Correo al Cliente" con los datos de un pedido.
+function llenarModalCorreoConPedido(pedido) {
+  if (!pedido) return;
 
   const modalPedidoId = document.getElementById("modalCorreoPedidoId");
   const modalCliente = document.getElementById("modalCorreoCliente");
@@ -406,18 +466,20 @@ function abrirModalCorreo(pedidoId) {
     return;
   }
 
-  modalPedidoId.value = pedidoId;
-  modalCliente.value = cliente;
-  modalTelefono.value = telefono;
-  modalEmail.value = email;
-  modalNumero.value = numeroPedido;
-  modalDireccion.value = direccion;
-  modalTotal.value = `$${parseFloat(total).toFixed(2)}`;
+  modalPedidoId.value = pedido.id;
+  modalCliente.value = pedido.cliente_nombre || "";
+  modalTelefono.value = pedido.cliente_telefono || "";
+  modalEmail.value = pedido.cliente_email || "";
+  modalNumero.value = pedido.numero_pedido || "";
+  modalDireccion.value = pedido.direccion_entrega || "";
+  modalTotal.value = `$${Number(pedido.total || 0).toFixed(2)}`;
   modalEnvio.value = "";
   modalMensaje.value = "";
 
   try {
-    const productosParsed = JSON.parse(productos);
+    const productosParsed = Array.isArray(pedido.productos)
+      ? pedido.productos
+      : [];
     const productosText = productosParsed
       .map(
         (p) =>
@@ -437,6 +499,15 @@ function abrirModalCorreo(pedidoId) {
 
   const modalEl = document.getElementById("modalEnvioCorreo");
   if (modalEl) modalEl.style.display = "flex";
+}
+
+async function abrirModalCorreo(pedidoId) {
+  const pedido = await buscarPedidoPorId(pedidoId);
+  if (!pedido) {
+    mostrarModalAlerta("❌ No se encontraron datos del pedido");
+    return;
+  }
+  llenarModalCorreoConPedido(pedido);
 }
 
 // ============================================
@@ -527,6 +598,8 @@ async function enviarCorreoDesdeModal() {
       metodo_pago: "Transferencia / Efectivo",
       direccion: direccion || "No especificada",
       envio: parseFloat(envioNum) > 0 ? envioNum : "",
+      politicas:
+        "⏳ Los 3 días de cancelación o devolución corren a partir de la recepción del producto. Para una devolución válida, regresa el producto en su empaque original, sin daños y sin uso. En consumibles o productos sellados (alimentos, geles de manos, perfumes...) deben ir sellados como se recibieron; si están abiertos o usados, la devolución o garantía de calidad queda invalidada.",
       mensaje_adicional:
         mensajeAdicional ||
         `El costo de envío es de $${parseFloat(envioNum).toFixed(
@@ -680,6 +753,8 @@ async function enviarCorreoManual(e) {
       envio: envioNum,
       descuento: descuentoNum,
       monto_descuento: descuentoNum > 0 ? descuentoMonto.toFixed(2) : "",
+      politicas:
+        "⏳ Los 3 días de cancelación o devolución corren a partir de la recepción del producto. Para una devolución válida, regresa el producto en su empaque original, sin daños y sin uso. En consumibles o productos sellados (alimentos, geles de manos, perfumes...) deben ir sellados como se recibieron; si están abiertos o usados, la devolución o garantía de calidad queda invalidada.",
       instruccion_entrega: (() => {
         const PUNTOS_FIJOS = [
           "Apodaca centro (frente a iglesia)",
@@ -822,9 +897,15 @@ async function ejecutarProcesarPedido(pedidoId, accion) {
       }
     }
 
+    const updateData = { estado: nuevoEstado };
+    if (accion === "completar") {
+      updateData.fecha_vendido =
+        pedido.fecha_vendido || new Date().toISOString();
+    }
+
     const { error: updateError } = await window.supabase
       .from("pedidos")
-      .update({ estado: nuevoEstado })
+      .update(updateData)
       .eq("id", pedidoId);
 
     if (updateError) throw updateError;
@@ -879,6 +960,9 @@ document.addEventListener("DOMContentLoaded", function () {
         b.classList.add("active");
       }
     });
+
+    // Recordar el tab activo para restaurarlo si la página recarga.
+    try { sessionStorage.setItem("adminActiveTab", tabId); } catch (_) {}
 
     if (tabId === "productos") cargarProductos();
     if (tabId === "inventario") cargarInventario();
@@ -1005,6 +1089,157 @@ document.addEventListener("DOMContentLoaded", function () {
         buscarPorCodigoBarras();
       }
     });
+
+  // ============================================
+  // ESCÁNER GLOBAL: captura lecturas rápidas del escáner SIN necesidad de
+  // enfocar ningún campo. Dependiendo de la pestaña activa:
+  //   · Productos → abre la edición si el producto existe (mismo error si no).
+  //   · Pedidos   → filtra por el N° de pedido escaneado (código del ticket).
+  //   · Ticket    → precarga el pedido para reimprimir su ticket.
+  //   · Modal de correo abierto → autocompleta el correo del pedido.
+  // ============================================
+  let bufferEscaneoGlobal = "";
+  let tiempoUltimaTeclaEscaneo = 0;
+
+  function tabVisible(id) {
+    const el = document.getElementById(id);
+    return !!(el && el.offsetParent !== null);
+  }
+
+  function modalCorreoAbierto() {
+    const modal = document.getElementById("modalEnvioCorreo");
+    return !!(modal && modal.style.display === "flex");
+  }
+
+  async function manejarEscaneoGlobal(codigo) {
+    try {
+      // 1) Modal de correo abierto → buscar el pedido y autocompletar.
+      if (modalCorreoAbierto()) {
+        const pedido = await buscarPedidoPorNumero(codigo);
+        if (!pedido) {
+          if (typeof mostrarModalAlerta === "function") {
+            mostrarModalAlerta(
+              `❌ No se encontró ningún pedido con el código: ${codigo}`,
+            );
+          }
+          return;
+        }
+        llenarModalCorreoConPedido(pedido);
+        const men = document.getElementById("mensajeModalCorreo");
+        if (men) {
+          men.innerHTML =
+            '<span class="text-success">✅ Pedido cargado por escáner del ticket.</span>';
+          men.className = "text-success";
+        }
+        return;
+      }
+
+      // 2) Tab Productos → abrir edición / mismo error que el textbox.
+      if (tabVisible("tab-productos")) {
+        await procesarCodigoLeido(codigo);
+        return;
+      }
+
+      // 3) Tab Pedidos → filtrar por el código del ticket (N° de pedido).
+      if (tabVisible("tab-pedidos")) {
+        const pedido = await buscarPedidoPorNumero(codigo);
+        const input = document.getElementById("buscarNumeroPedido");
+        if (input) input.value = codigo;
+        const activeFilter = document.querySelector(".filtro-pedido.active");
+        await cargarPedidos(activeFilter?.dataset?.estado || "todos");
+        if (!pedido) {
+          if (typeof mostrarModalAlerta === "function") {
+            mostrarModalAlerta(
+              `❌ No se encontró ningún pedido con el código: ${codigo}`,
+            );
+          }
+        }
+        return;
+      }
+
+      // 4) Tab Ticket → precargar el pedido para reimprimir.
+      if (tabVisible("tab-ticket")) {
+        const pedido = await buscarPedidoPorNumero(codigo);
+        if (!pedido) {
+          const msgt = document.getElementById("mensajeTicket");
+          if (msgt) {
+            mostrarMensaje(
+              msgt,
+              `❌ No se encontró ningún pedido con el código: ${codigo}`,
+              "error",
+            );
+          }
+          return;
+        }
+        // Si existe en el selector, lo deja seleccionado para que quede claro.
+        const sel = document.getElementById("ticketPedidoSelect");
+        if (sel) {
+          for (let i = 0; i < sel.options.length; i++) {
+            if (sel.options[i].value === String(pedido.id)) {
+              sel.value = String(pedido.id);
+              break;
+            }
+          }
+        }
+        await precargarPedidoEnTicket(pedido);
+        const msgt = document.getElementById("mensajeTicket");
+        if (msgt) {
+          mostrarMensaje(
+            msgt,
+            `✅ Pedido ${pedido.numero_pedido} precargado desde el ticket escaneado.`,
+            "exito",
+          );
+        }
+        return;
+      }
+    } catch (error) {
+      console.error("Error en manejarEscaneoGlobal:", error);
+    }
+  }
+
+  document.addEventListener("keydown", function (e) {
+    // Nunca interferir mientras se escribe/escanea dentro de un campo.
+    const etiqueta =
+      (document.activeElement && document.activeElement.tagName) || "";
+    const enCampo = ["INPUT", "SELECT", "TEXTAREA"].includes(etiqueta);
+
+    const activo =
+      tabVisible("tab-productos") ||
+      tabVisible("tab-pedidos") ||
+      tabVisible("tab-ticket") ||
+      modalCorreoAbierto();
+    if (!activo) return;
+
+    if (e.key === "Enter") {
+      const codigo = bufferEscaneoGlobal.trim();
+      bufferEscaneoGlobal = "";
+      if (
+        !enCampo &&
+        codigo.length >= 3 &&
+        Date.now() - tiempoUltimaTeclaEscaneo < 12000
+      ) {
+        e.preventDefault();
+        manejarEscaneoGlobal(codigo);
+      }
+      tiempoUltimaTeclaEscaneo = 0;
+      return;
+    }
+
+    if (enCampo || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.key.length === 1) {
+      // Patrón típico de los escáneres: una ráfaga rápida (menos de 600 ms por tecla).
+      const ahora = Date.now();
+      if (
+        tiempoUltimaTeclaEscaneo &&
+        ahora - tiempoUltimaTeclaEscaneo > 600
+      ) {
+        bufferEscaneoGlobal = "";
+      }
+      tiempoUltimaTeclaEscaneo = ahora;
+      if (bufferEscaneoGlobal.length < 64) bufferEscaneoGlobal += e.key;
+    }
+  });
+
   const btnAgregarLealtad = document.getElementById("btnAgregarLealtad");
   if (btnAgregarLealtad) {
     btnAgregarLealtad.addEventListener("click", function () {
@@ -1133,15 +1368,19 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 
   let debounceBusquedaPedidos = null;
-  document
-    .getElementById("buscarNumeroPedido")
-    ?.addEventListener("input", function () {
-      clearTimeout(debounceBusquedaPedidos);
-      debounceBusquedaPedidos = setTimeout(() => {
-        const activeFilter = document.querySelector(".filtro-pedido.active");
-        cargarPedidos(activeFilter?.dataset?.estado || "todos");
-      }, 300);
-    });
+  ["buscarNumeroPedido", "buscarEmailPedido", "buscarNombrePedido"].forEach(
+    function (idEl) {
+      document
+        .getElementById(idEl)
+        ?.addEventListener("input", function () {
+          clearTimeout(debounceBusquedaPedidos);
+          debounceBusquedaPedidos = setTimeout(() => {
+            const activeFilter = document.querySelector(".filtro-pedido.active");
+            cargarPedidos(activeFilter?.dataset?.estado || "todos");
+          }, 300);
+        });
+    },
+  );
 
   // ============================================
   // MODAL
@@ -1266,13 +1505,82 @@ document.addEventListener("DOMContentLoaded", function () {
   // Se espera a que Supabase esté listo antes de cargar la primera
   // pestaña, para no disparar el reintento de "Supabase no disponible".
   esperarSupabase(function () {
-    cambiarTab("productos");
+    let tabInicial = "productos";
+    try { tabInicial = sessionStorage.getItem("adminActiveTab") || "productos"; } catch (_) {}
+    cambiarTab(tabInicial);
   });
 });
 
 // ============================================
 // 1. PRODUCTOS (CRUD)
 // ============================================
+
+function renderFilaProducto(p) {
+  return `
+                        <tr data-prod-id="${p.id}">
+                            <td>
+                                ${
+                                  p.imagen_url
+                                    ? `<img src="${p.imagen_url}" style="width:40px;height:40px;object-fit:cover;border-radius:4px;" onerror="this.style.display='none'">`
+                                    : `<span style="font-size:20px;color:var(--text-dim);">📦</span>`
+                                }
+                            </td>
+                            <td><strong>${
+                              p.nombre
+                            }</strong><br><small class="text-dim">${
+                              p.descripcion || ""
+                            }</small></td>
+                            <td>${p.tienda_origen || "—"}</td>
+                            <td>${p.marca || "—"}</td>
+                            <td><div style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px;">${
+                              p.codigo_barras
+                                ? `<svg data-barcode="${p.codigo_barras}" style="width:110px; height:30px; display:block; margin:0 auto;" title="${p.codigo_barras}"></svg>`
+                                : ""
+                            }<code style="background:var(--bg-input);padding:2px 8px;border-radius:4px;color:var(--accent);font-size:12px;display:block;min-width:110px;text-align:center;word-break:break-all;">${
+                              p.codigo_barras || "Sin código"
+                            }</code></div></td>
+                            <td>${formatearMoneda(p.precio)}</td>
+                            <td><span class="${
+                              p.stock === 0 ? "text-danger" : "text-warning"
+                            }">${p.stock}</span></td>
+                            <td><span class="badge bg-secondary">${
+                              p.categoria || "otros"
+                            }</span></td>
+                            <td>
+                                <button onclick="abrirEtiquetaProducto('${
+                                  p.id
+                                }')" class="btn btn-outline-light btn-sm" title="Ver e imprimir etiqueta">🏷️</button>
+                                <button onclick="descargarEtiquetas('${
+                                  p.id
+                                }')" class="btn btn-outline-light btn-sm" title="Descargar solo la etiqueta de este producto para imprimir en tu impresora">⬇️</button>
+                                <button onclick="editarProducto('${
+                                  p.id
+                                }')" class="btn btn-outline-warning btn-sm">✏️</button>
+                                <button onclick="pedirEliminar('${
+                                  p.id
+                                }','producto')" class="btn btn-outline-danger btn-sm">🗑️</button>
+                            </td>
+                        </tr>
+                    `;
+}
+
+// Actualiza solo la fila editada (misma posición), sin reordenar la lista.
+async function reemplazarFilaProducto(id) {
+  if (!id) return;
+  const { data, error } = await window.supabase
+    .from("productos")
+    .select("*")
+    .eq("id", id)
+    .single();
+  if (error || !data) return;
+  const tr = document.querySelector(`#listaProductos tr[data-prod-id="${id}"]`);
+  if (tr) {
+    tr.outerHTML = renderFilaProducto(data);
+    renderBarcodesProductos();
+  } else {
+    cargarProductos();
+  }
+}
 
 async function cargarProductos() {
   const container = document.getElementById("listaProductos");
@@ -1292,11 +1600,25 @@ async function cargarProductos() {
       return;
     }
 
-    const { data, error } = await window.supabase
+    let queryProductos = window.supabase
       .from("productos")
       .select("*")
-      .order("created_at", { ascending: false });
+      .order("nombre", { ascending: true });
+
+    const busquedaProducto = document
+      .getElementById("buscarProducto")
+      ?.value.trim();
+    if (busquedaProducto)
+      queryProductos = queryProductos.ilike("nombre", `%${busquedaProducto}%`);
+
+    const { data, error } = await queryProductos;
     if (error) throw error;
+
+    // Orden alfabético A→Z por nombre (con acentos): los nuevos productos
+    // aparecen en su lugar alfabético en cada carga.
+    data.sort((a, b) =>
+      String(a.nombre || "").localeCompare(String(b.nombre || ""), "es"),
+    );
 
     if (!data || !data.length) {
       container.innerHTML =
@@ -1307,49 +1629,13 @@ async function cargarProductos() {
 
     container.innerHTML = `
             <table class="table table-dark table-hover table-sm">
-                <thead><tr><th>Imagen</th><th>Producto</th><th>Código</th><th>Precio</th><th>Stock</th><th>Categoría</th><th>Acciones</th></tr></thead>
+                <thead><tr><th>Imagen</th><th>Producto</th><th>Origen</th><th>Marca</th><th>Código</th><th>Precio</th><th>Stock</th><th>Categoría</th><th>Acciones</th></tr></thead>
                 <tbody>
-                    ${data
-                      .map(
-                        (p) => `
-                        <tr>
-                            <td>
-                                ${
-                                  p.imagen_url
-                                    ? `<img src="${p.imagen_url}" style="width:40px;height:40px;object-fit:cover;border-radius:4px;" onerror="this.style.display='none'">`
-                                    : `<span style="font-size:20px;color:var(--text-dim);">📦</span>`
-                                }
-                            </td>
-                            <td><strong>${
-                              p.nombre
-                            }</strong><br><small class="text-dim">${
-                              p.descripcion || ""
-                            }</small></td>
-                            <td><code style="background:var(--bg-input);padding:2px 8px;border-radius:4px;color:var(--accent);font-size:12px;">${
-                              p.codigo_barras || "Sin código"
-                            }</code></td>
-                            <td>${formatearMoneda(p.precio)}</td>
-                            <td><span class="${
-                              p.stock === 0 ? "text-danger" : "text-warning"
-                            }">${p.stock}</span></td>
-                            <td><span class="badge bg-secondary">${
-                              p.categoria || "otros"
-                            }</span></td>
-                            <td>
-                                <button onclick="editarProducto('${
-                                  p.id
-                                }')" class="btn btn-outline-warning btn-sm">✏️</button>
-                                <button onclick="pedirEliminar('${
-                                  p.id
-                                }','producto')" class="btn btn-outline-danger btn-sm">🗑️</button>
-                            </td>
-                        </tr>
-                    `,
-                      )
-                      .join("")}
+                    ${data.map(renderFilaProducto).join("")}
                 </tbody>
             </table>
         `;
+    renderBarcodesProductos();
     cargarSelectProductosInventario();
   } catch (error) {
     console.error("Error cargando productos:", error);
@@ -1380,11 +1666,13 @@ function mostrarFormProducto(data = null) {
 
     setValue("prodId", data.id);
     setValue("prodNombre", data.nombre);
+    setValue("prodMarca", data.marca || "");
     setValue("prodPrecio", data.precio);
-    setValue("prodCategoria", data.categoria || "otros");
+    setCategoriaProducto(data.categoria || "Otros");
     setValue("prodStock", data.stock || 0);
     setValue("prodDescripcion", data.descripcion || "");
     setValue("prodImagen", data.imagen_url || "");
+    vistaPreviaImagenProducto();
     setValue("prodTienda", data.tienda_origen || "");
     setValue("prodCodigoBarras", data.codigo_barras || "");
   } else {
@@ -1398,7 +1686,134 @@ function mostrarFormProducto(data = null) {
 
     const form = document.getElementById("formProducto");
     if (form) form.reset();
+    vistaPreviaImagenProducto();
     setValue("prodId", "");
+    setValue("prodTienda", "McAllen, Texas");
+  }
+}
+
+// Asigna la categoría al select de productos. Si el valor guardado no está
+// en la lista de opciones (la categoría es texto libre en la BD), la agrega
+// en automático para que SIEMPRE quede visible al editar.
+function setCategoriaProducto(valor) {
+  const sel = document.getElementById("prodCategoria");
+  if (!sel) return;
+  const v = String(valor || "").trim();
+  let existe = false;
+  for (const o of sel.options) {
+    if (o.value === v) {
+      existe = true;
+      break;
+    }
+  }
+  if (!existe && v) {
+    const op = document.createElement("option");
+    op.value = v;
+    op.textContent = v.replace(/_/g, " ");
+    sel.appendChild(op);
+  }
+  sel.value = v;
+}
+
+// Mini vista previa en vivo de la imagen del producto (al escribir el link).
+function vistaPreviaImagenProducto() {
+  const wrap = document.getElementById("prodImagenPreview");
+  if (!wrap) return;
+  const url = (document.getElementById("prodImagen")?.value || "").trim();
+  const img = document.getElementById("prodImagenMini");
+  if (!url) {
+    wrap.style.display = "none";
+    if (img) img.removeAttribute("src");
+    return;
+  }
+  img.src = url;
+  wrap.style.display = "block";
+}
+
+// Abre la foto del producto en grande (ventana modal).
+function abrirImagenProducto() {
+  const url = (document.getElementById("prodImagen")?.value || "").trim();
+  if (!url) {
+    notificar("⚠️ Primero escribe el enlace de la imagen");
+    return;
+  }
+  const img = document.getElementById("imgVistaPreviaImagen");
+  if (!img) return;
+  img.src = url;
+  document.getElementById("modalVistaPreviaImagen").style.display = "flex";
+}
+
+// Cierra la ventana de la foto en grande.
+function cerrarImagenProducto() {
+  const modal = document.getElementById("modalVistaPreviaImagen");
+  if (modal) modal.style.display = "none";
+}
+
+// Sube la foto elegida al bucket público "productos" de Supabase Storage,
+// SIN redimensionar (calidad y resolución originales), y pone el enlace
+// resultante en el campo prodImagen.
+async function subirImagenProducto(input) {
+  const archivo = input && input.files && input.files[0];
+  const mensaje = document.getElementById("prodImagenSubidaMsg");
+  const limpiarInput = function () {
+    if (input) input.value = "";
+  };
+  if (!archivo) return;
+  if (!/^image\/(png|jpe?g|webp|gif)$/.test(archivo.type)) {
+    notificar("❌ Solo se aceptan imágenes PNG, JPG, WEBP o GIF.", "error");
+    limpiarInput();
+    return;
+  }
+  const limiteBytes = 10 * 1024 * 1024;
+  if (archivo.size > limiteBytes) {
+    notificar("❌ La imagen es muy grande (máximo 10 MB).", "error");
+    limpiarInput();
+    return;
+  }
+  if (!window.supabase || typeof window.supabase.storage === "undefined") {
+    notificar("❌ Supabase no está listo todavía, vuelve a intentar.", "error");
+    limpiarInput();
+    return;
+  }
+  const nombreBase = (archivo.name || "imagen").replace(/\.[^.]+$/, "").toLowerCase();
+  const nombreLimpio =
+    nombreBase.replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "imagen";
+  const ruta =
+    "producto-" +
+    Date.now() +
+    "-" +
+    Math.random().toString(36).slice(2, 8) +
+    "-" +
+    nombreLimpio;
+
+  if (mensaje) {
+    mensaje.textContent = "⬆️ Subiendo, no cierres la página...";
+    mensaje.style.color = "var(--regio-green)";
+  }
+  try {
+    const { error } = await window.supabase.storage
+      .from("productos")
+      .upload(ruta, archivo, { cacheControl: "3600", upsert: false });
+    if (error) throw error;
+    const URL_BASE = (window.CONFIG && window.CONFIG.SUPABASE_URL) || "";
+    const url =
+      URL_BASE + "/storage/v1/object/public/productos/" + ruta;
+    const campo = document.getElementById("prodImagen");
+    if (campo) {
+      campo.value = url;
+      vistaPreviaImagenProducto();
+    }
+    if (mensaje) mensaje.textContent = "✅ Foto subida en calidad original";
+    notificar("✅ Imagen subida sin compresión.", "ok");
+  } catch (err) {
+    console.error("Error al subir imagen:", err);
+    if (mensaje) {
+      mensaje.textContent = "❌ No se pudo subir: " + (err.message || "revisa que el bucket 'productos' exista");
+      mensaje.style.color = "var(--regio-red)";
+    }
+    notificar("❌ Error al subir la imagen: " + (err.message || ""), "error");
+  } finally {
+    limpiarInput();
   }
 }
 
@@ -1433,6 +1848,7 @@ async function guardarProducto(e) {
 
   const datos = {
     nombre: document.getElementById("prodNombre").value.trim(),
+    marca: document.getElementById("prodMarca").value.trim(),
     precio: parseFloat(document.getElementById("prodPrecio").value),
     categoria: document.getElementById("prodCategoria").value,
     descripcion: document.getElementById("prodDescripcion").value.trim(),
@@ -1508,13 +1924,18 @@ async function guardarProducto(e) {
         nuevoId = result.data[0].id;
       }
 
-      if (stockNuevo > 0 && nuevoId) {
+      if (nuevoId) {
+        // Siempre registra el movimiento en el tab Inventario (aunque el stock sea 0),
+        // para que el producto nuevo aparezca en sus columnas.
         await window.supabase.from("inventario").insert([
           {
             producto_id: nuevoId,
             tipo: "entrada",
             cantidad: stockNuevo,
-            descripcion: "📦 Stock inicial al crear producto",
+            descripcion:
+              stockNuevo > 0
+                ? "📦 Stock inicial al crear producto"
+                : "📦 Producto creado sin stock",
           },
         ]);
       }
@@ -1522,7 +1943,13 @@ async function guardarProducto(e) {
 
     if (msg) mostrarMensaje(msg, "✅ Producto guardado correctamente", "exito");
     ocultarFormProducto();
-    cargarProductos();
+    if (esEdicion) {
+      // Edición: actualiza la fila en su mismo lugar (no reordena).
+      await reemplazarFilaProducto(productoId);
+    } else {
+      // Creación: recarga para colocarlo en su lugar alfabético.
+      cargarProductos();
+    }
     cargarInventario();
   } catch (error) {
     console.error("Error:", error);
@@ -1551,7 +1978,21 @@ async function buscarPorCodigoBarras() {
     return;
   }
 
-  resultado.innerHTML = '<span class="text-dim">Buscando...</span>';
+  await procesarCodigoLeido(codigo);
+}
+
+// Procesa un código leído (ya sea desde el textbox del escáner o desde el
+// ESCÁNER GLOBAL sin necesidad de hacer clic en el campo). Abre la edición si
+// el producto ya existe y, si no se reconoce, muestra el mismo mensaje que el
+// campo del escáner.
+async function procesarCodigoLeido(codigo) {
+  const input = document.getElementById("inputCodigoBarras");
+  const resultado = document.getElementById("resultadoBusquedaCodigo");
+
+  codigo = String(codigo || "").trim();
+  if (!codigo) return;
+
+  if (resultado) resultado.innerHTML = '<span class="text-dim">Buscando...</span>';
 
   try {
     const { data, error } = await window.supabase
@@ -1560,27 +2001,763 @@ async function buscarPorCodigoBarras() {
       .eq("codigo_barras", codigo)
       .maybeSingle();
 
-    if (error || !data) {
-      resultado.innerHTML = `<span class="text-danger">❌ Producto no encontrado: ${codigo}</span>`;
-      input.value = "";
-      input.focus();
+    if (data) {
+      // AUTO-LLENADO DEL ESCÁNER: el código ya existe, abre SU edición
+      // con nombre, marca, código de barras, precio, stock y descripción.
+      if (input) input.value = "";
+      if (resultado) resultado.innerHTML = "";
+      if (typeof editarProducto === "function") {
+        editarProducto(data.id);
+      } else if (resultado) {
+        resultado.innerHTML = `<span class="text-success">✅ ${data.nombre}: ${formatearMoneda(
+          data.precio,
+        )} · Stock ${data.stock} [${data.codigo_barras}]</span>`;
+      }
       return;
     }
 
-    // AUTO-LLENADO DEL ESCÁNER: abre directamente la edición del producto
-    // con nombre, código de barras, precio, stock y descripción ya cargados.
-    input.value = "";
-    resultado.innerHTML = "";
-    if (typeof editarProducto === "function") {
-      editarProducto(data.id);
-    } else {
-      resultado.innerHTML = `<span class="text-success">✅ ${data.nombre}: ${formatearMoneda(
-        data.precio,
-      )} · Stock ${data.stock} [${data.codigo_barras}]</span>`;
+    if (error) throw error;
+
+    // CÓDIGO "CREADOR DE PRODUCTO": NOMBRE|MARCA|PRECIO|CATEGORÍA
+    // Se genera desde la web recomendada (Code 128) e inserta automáticamente
+    // los datos en el formulario: producto, marca, precio y categoría.
+    // La imagen y el stock se agregan manualmente antes de guardar.
+    const partes = codigo.split("|").map((p) => p.trim());
+    if (partes.length >= 4 && partes[0]) {
+      const nombre = partes[0];
+      const marca = partes[1] || "";
+      const precio =
+        parseFloat(String(partes[2] || "").replace(/[^0-9.]/g, "")) || 0;
+      const catRaw = String(partes[3] || "").toLowerCase();
+      const categoria = catRaw.includes("perfume")
+        ? "Perfumes"
+        : catRaw.includes("cuidado")
+          ? "Cuidado Personal"
+          : "Otros";
+
+      mostrarFormProducto(null);
+      setValue("prodNombre", nombre);
+      setValue("prodMarca", marca);
+      setValue("prodPrecio", precio || "");
+      setCategoriaProducto(categoria);
+      setValue("prodCodigoBarras", codigo);
+      setValue("prodStock", "0");
+      setValue("prodImagen", "");
+      setValue("prodTienda", "McAllen, Texas");
+
+      if (input) input.value = "";
+      if (resultado)
+        resultado.innerHTML = `<span class="text-success">✅ Código leído: <strong>${nombre}</strong> · ${marca} · ${formatearMoneda(
+          precio,
+        )} · ${categoria}. Agrega imagen y stock y presiona Guardar.</span>`;
+      return;
+    }
+
+    if (resultado)
+      resultado.innerHTML = `<span class="text-danger">❌ Producto no encontrado: ${codigo}</span>`;
+    if (input) {
+      input.value = "";
+      input.focus();
+    }
+    if (!input && typeof mostrarModalAlerta === "function") {
+      mostrarModalAlerta(
+        `❌ Producto no encontrado: ${codigo}. Agrega el producto manualmente.`,
+      );
     }
   } catch (error) {
     console.error("Error:", error);
-    resultado.innerHTML = '<span class="text-danger">❌ Error al buscar</span>';
+    if (resultado)
+      resultado.innerHTML = '<span class="text-danger">❌ Error al buscar</span>';
+  }
+}
+
+// ============================================
+// ETIQUETAS IMPRIMIBLES CON CÓDIGO DE BARRAS
+// ============================================
+
+// Dibuja los códigos de barras (SVG) de los renglones visibles en Productos.
+function renderBarcodesProductos() {
+  if (!window.JsBarcode) return;
+  document
+    .querySelectorAll("#listaProductos svg[data-barcode]")
+    .forEach((el) => {
+      const codigo = el.getAttribute("data-barcode");
+      if (!codigo) return;
+      try {
+        JsBarcode(el, codigo, {
+          format: "CODE128",
+          width: 1.6,
+          height: 30,
+          displayValue: false,
+          margin: 0,
+          background: "#212529",
+          lineColor: "#fff",
+        });
+      } catch (e) {
+        console.warn("No se pudo dibujar el código:", codigo, e);
+      }
+    });
+}
+
+// Dígito verificador EAN-13 (para los 12 primeros dígitos).
+function calcularDigitoVerificadorEAN13(digitos12) {
+  let suma = 0;
+  for (let i = 0; i < 12; i++) {
+    const d = parseInt(digitos12.charAt(i), 10);
+    if (isNaN(d)) return "";
+    suma += i % 2 === 0 ? d : d * 3;
+  }
+  return String((10 - (suma % 10)) % 10);
+}
+
+// Botón ⚙️ del formulario: genera el siguiente código EAN-13 (prefijo 750).
+// Si el campo ya trae un código, pide confirmación porque al guardar se
+// reemplazaría el existente (las etiquetas impresas usarían el nuevo).
+async function generarCodigoBarrasProducto() {
+  const input = document.getElementById("prodCodigoBarras");
+  if (!input) return;
+  const actual = String(input.value || "").trim();
+  const continuar = () => _generarCodigoBarrasSiguiente(input);
+  if (actual) {
+    modalConfirmar(
+      "⚠️ Este producto ya tiene el código de barras " +
+        actual +
+        ". Si generas uno nuevo y guardas el producto, este código será REEMPLAZADO: las etiquetas que imprimas a partir de ahora usarán el código nuevo y el actual quedará sin uso. ¿Continuar?",
+      continuar,
+    );
+  } else {
+    continuar();
+  }
+}
+
+async function _generarCodigoBarrasSiguiente(input) {
+  try {
+    const { data, error } = await window.supabase
+      .from("productos")
+      .select("codigo_barras");
+    if (error) throw error;
+    let maxPre = 749999999999;
+    (data || []).forEach((p) => {
+      const s = String(p.codigo_barras || "").replace(/\D/g, "");
+      if (s.length === 13) {
+        const n = parseInt(s.slice(0, 12), 10);
+        if (!isNaN(n) && n > maxPre) maxPre = n;
+      }
+    });
+    const base12 = String(maxPre + 1);
+    input.value = base12 + calcularDigitoVerificadorEAN13(base12);
+    input.focus();
+  } catch (e) {
+    console.error("Error generando código:", e);
+    notificar("❌ No se pudo generar el código de barras", "error");
+  }
+}
+
+let etiquetaActiva = null;
+
+// Abre el modal con la etiqueta del producto (nombre + código + precio).
+function abrirEtiquetaProducto(id) {
+  const modal = document.getElementById("modalEtiqueta");
+  const contenedor = document.getElementById("contenidoEtiqueta");
+  if (!modal || !contenedor) return;
+
+  window.supabase
+    .from("productos")
+    .select("*")
+    .eq("id", id)
+    .single()
+    .then(({ data, error }) => {
+      if (error || !data) {
+        notificar("❌ No se pudo cargar el producto", "error");
+        return;
+      }
+      etiquetaActiva = data;
+      contenedor.innerHTML = `
+        <div class="etiqueta-producto">
+          <div class="etiqueta-nombre">${data.nombre || ""}</div>
+          ${data.marca ? `<div class="etiqueta-marca">${data.marca}</div>` : ""}
+          <div class="etiqueta-precio">${formatearMoneda(data.precio)}</div>
+          ${
+            data.categoria
+              ? `<div class="etiqueta-categoria">${String(data.categoria).replace(/_/g, " ")}</div>`
+              : ""
+          }
+          ${data.codigo_barras ? '<svg id="etiquetaSVG"></svg>' : ""}
+          <div class="etiqueta-codigo">${data.codigo_barras || "Sin código"}</div>
+        </div>
+      `;
+      if (data.codigo_barras && window.JsBarcode) {
+        try {
+          JsBarcode("#etiquetaSVG", data.codigo_barras, {
+            format: "CODE128",
+            width: 2,
+            height: 80,
+            displayValue: false,
+            margin: 4,
+            background: "#ffffff",
+            lineColor: "#000000",
+          });
+        } catch (e) {
+          console.warn("Barcode error:", e);
+        }
+      }
+      modal.style.display = "flex";
+    });
+}
+
+// Imprime solo la etiqueta (el resto de la página queda oculto en la impresión).
+function imprimirEtiqueta() {
+  document.body.classList.add("imprimiendoEtiqueta");
+  window.onafterprint = function () {
+    document.body.classList.remove("imprimiendoEtiqueta");
+  };
+  window.print();
+}
+
+function cerrarEtiqueta() {
+  const modal = document.getElementById("modalEtiqueta");
+  if (modal) modal.style.display = "none";
+}
+
+function escapeHtml(texto) {
+  return String(texto ?? "").replace(/[&<>"']/g, function (c) {
+    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+  });
+}
+
+// Genera el SVG del código de barras (CODE128) con la librería ya cargada,
+// pero lo devuelve como marcado para incrustarlo en el archivo descargado.
+function construirSVGCodigo(codigo) {
+  if (!codigo || !window.JsBarcode) return "";
+  const temporal = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  temporal.setAttribute("viewBox", "0 0 1 1");
+  temporal.style.position = "absolute";
+  document.body.appendChild(temporal);
+  try {
+    JsBarcode(temporal, String(codigo), {
+      format: "CODE128",
+      width: 2,
+      height: 80,
+      displayValue: false,
+      margin: 4,
+      background: "#ffffff",
+      lineColor: "#000000",
+    });
+    return temporal.outerHTML;
+  } catch (e) {
+    console.warn("Barcode error:", e);
+    return "";
+  } finally {
+    temporal.remove();
+  }
+}
+
+// Descarga un archivo HTML imprimible con las etiquetas (código de barras,
+// nombre, marca, precio y categoría) de TODOS los productos o de uno solo,
+// para imprimirlas en una impresora convencional (USB/red) desde el escritorio.
+function aBase64UTF8(texto) {
+  const bytes = new TextEncoder().encode(texto);
+  let bin = "";
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return btoa(bin);
+}
+
+// Rasteriza el código de barras (CODE128) de JsBarcode a una imagen PNG
+// (canvas) para poder incrustarlo en el PDF sin depender de fuentes externas.
+function codigoBarraDataURL(codigo) {
+  return new Promise(function (resolve) {
+    try {
+      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      svg.setAttribute("viewBox", "0 0 1 1");
+      svg.style.position = "absolute";
+      document.body.appendChild(svg);
+      JsBarcode(svg, String(codigo), {
+        format: "CODE128",
+        width: 2,
+        height: 80,
+        displayValue: false,
+        margin: 4,
+        background: "#ffffff",
+        lineColor: "#000000",
+      });
+      const fuente = new XMLSerializer().serializeToString(svg);
+      svg.remove();
+      const url64 = "data:image/svg+xml;base64," + aBase64UTF8(fuente);
+      const img = new Image();
+      img.onload = function () {
+        const escala = 3;
+        const canvas = document.createElement("canvas");
+        canvas.width = img.width * escala;
+        canvas.height = img.height * escala;
+        const ctx = canvas.getContext("2d");
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve({
+          dataUrl: canvas.toDataURL("image/png"),
+          w: img.width,
+          h: img.height,
+        });
+      };
+      img.onerror = function () {
+        resolve(null);
+      };
+      img.src = url64;
+    } catch (err) {
+      console.warn("Barcode raster:", err);
+      resolve(null);
+    }
+  });
+}
+
+// Genera el PDF "etiquetas-productos.pdf" con jsPDF: una hoja A4 con las
+// etiquetas (código de barras, nombre, marca, precio y categoría) lista
+// para imprimir en una impresora normal.
+async function generarPDFEtiquetas(productos) {
+  if (!window.jspdf || !window.jspdf.jsPDF) return false;
+  try {
+    const doc = new window.jspdf.jsPDF({
+      orientation: "portrait",
+      unit: "mm",
+      format: "a4",
+    });
+    const ancho = doc.internal.pageSize.getWidth();
+    const alto = doc.internal.pageSize.getHeight();
+    const margen = 10;
+    const cols = 2;
+    const filas = 3;
+    const gap = 6;
+    const anc = (ancho - margen * 2 - (cols - 1) * gap) / cols;
+    const alt = (alto - margen * 2 - (filas - 1) * gap) / filas;
+
+    const barras = await Promise.all(
+      productos.map(function (p) {
+        return codigoBarraDataURL(p.codigo_barras);
+      })
+    );
+
+    doc.setDrawColor(170);
+    doc.setLineWidth(0.3);
+
+    productos.forEach(function (p, idx) {
+      const fila = Math.floor(idx / cols);
+      const col = idx % cols;
+      const pagina = Math.floor(fila / filas);
+      if (pagina > 0) doc.addPage();
+      const y0 = margen + (fila % filas) * (alt + gap);
+      const x0 = margen + col * (anc + gap);
+      const cx = x0 + anc / 2;
+
+      doc.roundedRect(x0, y0, anc, alt, 2, 2, "S");
+
+      // Nombre centrado
+      let y = y0 + 10;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.setTextColor(0);
+      const lineasNombre = doc.splitTextToSize(p.nombre || "", anc - 16);
+      doc.text(lineasNombre.slice(0, 3), cx, y, { align: "center" });
+      y += Math.min(lineasNombre.length, 3) * 4.4 + 3;
+
+      // Marca centrada
+      if (p.marca) {
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(9);
+        doc.text(String(p.marca), cx, y, { align: "center" });
+        y += 8;
+      }
+
+      // Precio centrado y destacado
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(20);
+      doc.text(formatearMoneda(p.precio), cx, y, { align: "center" });
+      y += 10;
+
+      // Categoría centrada
+      if (p.categoria) {
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(7.5);
+        doc.setTextColor(85);
+        doc.text(String(p.categoria).replace(/_/g, " ").toUpperCase(), cx, y, {
+          align: "center",
+        });
+        doc.setTextColor(0);
+        y += 6;
+      }
+
+      // Código de barras centrado
+      const barra = barras[idx];
+      if (barra) {
+        let anchoBarra = anc - 20;
+        let altoBarra = anchoBarra * (barra.h / barra.w);
+        const maxAlto = Math.min(20, y0 + alt - y - 6);
+        if (altoBarra > maxAlto) {
+          altoBarra = maxAlto;
+          anchoBarra = altoBarra * (barra.w / barra.h);
+        }
+        doc.addImage(
+          barra.dataUrl,
+          "PNG",
+          cx - anchoBarra / 2,
+          y,
+          anchoBarra,
+          altoBarra
+        );
+        y += altoBarra + 4;
+      } else {
+        y += 6;
+      }
+
+      // Número del código centrado bajo el código de barras
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7.5);
+      doc.text(String(p.codigo_barras), cx, y, { align: "center" });
+    });
+
+    doc.save("etiquetas-productos.pdf");
+    notificar("✅ PDF de etiquetas descargado. Imprímelo en tu impresora normal.", "ok");
+    return true;
+  } catch (err) {
+    console.warn("PDF error:", err);
+    notificar("⚠️ No se pudo generar el PDF; se descargó el HTML imprimible.", "error");
+    return false;
+  }
+}
+
+// Genera el HTML imprimible de las etiquetas (respaldo si no hay jsPDF).
+function descargarEtiquetasHTML(productos) {
+  const etiquetas = productos
+    .map(function (p) {
+      const svg = construirSVGCodigo(p.codigo_barras);
+      return `
+          <div class="etiqueta">
+            <div class="et-nombre">${escapeHtml(p.nombre)}</div>
+            ${
+              p.marca
+                ? `<div class="et-marca">${escapeHtml(p.marca)}</div>`
+                : ""
+            }
+            <div class="et-precio">${formatearMoneda(p.precio)}</div>
+            ${
+              p.categoria
+                ? `<div class="et-categoria">${escapeHtml(String(p.categoria).replace(/_/g, " "))}</div>`
+                : ""
+            }
+            ${svg}
+            <div class="et-codigo">${escapeHtml(p.codigo_barras)}</div>
+          </div>`;
+    })
+    .join("");
+
+  const html = `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Etiquetas de productos</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: Arial, Helvetica, sans-serif; color: #000; background: #fff; margin: 0; padding: 16px; }
+  .cabecera { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; font-size: 13px; color: #333; }
+  .grid { display: flex; flex-wrap: wrap; gap: 10px; }
+  .etiqueta {
+    width: 170px;
+    min-height: 100px;
+    border: 1px dashed #999;
+    padding: 8px;
+    text-align: center;
+    page-break-inside: avoid;
+    break-inside: avoid;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+  }
+  .et-nombre { font-size: 12px; font-weight: 700; margin-bottom: 4px; word-break: break-word; }
+  .et-marca { font-size: 11px; font-weight: 600; margin-bottom: 3px; }
+  .et-precio { font-size: 20px; font-weight: 700; margin: 4px 0; }
+  .et-categoria { font-size: 10px; font-weight: 600; color: #444; text-transform: uppercase; letter-spacing: .5px; }
+  .etiqueta svg { display: block; width: 100% !important; height: auto !important; margin: 4px auto; }
+  .et-codigo { font-size: 10px; letter-spacing: 1px; margin-top: 2px; }
+  @media print {
+    .cabecera { display: none; }
+    body { padding: 0; }
+    .grid { gap: 6px !important; }
+  }
+</style>
+</head>
+<body onload="window.print()">
+  <div class="cabecera"><strong>Etiquetas de productos</strong><span>${productos.length} etiqueta(s)</span></div>
+  <div class="grid">${etiquetas}</div>
+</body>
+</html>`;
+
+  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "etiquetas-productos.html";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(function () {
+    URL.revokeObjectURL(a.href);
+  }, 5000);
+  notificar("✅ Archivo de etiquetas descargado. Ábrelo y con Ctrl+P imprímelo en tu impresora.", "ok");
+}
+
+// Descarga las etiquetas en PDF (o HTML si jsPDF no está cargado).
+async function descargarEtiquetas(id) {
+  let consulta = window.supabase
+    .from("productos")
+    .select("*")
+    .order("nombre");
+  if (id) consulta = consulta.eq("id", id);
+  const { data, error } = await consulta;
+  if (error) {
+    notificar("❌ No se pudieron cargar los productos", "error");
+    return;
+  }
+  const productos = (Array.isArray(data) ? data : []).filter(
+    (p) => p && p.codigo_barras
+  );
+  if (!productos.length) {
+    notificar("⚠️ No hay productos con código de barras.", "error");
+    return;
+  }
+  const pdfOk = await generarPDFEtiquetas(productos);
+  if (!pdfOk) descargarEtiquetasHTML(productos);
+}
+
+function codificarCp1252(texto) {
+  const especiales = new Map([
+    [0x20ac, 0x80], [0x201a, 0x82], [0x0192, 0x83], [0x201e, 0x84],
+    [0x2026, 0x85], [0x2020, 0x86], [0x2021, 0x87], [0x02c6, 0x88],
+    [0x2030, 0x89], [0x0160, 0x8a], [0x2039, 0x8b], [0x0152, 0x8c],
+    [0x017d, 0x8e], [0x2018, 0x91], [0x2019, 0x92], [0x201c, 0x93],
+    [0x201d, 0x94], [0x2022, 0x95], [0x2013, 0x96], [0x2014, 0x97],
+    [0x02dc, 0x98], [0x2122, 0x99], [0x0161, 0x9a], [0x203a, 0x9b],
+    [0x0153, 0x9c], [0x017e, 0x9e], [0x0178, 0x9f],
+  ]);
+  const bytes = [];
+  for (const ch of String(texto)) {
+    const c = ch.codePointAt(0);
+    if (c < 0x80) bytes.push(c);
+    else if (c >= 0xa0 && c <= 0xff) bytes.push(c);
+    else if (especiales.has(c)) bytes.push(especiales.get(c));
+    else bytes.push(0x3f);
+  }
+  return bytes;
+}
+
+function construirBytesEtiqueta(proto, datos, texto) {
+  if (proto === "escpos") {
+    const out = [];
+    const a = (...arrs) => { for (const x of arrs) out.push(...x); };
+    const ln = (t) => codificarCp1252(t).concat([0x0a]);
+    a([0x1b, 0x40]); // ESC @    inicializa la impresora
+    a([0x1b, 0x61, 0x01]); // ESC a 1   centrar
+    a(ln(datos.nombre));
+    if (datos.marca) a(ln(datos.marca));
+    a(ln(datos.precio));
+    if (datos.categoria) a(ln(datos.categoria));
+    if (datos.codigo) a(ln(datos.codigo));
+    a([0x1b, 0x64, 0x06]); // ESC d 6   avance de línea
+    a([0x1d, 0x56, 0x42, 0x00]); // GS V B 0   corte parcial
+    return new Uint8Array(out);
+  }
+  if (proto === "tspl") {
+    const tsplTexto = (t, max) => {
+      const limpio = String(t || "").replace(/"/g, "'").replace(/\s+/g, " ").trim();
+      return limpio.slice(0, max);
+    };
+    const nombreL = tsplTexto(datos.nombre, 18);
+    const marcaL = tsplTexto(datos.marca, 36);
+    const catL = tsplTexto(datos.categoria, 36);
+    const precioL = "$" + String(datos.precio || "").replace(/MX\$\s*/gi, "").replace(/^\$\s*/, "");
+    const lineas = [
+      "SIZE 58 mm, 40 mm",
+      "GAP 2 mm, 0 mm",
+      "CLS",
+      'TEXT 8,8,"4",0,1,1,"' + nombreL + '"',
+    ];
+    if (marcaL) lineas.push('TEXT 8,48,"2",0,1,1,"' + marcaL + '"');
+    lineas.push('TEXT 8,72,"5",0,1,1,"' + precioL + '"');
+    if (catL) lineas.push('TEXT 8,128,"2",0,1,1,"' + catL + '"');
+    if (datos.codigo) lineas.push('BARCODE 8,152,"128",80,1,0,2,2,"' + datos.codigo + '"');
+    lineas.push("PRINT 1,1");
+    return new Uint8Array(codificarCp1252(lineas.join("\r\n") + "\r\n"));
+  }
+  return new Uint8Array(codificarCp1252(texto));
+}
+
+// Envía la etiqueta a una impresora térmica de etiquetas por Web Bluetooth.
+// Detecta automáticamente el servicio/característica escribible de la P1_BAB3
+// u otra impresora genérica (prefiere Nordic UART si está disponible).
+async function enviarEtiquetaBluetooth() {
+  if (!navigator.bluetooth) {
+    notificar("❌ Este navegador no soporta Web Bluetooth. Usa Chrome o Edge.", "error");
+    return;
+  }
+  if (!etiquetaActiva) {
+    notificar("❌ Primero abre la etiqueta de un producto.", "error");
+    return;
+  }
+  const nombre = etiquetaActiva.nombre || "";
+  const marca = etiquetaActiva.marca || "";
+  const codigo = etiquetaActiva.codigo_barras || "";
+  const precio = formatearMoneda(etiquetaActiva.precio);
+  const categoria = etiquetaActiva.categoria || "";
+
+  try {
+    const device = await navigator.bluetooth.requestDevice({
+      acceptAllDevices: true,
+      optionalServices: [
+        "6e400001-b5a3-f393-e0a9-e50e24dcca9e", // Nordic UART
+        "000018f0-0000-1000-8000-00805f9b34fb",
+        "49535343-fe7d-4ae5-8fa9-9fafd205e455", // RedBear BLE
+        "0000ff00-0000-1000-8000-00805f9b34fb", // impresoras térmicas genéricas
+        "0000ffe0-0000-1000-8000-00805f9b34fb", // impresoras térmicas genéricas
+        "e7810a71-73ae-499d-8c15-faa9aef0c3f2", // perfil "FMP" de impresoras BLE
+        "0000feb3-0000-1000-8000-00805f9b34fb", // impresoras BLE (varios clones)
+      ],
+    });
+    const server = await device.gatt.connect();
+
+    const PREFER_SVC = [
+      "6e400001-b5a3-f393-e0a9-e50e24dcca9e",
+      "0000ff00-0000-1000-8000-00805f9b34fb",
+      "0000ffe0-0000-1000-8000-00805f9b34fb",
+      "e7810a71-73ae-499d-8c15-faa9aef0c3f2",
+      "0000feb3-0000-1000-8000-00805f9b34fb",
+      "000018f0-0000-1000-8000-00805f9b34fb",
+      "49535343-fe7d-4ae5-8fa9-9fafd205e455",
+    ];
+    const PREFER_CHAR = [
+      "6e400002-b5a3-f393-e0a9-e50e24dcca9e",
+      "0000ff01-0000-1000-8000-00805f9b34fb",
+      "0000ffe1-0000-1000-8000-00805f9b34fb",
+      "0000ff02-0000-1000-8000-00805f9b34fb",
+      "0000ffe2-0000-1000-8000-00805f9b34fb",
+      "0000fff1-0000-1000-8000-00805f9b34fb",
+    ];
+
+    // Enumerar TODOS los servicios/características accesibles y guardar el diagnóstico.
+    const writables = [];
+    for (const suuid of PREFER_SVC) {
+      let svc, chars;
+      try {
+        svc = await server.getPrimaryService(suuid);
+        chars = await svc.getCharacteristics();
+      } catch (e) {
+        continue;
+      }
+      for (const c of chars) {
+        writables.push({ svc: String(suuid).toLowerCase(), uuid: String(c.uuid).toLowerCase(), props: c.properties });
+      }
+    }
+    try {
+      const allSvcs = await server.getPrimaryServices();
+      for (const s of allSvcs) {
+        let chars;
+        try {
+          chars = await s.getCharacteristics();
+        } catch (e) {
+          continue;
+        }
+        for (const c of chars) {
+          const u = String(c.uuid).toLowerCase();
+          if (!writables.some((w) => w.uuid === u)) {
+            writables.push({ svc: String(s.uuid).toLowerCase(), uuid: u, props: c.properties });
+          }
+        }
+      }
+    } catch (e) {
+      /* opcional */
+    }
+
+    const diag = writables
+      .map(
+        (w) =>
+          w.svc +
+          " | " +
+          w.uuid +
+          " | write:" +
+          w.props.write +
+          " woR:" +
+          w.props.writeWithoutResponse +
+          " notify:" +
+          w.props.notify
+      )
+      .join("\n");
+
+    // Elegir objetivo: UUID conocido de impresora -> write con respuesta -> write sin respuesta.
+    let target = null;
+    for (const uuid of PREFER_CHAR) {
+      target = writables.find((w) => w.uuid === uuid && (w.props.write || w.props.writeWithoutResponse));
+      if (target) break;
+    }
+    if (!target) target = writables.find((w) => w.props.write) || writables.find((w) => w.props.writeWithoutResponse);
+    if (!target) {
+      throw new Error("No se encontró una característica escribible en la impresora. Abre F12 y copia BLUETOOTH_DIAG.");
+    }
+
+    const texto =
+      nombre +
+      (marca ? "\n" + marca : "") +
+      (codigo ? "\n" + codigo : "") +
+      "\n" +
+      precio +
+      "\n\n";
+    const proto =
+      (document.getElementById("protoEtiqueta") || { value: "tspl" }).value || "tspl";
+    const data = construirBytesEtiqueta(
+      proto,
+      { nombre: nombre.split("\n")[0], marca: marca, codigo: codigo, precio: precio, categoria: categoria },
+      texto
+    );
+
+    const svc = await server.getPrimaryService(target.svc);
+    const char = await svc.getCharacteristic(target.uuid);
+    try {
+      if (target.props.write) {
+        await char.writeValue(data);
+      } else {
+        await char.writeValueWithoutResponse(data);
+      }
+    } catch (e) {
+      // Si el tipo de escritura elegido falla, intenta el otro.
+      if (target.props.write) {
+        await char.writeValueWithoutResponse(data);
+      } else {
+        throw e;
+      }
+    }
+
+    window._bluetoothDiag =
+      "SERVICIOS / CARACTERÍSTICAS DE LA IMPRESORA:\n" +
+      diag +
+      "\n\nPROTOCOLO: " +
+      proto +
+      "\nENVIANDO A:\n" +
+      target.svc +
+      " | " +
+      target.uuid +
+      "\nbytes: " +
+      data.length +
+      "  hex: " +
+      Array.from(data.slice(0, 12))
+        .map((x) => x.toString(16).padStart(2, "0"))
+        .join(" ") +
+      "\ncontenido: " +
+      texto.replace(/\n/g, " | ");
+
+    console.log("BLUETOOTH_DIAG\n" + window._bluetoothDiag);
+
+    notificar("✅ Etiqueta enviada a la impresora por Bluetooth (protocolo " + proto + ").");
+  } catch (error) {
+    if (error && error.name === "NotFoundError") {
+      notificar("❌ No se pudo conectar con la impresora.", "error");
+    } else {
+      notificar("❌ Error al enviar por Bluetooth: " + (error.message || error), "error");
+    }
   }
 }
 
@@ -1747,9 +2924,23 @@ async function cargarInventario() {
 
     cargarSelectProductosInventario();
 
-    if (!data || !data.length) {
-      container.innerHTML =
-        '<p class="text-center text-dim py-3">📊 No hay movimientos</p>';
+    // Búsqueda por producto (filtro en memoria sobre el nombre del producto).
+    const busquedaInventario = document
+      .getElementById("buscarProductoInventario")
+      ?.value.trim()
+      .toLowerCase();
+    const movimientosVisibles = busquedaInventario
+      ? data.filter((m) =>
+          String(m.productos?.nombre || "")
+            .toLowerCase()
+            .includes(busquedaInventario),
+        )
+      : data;
+
+    if (!movimientosVisibles.length) {
+      container.innerHTML = busquedaInventario
+        ? '<p class="text-center text-dim py-3">🔍 Sin resultados para la búsqueda.</p>'
+        : '<p class="text-center text-dim py-3">📊 No hay movimientos</p>';
       return;
     }
 
@@ -1769,7 +2960,7 @@ async function cargarInventario() {
                     </tr>
                 </thead>
                 <tbody>
-                    ${data
+                    ${movimientosVisibles
                       .map(
                         (m) => `
                         <tr>
@@ -1834,6 +3025,259 @@ async function cargarInventario() {
 // 4. PEDIDOS
 // ============================================
 
+// Cache de lugares de entrega (lugar + horario fijo) para mostrar el
+// detalle completo en la columna "Lugar" del tab Pedidos.
+let lugaresAdminCache = [];
+
+async function precargarLugaresAdmin() {
+  if (lugaresAdminCache.length) return;
+  try {
+    const { data, error } = await window.supabase
+      .from("lugares_entrega")
+      .select("lugar, horario_fijo")
+      .order("orden", { ascending: true });
+    if (!error && data && data.length) {
+      lugaresAdminCache = data;
+      return;
+    }
+  } catch (e) {
+    /* usa el respaldo local */
+  }
+  lugaresAdminCache = [
+    { lugar: "Apodaca centro (frente a iglesia)", horario_fijo: "08:00-08:30" },
+    { lugar: "San Nicolas centro (plaza presidencia)", horario_fijo: "09:00-09:30" },
+    { lugar: "Costco Escobedo", horario_fijo: "10:00-10:30" },
+    { lugar: "San Pedro (punto y horario a convenir)", horario_fijo: null },
+    { lugar: "Monterrey (punto y horario a convenir)", horario_fijo: null },
+    { lugar: "Guadalupe (punto y horario a convenir)", horario_fijo: null },
+  ];
+}
+
+function detallesLugarPedido(p) {
+  if (!p.lugar_entrega) return '<small style="color:var(--text-dim);">—</small>';
+  const reg = lugaresAdminCache.find((l) => l.lugar === p.lugar_entrega) || null;
+  const esPuntoFijo = !!(reg && reg.horario_fijo);
+  if (esPuntoFijo) {
+    return `<small style="white-space:nowrap; color:var(--text-silver);">📦 ${p.lugar_entrega}</small>
+            <div style="color:var(--regio-green); font-size:0.72rem; white-space:nowrap;" title="Horario fijo del punto">🕐 ${reg.horario_fijo}</div>`;
+  }
+  return `<small style="white-space:nowrap; color:var(--text-silver);">📦 ${p.lugar_entrega}</small>
+          <div style="color:#8ab4f8; font-size:0.72rem; white-space:nowrap;" title="Punto exacto acordado con el comprador">📍 ${p.punto_entrega || "Por acordar"}</div>
+          <div style="color:#ffd166; font-size:0.72rem; white-space:nowrap;" title="Hora acordada">🕐 ${p.hora_entrega || "Por acordar"}</div>`;
+}
+
+function renderFilaPedido(p) {
+  const productosLinea = (p.productos || [])
+    .map(
+      (x) =>
+        `<span class="item"><span class="nombre">${
+          x.nombre
+        }</span> <span class="cant">${Number(x.precio) || 0} × ${
+          x.cantidad
+        }</span> <span class="precio">${formatearMoneda(
+          x.precio * x.cantidad,
+        )}</span></span>`,
+    )
+    .join(" ");
+
+  const envio = Number(p.costo_envio) || 0;
+  const descuentoPct = Number(p.descuento) || 0;
+  const subtotalProductos = (p.productos || []).reduce(
+    (s, x) =>
+      s + (Number(x.precio) || 0) * (Number(x.cantidad) || 0),
+    0,
+  );
+  const subtotalConEnvio = subtotalProductos + envio;
+  const descuentoMonto = subtotalConEnvio * (descuentoPct / 100);
+  const totalCalculado = subtotalConEnvio - descuentoMonto;
+
+  let estadoHtml;
+  if (p.estado === "vendido") {
+    estadoHtml = `<span class="badge bg-success" style="white-space:nowrap;" title="Venta completada: el stock ya se descontó. Usa el botón de Devolución (↩️) si necesitas regresarlo.">💰 Vendido</span>`;
+  } else if (p.estado === "devuelto") {
+    estadoHtml = `<span class="badge bg-secondary" style="white-space:nowrap;" title="El stock de este pedido ya fue regresado al inventario.">↩️ Devuelto</span>`;
+  } else if (p.estado === "entregado") {
+    estadoHtml = `<span class="badge bg-dark" style="white-space:nowrap; border:1px solid var(--accent); color:var(--accent);" title="Producto entregado al cliente.">📦 Entregado</span>`;
+  } else {
+    estadoHtml = `
+                                <select onchange="cambiarEstadoPedido('${
+                                  p.id
+                                }', this.value)" class="form-select form-select-sm bg-black text-white border-secondary" style="width:auto; min-width:100px; display:inline-block;" title="Cambia el estado manualmente. Esto NO afecta el stock.">
+                                    <option value="pendiente" ${
+                                      p.estado === "pendiente" ? "selected" : ""
+                                    }>📋 Pendiente</option>
+                                    <option value="confirmado" ${
+                                      p.estado === "confirmado"
+                                        ? "selected"
+                                        : ""
+                                    }>✅ Confirmado</option>
+                                    <option value="entregado" ${
+                                      p.estado === "entregado" ? "selected" : ""
+                                    }>📦 Entregado</option>
+                                    <option value="cancelado" ${
+                                      p.estado === "cancelado" ? "selected" : ""
+                                    }>❌ Cancelado</option>
+                                </select>
+                            `;
+  }
+
+  return `
+                        <tr data-pedido-id="${p.id}"
+                            data-cliente="${p.cliente_nombre}"
+                            data-telefono="${p.cliente_telefono || ""}"
+                            data-email="${p.cliente_email || ""}"
+                            data-numero="${p.numero_pedido || "N/A"}"
+                            data-productos='${JSON.stringify(
+                              p.productos,
+                            ).replace(/'/g, "&#39;")}'
+                            data-total="${p.total}"
+                            data-direccion="${p.direccion_entrega || ""}"
+data-lugarentrega="${p.lugar_entrega || ""}"
+                            data-puntoentrega="${p.punto_entrega || ""}"
+                            data-horaentrega="${p.hora_entrega || ""}"
+                            data-costoenvio="${p.costo_envio || 0}"
+                            data-descuento="${p.descuento || 0}"
+                            data-metodopago="${p.metodo_pago || ""}"
+                            data-notas="${(p.notas || "").replace(
+                              /"/g,
+                              "&quot;",
+                            )}">
+                            <td><span class="pedido-numero">${
+                              p.numero_pedido || "N/A"
+                            }</span></td>
+                            <td><small style="white-space:nowrap;">${formatearFecha(
+                              p.fecha_pedido,
+                            )}</small></td>
+                            <td><small style="white-space:nowrap; color:var(--text-silver);">${
+                              p.fecha_vendido
+                                ? formatearFecha(p.fecha_vendido)
+                                : "—"
+                            }</small></td>
+                            <td><small style="white-space:nowrap; color:var(--text-silver);">${
+                              p.fecha_entregado
+                                ? formatearFecha(p.fecha_entregado)
+                                : "—"
+                            }</small></td>
+                            <td>
+                                <div style="display:block; margin-bottom:4px; font-weight:600; color:var(--text-main); font-size:0.95rem;">${
+                                  p.cliente_nombre
+                                }</div>
+                                ${
+                                  p.cliente_telefono
+                                    ? `<div style="display:block; color:var(--text-silver); font-size:0.85rem; margin-bottom:3px;">📱 ${p.cliente_telefono}</div>`
+                                    : ""
+                                }
+                                ${
+                                  p.cliente_email
+                                    ? `<div style="display:block; color:#8ab4f8; font-size:0.85rem;">📧 ${p.cliente_email}</div>`
+                                    : ""
+                                }
+                                ${
+                                  p.cupon
+                                    ? `<div style="display:block; color:#ffd166; font-size:0.8rem;">🎟️ ${p.cupon}</div>`
+                                    : ""
+                                }
+                                ${
+                                  p.notas
+                                    ? `<div style="display:block; color:var(--text-silver); font-size:0.8rem; margin-top:3px;">📝 ${p.notas}</div>`
+                                    : ""
+                                }
+                            </td>
+                            <td><div class="productos-lista">${productosLinea}</div></td>
+                            <td>
+                                ${detallesLugarPedido(p)}
+                            </td>
+                            <td>
+                                ${
+                                  envio > 0
+                                    ? `<small style="white-space:nowrap; color:var(--text-silver);">${formatearMoneda(
+                                        envio,
+                                      )}</small>`
+                                    : `<small style="color:var(--text-dim);">—</small>`
+                                }
+                            </td>
+                            <td>
+                                ${
+                                  descuentoMonto > 0
+                                    ? `<small style="white-space:nowrap; color:#ffd166;">${descuentoPct}% (−${formatearMoneda(
+                                        descuentoMonto,
+                                      )})</small>`
+                                    : `<small style="color:var(--text-dim);">—</small>`
+                                }
+                            </td>
+                            <td><small style="white-space:nowrap; color:var(--text-silver);">${formatearMoneda(
+                              subtotalConEnvio,
+                            )}</small></td>
+                            <td><strong style="color:var(--accent); font-size:1.1rem; white-space:nowrap;" title="Productos + envío, con el descuento ya aplicado.">${formatearMoneda(
+                              totalCalculado,
+                            )}</strong></td>
+                            <td>${estadoHtml}</td>
+                            <td style="white-space: nowrap;">
+                                <div class="d-flex gap-1" style="flex-wrap:nowrap;">
+                                    <button onclick="abrirModalEditarPedido('${
+                                      p.id
+                                    }')" class="btn btn-warning btn-sm" title="Editar Pedido (cliente, productos, cantidades, envío, descuento, estado...)">✏️</button>
+                                    <button onclick="generarTicketPedido('${
+                                      p.id
+                                    }')" class="btn btn-outline-warning btn-sm" title="Generar / Reimprimir Ticket (imprime directo con QZ)">🧾</button>
+                                    <button onclick="verVistaPreviaPedido('${
+                                      p.id
+                                    }')" class="btn btn-outline-light btn-sm" title="Ver Vista Previa del Ticket (58mm)">👁️</button>
+                                    <button onclick="verDetallePedido('${
+                                      p.id
+                                    }')" class="btn btn-outline-secondary btn-sm" title="Ver Detalle completo e imprimir">📋</button>
+                                    ${
+                                      p.estado === "pendiente"
+                                        ? `
+                                        <button onclick="procesarPedido('${p.id}', 'procesar')" class="btn btn-info-custom btn-sm" title="Procesar Pedido: pasa a Confirmado">✅</button>
+                                    `
+                                        : ""
+                                    }
+                                    ${
+                                      p.estado === "confirmado"
+                                        ? `
+                                        <button onclick="procesarPedido('${p.id}', 'completar')" class="btn btn-success btn-sm" title="Marcar como Vendido: descuenta el stock. Es la ÚNICA acción que descuenta stock.">💰</button>
+                                        <button onclick="pedirMarcarEntregado('${p.id}')" class="btn btn-outline-success btn-sm" title="Marcar como Entregado (producto entregado al cliente)">📦</button>
+                                    `
+                                        : ""
+                                    }
+                                    ${
+                                      p.estado === "vendido"
+                                        ? `
+                                        <button onclick="pedirMarcarEntregado('${p.id}')" class="btn btn-outline-success btn-sm" title="Marcar como Entregado (producto entregado al cliente)">📦</button>
+                                        <button onclick="pedirDevolucionPedido('${p.id}')" class="btn btn-outline-warning btn-sm" title="Devolución: regresa el stock de estos productos al inventario">↩️</button>
+                                    `
+                                        : ""
+                                    }
+                                    <button onclick="pedirEliminarPedido('${
+                                      p.id
+                                    }')" class="btn btn-outline-danger btn-sm" title="Eliminar este pedido de la base de datos (permanente)">🗑️</button>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+}
+
+// Actualiza solo la fila editada (misma posición), sin reordenar la lista.
+async function reemplazarFilaPedido(id) {
+  if (!id) return;
+  const { data, error } = await window.supabase
+    .from("pedidos")
+    .select("*")
+    .eq("id", id)
+    .single();
+  if (error || !data) return;
+  const tr = document.querySelector(
+    `#listaPedidos tr[data-pedido-id="${id}"]`,
+  );
+  if (tr) {
+    tr.outerHTML = renderFilaPedido(data);
+  } else {
+    const activeFilter = document.querySelector(".filtro-pedido.active");
+    cargarPedidos(activeFilter?.dataset?.estado || "todos");
+  }
+}
+
 async function cargarPedidos(estado = "todos") {
   const container = document.getElementById("listaPedidos");
   if (!container) return;
@@ -1890,7 +3334,7 @@ async function cargarPedidos(estado = "todos") {
     let query = window.supabase
       .from("pedidos")
       .select("*")
-      .order("fecha_pedido", { ascending: false });
+      .order("cliente_nombre", { ascending: true });
     if (estado !== "todos") query = query.eq("estado", estado);
 
     const busquedaNumero = document
@@ -1899,6 +3343,18 @@ async function cargarPedidos(estado = "todos") {
     if (busquedaNumero)
       query = query.ilike("numero_pedido", `%${busquedaNumero}%`);
 
+    const busquedaEmail = document
+      .getElementById("buscarEmailPedido")
+      ?.value.trim();
+    if (busquedaEmail)
+      query = query.ilike("cliente_email", `%${busquedaEmail}%`);
+
+    const busquedaNombre = document
+      .getElementById("buscarNombrePedido")
+      ?.value.trim();
+    if (busquedaNombre)
+      query = query.ilike("cliente_nombre", `%${busquedaNombre}%`);
+
     const { data, error } = await query;
 
     if (error) {
@@ -1906,6 +3362,18 @@ async function cargarPedidos(estado = "todos") {
         '<p class="text-danger text-center">❌ Error al cargar</p>';
       return;
     }
+
+    // Orden alfabético A→Z por cliente (con acentos): los nuevos pedidos
+    // aparecen en su lugar alfabético en cada carga.
+    data.sort((a, b) =>
+      String(a.cliente_nombre || "").localeCompare(
+        String(b.cliente_nombre || ""),
+        "es",
+      ),
+    );
+
+    // Cache de lugares de entrega (para el detalle del punto fijo / coordinado).
+    await precargarLugaresAdmin();
 
     const totalPedidos = document.getElementById("totalPedidos");
     if (totalPedidos) totalPedidos.textContent = data?.length || 0;
@@ -1922,6 +3390,8 @@ async function cargarPedidos(estado = "todos") {
                     <tr>
                         <th style="white-space:nowrap;">N° Pedido</th>
                         <th style="white-space:nowrap;">Fecha</th>
+                        <th style="white-space:nowrap;" title="Fecha/hora en que marcaste el pedido como VENDIDO (botón 💰).">Vendido</th>
+                        <th style="white-space:nowrap;" title="Fecha/hora en que marcaste el pedido como ENTREGADO (botón 📦).">Entregado</th>
                         <th style="min-width:180px;">Cliente</th>
                         <th>Productos</th>
                         <th style="white-space:nowrap;" title="Lugar de entrega seleccionado por el cliente.">Lugar</th>
@@ -1934,193 +3404,7 @@ async function cargarPedidos(estado = "todos") {
                     </tr>
                 </thead>
                 <tbody>
-                    ${data
-                      .map((p) => {
-                        const productosLinea = p.productos
-                          .map(
-                            (x) =>
-                              `<span class="item"><span class="nombre">${
-                                x.nombre
-                              }</span> <span class="cant">${
-                                Number(x.precio) || 0
-                              } × ${
-                                x.cantidad
-                              }</span> <span class="precio">${formatearMoneda(
-                                x.precio * x.cantidad,
-                              )}</span></span>`,
-                          )
-                          .join(" ");
-
-                        const envio = Number(p.costo_envio) || 0;
-                        const descuentoPct = Number(p.descuento) || 0;
-                        const subtotalProductos = (p.productos || []).reduce(
-                          (s, x) =>
-                            s +
-                            (Number(x.precio) || 0) * (Number(x.cantidad) || 0),
-                          0,
-                        );
-                        const subtotalConEnvio = subtotalProductos + envio;
-                        const descuentoMonto =
-                          subtotalConEnvio * (descuentoPct / 100);
-                        const totalCalculado =
-                          subtotalConEnvio - descuentoMonto;
-
-                        let estadoHtml;
-                        if (p.estado === "vendido") {
-                          estadoHtml = `<span class="badge bg-success" style="white-space:nowrap;" title="Venta completada: el stock ya se descontó. Usa el botón de Devolución (↩️) si necesitas regresarlo.">💰 Vendido</span>`;
-                        } else if (p.estado === "devuelto") {
-                          estadoHtml = `<span class="badge bg-secondary" style="white-space:nowrap;" title="El stock de este pedido ya fue regresado al inventario.">↩️ Devuelto</span>`;
-                        } else if (p.estado === "entregado") {
-                          estadoHtml = `<span class="badge bg-dark" style="white-space:nowrap; border:1px solid var(--accent); color:var(--accent);" title="Producto entregado al cliente.">📦 Entregado</span>`;
-                        } else {
-                          estadoHtml = `
-                                <select onchange="cambiarEstadoPedido('${
-                                  p.id
-                                }', this.value)" class="form-select form-select-sm bg-black text-white border-secondary" style="width:auto; min-width:100px; display:inline-block;" title="Cambia el estado manualmente. Esto NO afecta el stock.">
-                                    <option value="pendiente" ${
-                                      p.estado === "pendiente" ? "selected" : ""
-                                    }>📋 Pendiente</option>
-                                    <option value="confirmado" ${
-                                      p.estado === "confirmado"
-                                        ? "selected"
-                                        : ""
-                                    }>✅ Confirmado</option>
-                                    <option value="entregado" ${
-                                      p.estado === "entregado" ? "selected" : ""
-                                    }>📦 Entregado</option>
-                                    <option value="cancelado" ${
-                                      p.estado === "cancelado" ? "selected" : ""
-                                    }>❌ Cancelado</option>
-                                </select>
-                            `;
-                        }
-
-                        return `
-                        <tr data-pedido-id="${p.id}"
-                            data-cliente="${p.cliente_nombre}"
-                            data-telefono="${p.cliente_telefono || ""}"
-                            data-email="${p.cliente_email || ""}"
-                            data-numero="${p.numero_pedido || "N/A"}"
-                            data-productos='${JSON.stringify(
-                              p.productos,
-                            ).replace(/'/g, "&#39;")}'
-                            data-total="${p.total}"
-                            data-direccion="${p.direccion_entrega || ""}"
-                            data-lugarentrega="${p.lugar_entrega || ""}"
-                            data-costoenvio="${p.costo_envio || 0}"
-                            data-descuento="${p.descuento || 0}"
-                            data-metodopago="${p.metodo_pago || ""}"
-                            data-notas="${(p.notas || "").replace(
-                              /"/g,
-                              "&quot;",
-                            )}">
-                            <td><span class="pedido-numero">${
-                              p.numero_pedido || "N/A"
-                            }</span></td>
-                            <td><small style="white-space:nowrap;">${formatearFecha(
-                              p.fecha_pedido,
-                            )}</small></td>
-                            <td>
-                                <div style="display:block; margin-bottom:4px; font-weight:600; color:var(--text-main); font-size:0.95rem;">${
-                                  p.cliente_nombre
-                                }</div>
-                                ${
-                                  p.cliente_telefono
-                                    ? `<div style="display:block; color:var(--text-silver); font-size:0.85rem; margin-bottom:3px;">📱 ${p.cliente_telefono}</div>`
-                                    : ""
-                                }
-                                ${
-                                  p.cliente_email
-                                    ? `<div style="display:block; color:#8ab4f8; font-size:0.85rem;">📧 ${p.cliente_email}</div>`
-                                    : ""
-                                }
-                                ${
-                                  p.cupon
-                                    ? `<div style="display:block; color:#ffd166; font-size:0.8rem;">🎟️ ${p.cupon}</div>`
-                                    : ""
-                                }
-                                ${
-                                  p.notas
-                                    ? `<div style="display:block; color:var(--text-silver); font-size:0.8rem; margin-top:3px;">📝 ${p.notas}</div>`
-                                    : ""
-                                }
-                            </td>
-                            <td><div class="productos-lista">${productosLinea}</div></td>
-                            <td>
-                                ${
-                                  p.lugar_entrega
-                                    ? `<small style="white-space:nowrap; color:var(--text-silver);">📦 ${p.lugar_entrega}</small>`
-                                    : `<small style="color:var(--text-dim);">—</small>`
-                                }
-                            </td>
-                            <td>
-                                ${
-                                  envio > 0
-                                    ? `<small style="white-space:nowrap; color:var(--text-silver);">${formatearMoneda(
-                                        envio,
-                                      )}</small>`
-                                    : `<small style="color:var(--text-dim);">—</small>`
-                                }
-                            </td>
-                            <td>
-                                ${
-                                  descuentoMonto > 0
-                                    ? `<small style="white-space:nowrap; color:#ffd166;">${descuentoPct}% (−${formatearMoneda(
-                                        descuentoMonto,
-                                      )})</small>`
-                                    : `<small style="color:var(--text-dim);">—</small>`
-                                }
-                            </td>
-                            <td><small style="white-space:nowrap; color:var(--text-silver);">${formatearMoneda(
-                              subtotalConEnvio,
-                            )}</small></td>
-                            <td><strong style="color:var(--accent); font-size:1.1rem; white-space:nowrap;" title="Productos + envío, con el descuento ya aplicado.">${formatearMoneda(
-                              totalCalculado,
-                            )}</strong></td>
-                            <td>${estadoHtml}</td>
-                            <td style="white-space: nowrap;">
-                                <div class="d-flex gap-1" style="flex-wrap:nowrap;">
-                                    <button onclick="abrirModalEditarPedido('${
-                                      p.id
-                                    }')" class="btn btn-warning btn-sm" title="Editar Pedido (cliente, productos, cantidades, envío, descuento, estado...)">✏️</button>
-                                    <button onclick="generarTicketPedido('${
-                                      p.id
-                                    }')" class="btn btn-outline-warning btn-sm" title="Generar / Reimprimir Ticket (no afecta el stock)">🧾</button>
-                                    <button onclick="verDetallePedido('${
-                                      p.id
-                                    }')" class="btn btn-outline-secondary btn-sm" title="Ver Detalle completo e imprimir">📋</button>
-                                    ${
-                                      p.estado === "pendiente"
-                                        ? `
-                                        <button onclick="procesarPedido('${p.id}', 'procesar')" class="btn btn-info-custom btn-sm" title="Procesar Pedido: pasa a Confirmado">✅</button>
-                                    `
-                                        : ""
-                                    }
-                                    ${
-                                      p.estado === "confirmado"
-                                        ? `
-                                        <button onclick="procesarPedido('${p.id}', 'completar')" class="btn btn-success btn-sm" title="Marcar como Vendido: descuenta el stock. Es la ÚNICA acción que descuenta stock.">💰</button>
-                                        <button onclick="pedirMarcarEntregado('${p.id}')" class="btn btn-outline-success btn-sm" title="Marcar como Entregado (producto entregado al cliente)">📦</button>
-                                    `
-                                        : ""
-                                    }
-                                    ${
-                                      p.estado === "vendido"
-                                        ? `
-                                        <button onclick="pedirMarcarEntregado('${p.id}')" class="btn btn-outline-success btn-sm" title="Marcar como Entregado (producto entregado al cliente)">📦</button>
-                                        <button onclick="pedirDevolucionPedido('${p.id}')" class="btn btn-outline-warning btn-sm" title="Devolución: regresa el stock de estos productos al inventario">↩️</button>
-                                    `
-                                        : ""
-                                    }
-                                    <button onclick="pedirEliminarPedido('${
-                                      p.id
-                                    }')" class="btn btn-outline-danger btn-sm" title="Eliminar este pedido de la base de datos (permanente)">🗑️</button>
-                                </div>
-                            </td>
-                        </tr>
-                    `;
-                      })
-                      .join("")}
+                    ${data.map(renderFilaPedido).join("")}
                 </tbody>
             </table>
         `;
@@ -2170,10 +3454,14 @@ async function guardarEnvioDescuentoPedido(id, envioInput, descuentoInput) {
 }
 
 async function cambiarEstadoPedido(id, estado) {
+  const updates = { estado };
+  const ahora = new Date().toISOString();
+  if (estado === "vendido") updates.fecha_vendido = ahora;
+  if (estado === "entregado") updates.fecha_entregado = ahora;
   try {
     const { error } = await window.supabase
       .from("pedidos")
-      .update({ estado })
+      .update(updates)
       .eq("id", id);
     if (!error) {
       const activeFilter = document.querySelector(".filtro-pedido.active");
@@ -2372,6 +3660,12 @@ async function abrirModalEditarPedido(id) {
     (pedido && pedido.direccion_entrega) || row.dataset.direccion || "";
   document.getElementById("editarLugarEntrega").value =
     (pedido && pedido.lugar_entrega) || row.dataset.lugarentrega || "";
+  document.getElementById("editarPuntoEntrega").value =
+    (pedido && pedido.punto_entrega) ||
+    (row.dataset.puntoentrega || "").replace(/&quot;/g, '"') ||
+    "";
+  document.getElementById("editarHoraAcordada").value =
+    (pedido && pedido.hora_entrega) || row.dataset.horaentrega || "";
   document.getElementById("editarMetodoPago").value =
     (pedido && pedido.metodo_pago) || row.dataset.metodopago || "efectivo";
   document.getElementById("editarEnvio").value =
@@ -2450,6 +3744,10 @@ async function guardarPedidoEditado() {
   const lugarEntrega = document
     .getElementById("editarLugarEntrega")
     .value.trim();
+  const puntoEntrega = document
+    .getElementById("editarPuntoEntrega")
+    .value.trim();
+  const horaAcordada = document.getElementById("editarHoraAcordada").value;
   const metodoPago = document.getElementById("editarMetodoPago").value;
   const envio = parseFloat(document.getElementById("editarEnvio").value) || 0;
   let descuentoPct =
@@ -2512,6 +3810,8 @@ async function guardarPedidoEditado() {
         cliente_email: email || null,
         direccion_entrega: direccion || null,
         lugar_entrega: lugarEntrega || null,
+        punto_entrega: puntoEntrega || null,
+        hora_entrega: horaAcordada || null,
         metodo_pago: metodoPago,
         productos: productos,
         costo_envio: envio,
@@ -2526,8 +3826,8 @@ async function guardarPedidoEditado() {
 
     document.getElementById("modalEditarPedido").style.display = "none";
 
-    const activeFilter = document.querySelector(".filtro-pedido.active");
-    await cargarPedidos(activeFilter?.dataset?.estado || "todos");
+    // Edición: actualiza la fila en su mismo lugar (no reordena).
+    await reemplazarFilaPedido(id);
     cargarPedidosPendientes();
     cargarPedidosParaTicket();
 
@@ -2601,6 +3901,30 @@ async function verDetallePedido(id) {
                 ? `<div style="display:flex; justify-content:space-between;"><strong>Lugar de entrega:</strong> <span>${data.lugar_entrega}</span></div>`
                 : ""
             }
+            ${
+              data.punto_entrega
+                ? `<div style="display:flex; justify-content:space-between;"><strong>Punto acordado:</strong> <span>${data.punto_entrega}</span></div>`
+                : ""
+            }
+            ${
+              data.hora_entrega
+                ? `<div style="display:flex; justify-content:space-between;"><strong>Hora acordada:</strong> <span>${data.hora_entrega}</span></div>`
+                : ""
+            }
+            ${
+              data.fecha_vendido
+                ? `<div style="display:flex; justify-content:space-between;"><strong>Vendido:</strong> <span>${formatearFecha(
+                    data.fecha_vendido,
+                  )}</span></div>`
+                : ""
+            }
+            ${
+              data.fecha_entregado
+                ? `<div style="display:flex; justify-content:space-between;"><strong>Entregado:</strong> <span>${formatearFecha(
+                    data.fecha_entregado,
+                  )}</span></div>`
+                : ""
+            }
             <hr style="border-color:var(--border); margin:12px 0;">
             <div><strong>Productos:</strong></div>
             ${productosHtml}
@@ -2656,6 +3980,11 @@ function imprimirDetallePedidoActual() {
   generarTicketPedido(detallePedidoActual.id);
 }
 
+function verVistaPreviaDetallePedidoActual() {
+  if (!detallePedidoActual) return;
+  verVistaPreviaPedido(detallePedidoActual.id);
+}
+
 async function generarTicketPedido(id) {
   try {
     const { data } = await window.supabase
@@ -2687,18 +4016,84 @@ async function generarTicketPedido(id) {
       envio: envio,
       descuento: descuentoPct,
       total: total,
-      fecha: data.fecha_pedido,
+      // Fecha del ticket = día que sale el pedido del almacén:
+      // fecha_entregado (si ya entregaste) → fecha_vendido (si vendiste) →
+      // fecha_pedido → hoy. Sin elegir fechas en un calendario.
+      fecha:
+        data.fecha_entregado ||
+        data.fecha_vendido ||
+        data.fecha_pedido ||
+        new Date().toISOString(),
+      entrega_dia: data.fecha_entregado || data.dia_entrega || "",
+      entrega_hora: data.hora_entrega || "",
+      punto_entrega: data.punto_entrega || "",
       numero_pedido: data.numero_pedido || "",
       estado: data.estado || "",
     };
-    abrirVentanaCentrada(
-      `ticket.html?pedido=${encodeURIComponent(JSON.stringify(datosTicket))}`,
-      400,
-      700,
-    );
+    // Imprime directo con QZ Tray (58mm). Si QZ no está disponible,
+    // abre la ventana de vista previa/impresión como antes (fallback).
+    imprimirTicketAdmin(datosTicket);
   } catch (error) {
     console.error("Error:", error);
     mostrarModalAlerta("❌ Error al generar ticket");
+  }
+}
+
+// Abre la vista previa del ticket (58mm) en un modal del panel, sin imprimir.
+// Es la misma info que imprime QZ, pero para verla/revisarla en pantalla.
+function verVistaPreviaTicket(datosTicket) {
+  abrirTicketPreviewModal(
+    "ticket.html?pedido=" + encodeURIComponent(JSON.stringify(datosTicket)),
+  );
+}
+
+// Vista previa de un pedido ya existente (misma info que el botón 🧾).
+async function verVistaPreviaPedido(id) {
+  try {
+    const { data } = await window.supabase
+      .from("pedidos")
+      .select("*")
+      .eq("id", id)
+      .single();
+    if (!data) return;
+
+    const envio = Number(data.costo_envio) || 0;
+    const descuentoPct = Number(data.descuento) || 0;
+    const subtotalProductos = (data.productos || []).reduce(
+      (s, x) => s + (Number(x.precio) || 0) * (Number(x.cantidad) || 0),
+      0,
+    );
+    const subtotal = subtotalProductos + envio;
+    const descuentoMonto = subtotal * (descuentoPct / 100);
+    const total = subtotal - descuentoMonto;
+
+    const datosTicket = {
+      cliente: data.cliente_nombre,
+      telefono: data.cliente_telefono,
+      direccion: data.direccion_entrega || "",
+      lugar_entrega: data.lugar_entrega || "",
+      metodo_pago:
+        data.metodo_pago === "transferencia" ? "Transferencia" : "Efectivo",
+      items: data.productos,
+      subtotal: subtotal,
+      envio: envio,
+      descuento: descuentoPct,
+      total: total,
+      fecha:
+        data.fecha_entregado ||
+        data.fecha_vendido ||
+        data.fecha_pedido ||
+        new Date().toISOString(),
+      entrega_dia: data.fecha_entregado || data.dia_entrega || "",
+      entrega_hora: data.hora_entrega || "",
+      punto_entrega: data.punto_entrega || "",
+      numero_pedido: data.numero_pedido || "",
+      estado: data.estado || "",
+    };
+    verVistaPreviaTicket(datosTicket);
+  } catch (error) {
+    console.error("Error:", error);
+    mostrarModalAlerta("❌ Error al abrir la vista previa");
   }
 }
 
@@ -2763,11 +4158,27 @@ async function cargarFinanzas() {
         ganancia >= 0 ? "var(--regio-green)" : "var(--regio-red)";
     }
 
+    // Filtro por categoría (en memoria; los contadores usan TODOS los movimientos).
+    const filtroCategoria =
+      document.getElementById("filtroCategoriaFinanzas")?.value || "todas";
+    const registrosVisibles =
+      filtroCategoria === "todas"
+        ? data
+        : data.filter(
+            (f) => (f.categoria || "otros") === filtroCategoria,
+          );
+
+    if (!registrosVisibles.length) {
+      container.innerHTML =
+        '<p class="text-center text-dim py-3">🔍 Sin resultados para el filtro de categoría.</p>';
+      return;
+    }
+
     container.innerHTML = `
             <table class="table table-dark table-hover table-sm">
                 <thead><tr><th>Fecha</th><th>Tipo</th><th>Categoría</th><th>Descripción</th><th>Monto</th><th>Acciones</th></tr></thead>
                 <tbody>
-                    ${data
+                    ${registrosVisibles
                       .map(
                         (f) => `
                         <tr>
@@ -2915,7 +4326,7 @@ async function cargarPedidosParaTicket() {
     const { data, error } = await window.supabase
       .from("pedidos")
       .select(
-        "id, numero_pedido, cliente_nombre, cliente_telefono, direccion_entrega, productos, total, estado, metodo_pago, fecha_pedido, costo_envio, descuento, lugar_entrega",
+        "id, numero_pedido, cliente_nombre, cliente_telefono, direccion_entrega, productos, total, estado, metodo_pago, fecha_pedido, fecha_vendido, fecha_entregado, punto_entrega, costo_envio, descuento, lugar_entrega, dia_entrega, hora_entrega",
       )
       .order("fecha_pedido", { ascending: false })
       .limit(300);
@@ -2982,7 +4393,7 @@ function limpiarFormularioTicket() {
   actualizarBotonTicket();
 }
 
-function precargarPedidoEnTicket(pedido) {
+async function precargarPedidoEnTicket(pedido) {
   pedidoTicketPrecargado = pedido;
 
   document.getElementById("ticketCliente").value = pedido.cliente_nombre || "";
@@ -2990,8 +4401,37 @@ function precargarPedidoEnTicket(pedido) {
     pedido.cliente_telefono || "";
   document.getElementById("ticketDireccion").value =
     pedido.direccion_entrega || "";
-  document.getElementById("ticketLugarEntrega").value =
-    pedido.lugar_entrega || "";
+
+  // Primero cargar los lugares de entrega para que el select tenga
+  // todas las opciones disponibles (evita race condition).
+  if (typeof cargarLugaresTicketAdmin === "function") {
+    await cargarLugaresTicketAdmin();
+  }
+
+  // Si el lugar del pedido no está en la lista actual (p. ej. "Garcia",
+  // de una lista vieja), se agrega dinámicamente para que se muestre
+  // y quede seleccionado en lugar de quedarse vacío.
+  const selLugar = document.getElementById("ticketLugarEntrega");
+  const lugarPedido = pedido.lugar_entrega || "";
+  if (selLugar && lugarPedido) {
+    let existe = false;
+    for (let i = 0; i < selLugar.options.length; i++) {
+      if (selLugar.options[i].value === lugarPedido) {
+        existe = true;
+        break;
+      }
+    }
+    if (!existe) {
+      const opt = document.createElement("option");
+      opt.value = lugarPedido;
+      opt.textContent = `${lugarPedido} — ${formatearMoneda(
+        Number(pedido.costo_envio) || 0,
+      )}`;
+      selLugar.appendChild(opt);
+    }
+  }
+  if (selLugar) selLugar.value = lugarPedido;
+
   document.getElementById("ticketEnvio").value = pedido.costo_envio || 0;
   document.getElementById("ticketDescuento").value = pedido.descuento || 0;
 
@@ -3290,17 +4730,23 @@ async function generarTicketVenta(e) {
       envio: envio,
       descuento: descuentoPct,
       total: totalActual,
-      fecha: pedidoTicketPrecargado.fecha_pedido || new Date().toISOString(),
+      fecha:
+        pedidoTicketPrecargado.fecha_entregado ||
+        pedidoTicketPrecargado.fecha_vendido ||
+        pedidoTicketPrecargado.fecha_pedido ||
+        new Date().toISOString(),
+      entrega_dia:
+        pedidoTicketPrecargado?.fecha_entregado ||
+        pedidoTicketPrecargado?.dia_entrega ||
+        "",
+      entrega_hora: pedidoTicketPrecargado?.hora_entrega || "",
+      punto_entrega: pedidoTicketPrecargado?.punto_entrega || "",
       ticket_numero: `T-${Date.now().toString(36).toUpperCase()}`,
       numero_pedido: pedidoTicketPrecargado.numero_pedido || "",
       estado: pedidoTicketPrecargado.estado || "",
     };
 
-    abrirVentanaCentrada(
-      `ticket.html?pedido=${encodeURIComponent(JSON.stringify(datosTicket))}`,
-      400,
-      700,
-    );
+    imprimirTicketAdmin(datosTicket);
 
     mostrarMensaje(
       msg,
@@ -3385,6 +4831,7 @@ async function generarTicketVenta(e) {
       lugar_entrega: document.getElementById("ticketLugarEntrega").value || null,
       metodo_pago: "efectivo",
       estado: "vendido",
+      fecha_vendido: new Date().toISOString(),
       notas: `Ticket generado desde el panel.`,
     };
 
@@ -3458,11 +4905,7 @@ async function generarTicketVenta(e) {
       estado: "vendido",
     };
 
-    abrirVentanaCentrada(
-      `ticket.html?pedido=${encodeURIComponent(JSON.stringify(datosTicket))}`,
-      400,
-      700,
-    );
+    imprimirTicketAdmin(datosTicket);
 
     mostrarMensaje(msg, "✅ ¡Venta registrada! Ticket generado.", "exito");
 
@@ -3481,6 +4924,82 @@ async function generarTicketVenta(e) {
     btn.disabled = false;
     actualizarBotonTicket();
   }
+}
+
+// Vista previa del ticket desde el tab Ticket (reimpresión o venta nueva).
+// Lee los mismos campos del formulario que generarTicketVenta,
+// pero solo abre la vista previa sin imprimir ni guardar.
+function verVistaPreviaVenta() {
+  const cliente = document.getElementById("ticketCliente").value.trim();
+  const telefono = document.getElementById("ticketTelefono").value.trim();
+  const direccion = document.getElementById("ticketDireccion").value.trim();
+  const envio = parseFloat(document.getElementById("ticketEnvio").value) || 0;
+  let descuentoPct =
+    parseFloat(document.getElementById("ticketDescuento").value) || 0;
+  descuentoPct = Math.min(100, Math.max(0, descuentoPct));
+
+  const msg = document.getElementById("mensajeTicket");
+  if (!cliente || !telefono) {
+    return mostrarMensaje(msg, "❌ Cliente y teléfono son obligatorios", "error");
+  }
+  if (ticketProductos.length === 0) {
+    return mostrarMensaje(msg, "❌ Agrega al menos un producto", "error");
+  }
+
+  const subtotalProductos = ticketProductos.reduce(
+    (s, p) => s + (Number(p.precio) || 0) * (Number(p.cantidad) || 0),
+    0,
+  );
+  const subtotal = subtotalProductos + envio;
+  const total = subtotal - subtotal * (descuentoPct / 100);
+
+  let metodoPago = "Efectivo";
+  let numeroPedido = "";
+  let fechaPedido = new Date().toISOString();
+  let estado = "vendido";
+
+  if (pedidoTicketPrecargado) {
+    metodoPago =
+      pedidoTicketPrecargado.metodo_pago === "transferencia"
+        ? "Transferencia"
+        : "Efectivo";
+    numeroPedido = pedidoTicketPrecargado.numero_pedido || "";
+    fechaPedido =
+      pedidoTicketPrecargado.fecha_entregado ||
+      pedidoTicketPrecargado.fecha_vendido ||
+      pedidoTicketPrecargado.fecha_pedido ||
+      fechaPedido;
+    estado = pedidoTicketPrecargado.estado || estado;
+  }
+
+  const datosTicket = {
+    cliente: cliente,
+    telefono: telefono,
+    direccion: direccion || "",
+    lugar_entrega: document.getElementById("ticketLugarEntrega").value || "",
+    metodo_pago: metodoPago,
+    items: ticketProductos.map((p) => ({
+      nombre: p.nombre,
+      precio: p.precio,
+      cantidad: p.cantidad,
+    })),
+    subtotal: subtotal,
+    envio: envio,
+    descuento: descuentoPct,
+    total: total,
+    fecha: fechaPedido,
+    entrega_dia:
+      pedidoTicketPrecargado?.fecha_entregado ||
+      pedidoTicketPrecargado?.dia_entrega ||
+      "",
+    entrega_hora: pedidoTicketPrecargado?.hora_entrega || "",
+    punto_entrega: pedidoTicketPrecargado?.punto_entrega || "",
+    ticket_numero: `T-${Date.now().toString(36).toUpperCase()}`,
+    numero_pedido: numeroPedido,
+    estado: estado,
+  };
+
+  verVistaPreviaTicket(datosTicket);
 }
 
 // ============================================
@@ -4866,13 +6385,38 @@ function pedirEliminarMarca(id) {
 
 // ============================================
 // 9. EXPONER FUNCIONES AL WINDOW
-// ============================================window.eliminarProductoTicket = eliminarProductoTicket;
+// ============================================
+
+// Búsqueda de productos (tab Productos): recarga con debounce.
+let debounceBuscarProductos = null;
+function buscarProductosAdmin() {
+  clearTimeout(debounceBuscarProductos);
+  debounceBuscarProductos = setTimeout(() => cargarProductos(), 300);
+}
+
+// Búsqueda de producto en inventario (tab Inventario): recarga con debounce.
+let debounceBuscarInventario = null;
+function buscarInventarioAdmin() {
+  clearTimeout(debounceBuscarInventario);
+  debounceBuscarInventario = setTimeout(() => cargarInventario(), 300);
+}
+
+window.eliminarProductoTicket = eliminarProductoTicket;
 window.agregarProductoTicket = agregarProductoTicket;
 window.cargarProductosTicket = cargarProductosTicket;
 window.verProductosSinStock = verProductosSinStock;
 window.abrirModalCorreo = abrirModalCorreo;
 window.enviarCorreoDesdeModal = enviarCorreoDesdeModal;
 window.procesarPedido = procesarPedido;
+window.buscarProductosAdmin = buscarProductosAdmin;
+window.buscarInventarioAdmin = buscarInventarioAdmin;
+window.abrirEtiquetaProducto = abrirEtiquetaProducto;
+window.imprimirEtiqueta = imprimirEtiqueta;
+window.descargarEtiquetas = descargarEtiquetas;
+window.subirImagenProducto = subirImagenProducto;
+  window.cerrarEtiqueta = cerrarEtiqueta;
+  window.enviarEtiquetaBluetooth = enviarEtiquetaBluetooth;
+window.generarCodigoBarrasProducto = generarCodigoBarrasProducto;
 window.cargarPedidos = cargarPedidos;
 window.cargarPedidosPendientes = cargarPedidosPendientes;
 window.cargarProductos = cargarProductos;
@@ -4883,6 +6427,10 @@ window.editarProducto = editarProducto;
 window.pedirEliminar = pedirEliminar;
 window.verDetallePedido = verDetallePedido;
 window.generarTicketPedido = generarTicketPedido;
+window.verVistaPreviaPedido = verVistaPreviaPedido;
+window.verVistaPreviaTicket = verVistaPreviaTicket;
+window.verVistaPreviaDetallePedidoActual = verVistaPreviaDetallePedidoActual;
+window.verVistaPreviaVenta = verVistaPreviaVenta;
 window.cambiarEstadoPedido = cambiarEstadoPedido;
 window.buscarPorCodigoBarras = buscarPorCodigoBarras;
 window.mostrarFormProducto = mostrarFormProducto;
