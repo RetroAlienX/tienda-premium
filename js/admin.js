@@ -2582,6 +2582,48 @@ function construirBytesPruebaCentrado(cX) {
   return new Uint8Array(codificarCp1252(lineas.join("\r\n") + "\r\n"));
 }
 
+// Regla de calibración impresa: marcas cada 16 pts (más largas cada 64) y la
+// posición de centro actual marcada con la línea gruesa. Sirve para medir con
+// una foto las posiciones reales (texto a la izquierda o derecha, barcode)
+// y ajustar el centrado sin adivinar el ancho de cada fuente.
+function construirBytesReglaCalibracion() {
+  const cX = centroEtiquetaX;
+  const lineas = ["SIZE 58 mm, 40 mm", "GAP 2 mm, 0 mm", "CLS"];
+  for (let x = 8; x <= 344; x += 16) {
+    lineas.push("LINE " + x + ",20," + x + ",32,1");
+  }
+  for (let x = 64; x <= 320; x += 64) {
+    lineas.push("LINE " + x + ",20," + x + ",40,1");
+  }
+  lineas.push("LINE " + cX + ",20," + cX + ",40,3");
+  const etiquetas = [0, 64, 128, 176, 192, 256, 320, 352];
+  etiquetas.forEach((v) => {
+    if (Math.abs(v - cX) < 8) return;
+    lineas.push('TEXT ' + v + ',44,"1",0,1,1,"' + v + '"');
+  });
+  lineas.push("PRINT 1,1");
+  return new Uint8Array(codificarCp1252(lineas.join("\r\n") + "\r\n"));
+}
+
+async function imprimirPruebaRegla() {
+  if (!navigator.bluetooth) {
+    notificar("❌ Este navegador no soporta Web Bluetooth. Usa Chrome o Edge.", "error");
+    return;
+  }
+  const data = construirBytesReglaCalibracion();
+  try {
+    const { server, target } = await conectarImpresoraBluetooth();
+    await escribirEnImpresora(server, target, data);
+    notificar("📏 Regla de calibración enviada. Sácale una foto bien iluminada (con todo el papel visible) y envíala para ajustar el centrado.");
+  } catch (error) {
+    if (error && error.name === "NotFoundError") {
+      notificar("❌ No se pudo conectar con la impresora.", "error");
+    } else {
+      notificar("❌ Error en la regla: " + (error.message || error), "error");
+    }
+  }
+}
+
 function construirBytesEtiqueta(proto, datos, texto) {
   if (proto === "escpos") {
     const out = [];
@@ -6666,6 +6708,7 @@ window.subirImagenProducto = subirImagenProducto;
   window.cerrarEtiqueta = cerrarEtiqueta;
   window.enviarEtiquetaBluetooth = enviarEtiquetaBluetooth;
 window.imprimirPruebaCentrado = imprimirPruebaCentrado;
+window.imprimirPruebaRegla = imprimirPruebaRegla;
 window.ajustarCentro = ajustarCentro;
 window.generarCodigoBarrasProducto = generarCodigoBarrasProducto;
 window.cargarPedidos = cargarPedidos;
