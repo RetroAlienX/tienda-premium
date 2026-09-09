@@ -2647,56 +2647,113 @@ function construirBytesEtiqueta(proto, datos, texto) {
     return new Uint8Array(out);
   }
   if (proto === "tspl") {
-    // Estrategia definitiva: BLOCK con align=2. El comando TEXT de TSPL NO tiene
-    // alineación nativa (lo documentan el manual TSC y librerías como portakal),
-    // y las celdas de las fuentes de este clon NO son las oficiales TSC, por lo
-    // que el centrado manual X = centro − ancho/2 se desvía. BLOCK centra el
-    // texto usando las medidas reales de la impresora, sin calcular anchos.
-    // BLOCK x,y,width,height,"font",rot,x_mul,y_mul,espaciado,align,"texto"
-    // con align: 1=izquierda, 2=centro, 3=derecha.
-    const FONT_H = { "1": 12, "2": 20, "3": 24, "4": 32, "5": 48 }; // alto aprox (solo para el layout vertical)
-    const W = 352; // ancho útil aprox de la etiqueta (50 mm)
-    const tsplTexto = (t) => String(t || "").replace(/"/g, "'").replace(/\s+/g, " ").trim();
-    const bloque = (y, h, f, texto) =>
-      'BLOCK 0,' + y + ',' + W + ',' + h + ',"' + f + '",0,1,1,0,2,"' + texto + '"';
+    // Impresión por IMAGEN (píxel exacto): el clon ignora/falla con BLOCK y sus
+    // fuentes no son las TSC oficiales, así que TEXT/BLOCK descentraban. Aquí la
+    // etiqueta se renderiza en un canvas (igual al preview) y se envía como
+    // BITMAP 1bpp con mode=0. BITMAP es el único comando que garantiza que
+    // lo impreso sea idéntico a lo dibujado, sin métricas de fuente.
+    const W = 352;
+    const H = 425;
+    const canvas = document.createElement("canvas");
+    canvas.width = W;
+    canvas.height = H;
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = "#000000";
+    ctx.textBaseline = "top";
+    ctx.textAlign = "center";
+    const cX = W / 2;
+    const slim = (t) => String(t || "").replace(/"/g, "'").replace(/\s+/g, " ").trim();
+    const envolver = (t, fuente, maxAncho, maxLineas) => {
+      const limpio = slim(t);
+      if (!limpio) return [];
+      ctx.font = fuente;
+      const palabras = limpio.split(" ");
+      const lineas = [];
+      let linea = "";
+      for (const p of palabras) {
+        const cand = linea ? linea + " " + p : p;
+        if (ctx.measureText(cand).width <= maxAncho) {
+          linea = cand;
+        } else {
+          lineas.push(linea);
+          linea = p;
+          if (lineas.length === maxLineas) return lineas;
+        }
+      }
+      if (linea) lineas.push(linea);
+      return lineas.slice(0, maxLineas);
+    };
+    const dibujar = (t, y, fuente) => {
+      ctx.font = fuente;
+      ctx.fillText(t, cX, y);
+    };
 
-    const nombre = tsplTexto(datos.nombre);
-    const marca = tsplTexto(datos.marca);
-    const cat = tsplTexto(datos.categoria).toUpperCase();
-    let precio = "$" + String(datos.precio || "").replace(/MX\$\s*/gi, "").replace(/^\$\s*/, "");
-    let precioFont = precio.length <= 10 ? "5" : "3";
-    precio = precio.slice(0, 16);
-    const codigo = datos.codigo ? String(datos.codigo).slice(0, 24) : "";
-
-    const lineas = ["SIZE 50 mm, 60 mm", "GAP 2 mm, 0 mm", "CLS"];
+    const PAD = 16;
     let y = 18;
-    if (nombre) {
-      lineas.push(bloque(y, FONT_H["3"] * 2, "3", nombre)); // hasta 2 líneas
-      y += FONT_H["3"] * 2 + 14;
+    const fuenteNombre = "bold 34px Arial";
+    for (const nl of envolver(datos.nombre, fuenteNombre, W - 2 * PAD, 2)) {
+      dibujar(nl, y, fuenteNombre);
+      y += 52;
     }
+    y += 14;
+    const marca = slim(datos.marca);
     if (marca) {
-      lineas.push(bloque(y, FONT_H["2"], "2", marca));
-      y += FONT_H["2"] + 16;
+      dibujar(marca, y, "24px Arial");
+      y += 38;
     }
+    const precio =
+      "$" + String(datos.precio || "").replace(/MX\$\s*/gi, "").replace(/^\$\s*/, "").slice(0, 20);
     if (precio && precio !== "$") {
-      lineas.push(bloque(y, FONT_H[precioFont], precioFont, precio));
-      y += FONT_H[precioFont] + 18;
+      dibujar(precio, y, "bold 40px Arial");
+      y += 54;
     }
+    const cat = slim(datos.categoria).toUpperCase();
     if (cat) {
-      lineas.push(bloque(y, FONT_H["2"], "2", cat));
-      y += FONT_H["2"] + 12;
+      dibujar(cat, y, "18px Arial");
+      y += 26;
     }
+    const codigo = datos.codigo ? String(datos.codigo).slice(0, 24) : "";
     if (codigo) {
-      // Código de barras centrado: la impresora no mide BARCODE con BLOCK, así
-      // que aquí sí calculamos el ancho (~11 módulos por símbolo, narrow=1).
-      const anchoAprox = (codigo.length + 3) * 11;
-      const xBarra = Math.max(0, Math.round(W / 2) - Math.round(anchoAprox / 2));
-      const yBarra = y + 4;
-      lineas.push('BARCODE ' + xBarra + ',' + yBarra + ',"128",70,0,0,1,2,"' + codigo + '"');
-      lineas.push(bloque(yBarra + 78, FONT_H["1"], "1", codigo));
+      const temp = document.createElement("canvas");
+      JsBarcode(temp, codigo, {
+        format: "CODE128",
+        width: 2,
+        height: 76,
+        displayValue: true,
+        fontSize: 18,
+        font: "monospace",
+        textAlign: "center",
+        margin: 0,
+      });
+      ctx.drawImage(temp, Math.round((W - temp.width) / 2), y);
     }
-    lineas.push("PRINT 1,1");
-    return new Uint8Array(codificarCp1252(lineas.join("\r\n") + "\r\n"));
+
+    const img = ctx.getImageData(0, 0, W, H);
+    const p = img.data;
+    const rowBytes = Math.ceil(W / 8);
+    const out = [];
+    for (let r = 0; r < H; r++) {
+      for (let bc = 0; bc < rowBytes; bc++) {
+        let byte = 0;
+        for (let bit = 0; bit < 8; bit++) {
+          const x = bc * 8 + bit;
+          const i = (r * W + (x < W ? x : W - 1)) * 4;
+          const lum = 0.299 * p[i] + 0.587 * p[i + 1] + 0.114 * p[i + 2];
+          if (lum < 128) byte |= 0x80 >>> bit;
+        }
+        out.push(byte);
+      }
+    }
+    const hex = out.map((bd) => bd.toString(16).padStart(2, "0")).join("");
+    const cmd =
+      "SIZE 50 mm,60 mm\r\n" +
+      "GAP 2 mm,0 mm\r\n" +
+      "CLS\r\n" +
+      "BITMAP 0,0," + rowBytes + "," + H + ',0,"' + hex + '"\r\n' +
+      "PRINT 1,1\r\n";
+    return new Uint8Array(codificarCp1252(cmd));
   }
   return new Uint8Array(codificarCp1252(texto));
 }
@@ -2883,21 +2940,34 @@ async function conectarImpresoraBluetooth() {
 }
 
 // Escribe los bytes en la impresora (con respuesta y, si falla, sin respuesta).
+// Los bitmaps largos se dividen en bloques de 480 bytes (límite BLE) con pausas;
+// la impresora acumula el flujo hasta el \r\n final.
+const MAX_BLESCRIBE = 480;
 async function escribirEnImpresora(server, target, data) {
   const svc = await server.getPrimaryService(target.svc);
   const char = await svc.getCharacteristic(target.uuid);
-  try {
-    if (target.props.write) {
-      await char.writeValue(data);
-    } else {
-      await char.writeValueWithoutResponse(data);
+  const doWrite = async (buf) => {
+    try {
+      if (target.props.write) {
+        await char.writeValue(buf);
+      } else {
+        await char.writeValueWithoutResponse(buf);
+      }
+    } catch (e) {
+      if (target.props.write) {
+        await char.writeValueWithoutResponse(buf);
+      } else {
+        throw e;
+      }
     }
-  } catch (e) {
-    if (target.props.write) {
-      await char.writeValueWithoutResponse(data);
-    } else {
-      throw e;
-    }
+  };
+  if (data.length <= MAX_BLESCRIBE) {
+    await doWrite(data);
+    return;
+  }
+  for (let i = 0; i < data.length; i += MAX_BLESCRIBE) {
+    await doWrite(data.subarray(i, i + MAX_BLESCRIBE));
+    await new Promise((r) => setTimeout(r, 6));
   }
 }
 
