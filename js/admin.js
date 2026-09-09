@@ -2647,81 +2647,119 @@ function construirBytesEtiqueta(proto, datos, texto) {
     return new Uint8Array(out);
   }
   if (proto === "tspl") {
-    // IMPORTANTE: esta impresora IGNORA el flag de alineación del TEXT (aunque
-    // sea "1"): el x indicado es el borde IZQUIERDO de la línea. Por eso cada
-    // línea se centra a mano: x = centro − ancho/2 (ancho = caracteres × FONT_W).
-    // FONT_W son valores temporales; se afinan con la "Regla de calibración"
-    // (filas F2/F3/F4/F5) anotando en qué marca termina cada fila.
-    const cX = centroEtiquetaX;
-    const ETIQUETA_ANCHO = "50 mm, 60 mm"; // real de la etiqueta (medida con regla)
-    const FONT_W = { "1": 12, "2": 13, "3": 24, "4": 30, "5": 28 }; // pts/carácter (afinar con la regla)
-    const ANCHO_PTS = 352; // 50 mm reales a 180 dpi
-    const tsplTexto = (t) =>
-      String(t || "").replace(/"/g, "'").replace(/\s+/g, " ").trim();
-    const maxChars = (f) => Math.max(1, Math.floor((ANCHO_PTS - 8) / (FONT_W[f] || 16)));
-    const centrarX = (s, f) => cX - Math.round(((FONT_W[f] || 16) * s.length) / 2);
-    // Divide el texto en líneas completas (por espacios) que quepan en la fuente,
-    // como máximo maxLineas; si se acaba el espacio, recorta la última.
-    const envolver = (t, f, maxLineas) => {
-      const limpio = tsplTexto(t);
+    // Impresión por IMAGEN (píxel exacto): se renderiza la etiqueta en un canvas
+    // de 354×425 (50×60 mm a 180 dpi) y se envía como bitmap 1bpp. Así el
+    // centrado es matemático (igual al preview) y ya no depende de las fuentes
+    // de la impresora ni de FONT_W.
+    const W = 354;
+    const H = 425;
+    const canvas = document.createElement("canvas");
+    canvas.width = W;
+    canvas.height = H;
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = "#000000";
+    ctx.textBaseline = "top";
+    ctx.textAlign = "center";
+    const cX = W / 2;
+    const limpiar = (t) => String(t || "").replace(/"/g, "'").replace(/\s+/g, " ").trim();
+    const envolverCanvas = (t, fuente, maxAncho, maxLineas) => {
+      const limpio = limpiar(t);
       if (!limpio) return [];
-      const m = maxChars(f);
+      ctx.font = fuente;
+      const palabras = limpio.split(" ");
       const lineas = [];
       let linea = "";
-      for (const p of limpio.split(" ")) {
-        const palabra = p.slice(0, m);
-        const candidata = linea ? linea + " " + palabra : palabra;
-        if (candidata.length <= m) {
+      for (const p of palabras) {
+        const candidata = linea ? linea + " " + p : p;
+        if (ctx.measureText(candidata).width <= maxAncho) {
           linea = candidata;
         } else {
           lineas.push(linea);
-          linea = palabra;
+          linea = p;
           if (lineas.length === maxLineas) return lineas;
         }
       }
       if (linea) lineas.push(linea);
       return lineas.slice(0, maxLineas);
     };
-    const nombreLineas = envolver(datos.nombre, "3", 2);
-    const marcaL = tsplTexto(datos.marca).slice(0, maxChars("2"));
-    const catL = tsplTexto(datos.categoria).toUpperCase().slice(0, maxChars("2"));
-    let precioL = "$" + String(datos.precio || "").replace(/MX\$\s*/gi, "").replace(/^\$\s*/, "");
-    let precioFont = precioL.length <= maxChars("5") ? "5" : "3";
-    precioL = precioL.slice(0, maxChars(precioFont));
-    const codigo = datos.codigo ? String(datos.codigo).slice(0, 24) : "";
+    const textoCentrado = (t, y, fuente) => {
+      ctx.font = fuente;
+      ctx.fillText(t, cX, y);
+    };
 
-    // Composición limpia para 50×60 mm (aprox. 354×425 pts): cascada compacta que
-    // aprovecha el alto: nombre (máx. 2 líneas), marca, precio destacado, categoría
-    // y abajo el código de barras con su número legible debajo.
-    const lineas = ["SIZE " + ETIQUETA_ANCHO, "GAP 2 mm, 0 mm", "CLS"];
-    const NOMBRE_STEP = 78;
-    let y = 12;
-    (nombreLineas.length ? nombreLineas : [""]).forEach((nl, i) => {
-      lineas.push('TEXT ' + centrarX(nl, "3") + ',' + (y + i * NOMBRE_STEP) + ',"3",0,1,1,0,"' + nl + '"');
-    });
-    y += nombreLineas.length * NOMBRE_STEP + 8;
-    if (marcaL) {
-      lineas.push('TEXT ' + centrarX(marcaL, "2") + ',' + y + ',"2",0,1,1,0,"' + marcaL + '"');
-      y += 44;
+    const PAD = 14;
+    let y = 16;
+    const fuenteNombre = "bold 34px Arial";
+    const nombreLineas = envolverCanvas(datos.nombre, fuenteNombre, W - 2 * PAD, 2);
+    for (const nl of nombreLineas) {
+      textoCentrado(nl, y, fuenteNombre);
+      y += 54;
     }
-    lineas.push('TEXT ' + centrarX(precioL, precioFont) + ',' + y + ',"' + precioFont + '",0,1,1,0,"' + precioL + '"');
-    y += 60;
-    if (catL) {
-      lineas.push('TEXT ' + centrarX(catL, "2") + ',' + y + ',"2",0,1,1,0,"' + catL + '"');
-      y += 36;
+    y += 16;
+    const marca = limpiar(datos.marca);
+    if (marca) {
+      textoCentrado(marca, y, "24px Arial");
+      y += 40;
     }
+    textoCentrado(
+      "$" + String(datos.precio || "").replace(/MX\$\s*/gi, "").replace(/^\$\s*/, "").slice(0, 20),
+      y,
+      "bold 40px Arial"
+    );
+    y += 56;
+    const categoria = limpiar(datos.categoria).toUpperCase();
+    if (categoria) {
+      textoCentrado(categoria, y, "18px Arial");
+      y += 26;
+    }
+    const codigo = datos.codigo ? String(datos.codigo).slice(0, 24) : "";
     if (codigo) {
-      // CODE128 centrado y reducido (narrow=1, wide=2): escaneable y ocupa poco.
-      // ~11 módulos por símbolo (inicio+dato+check+fin).
-      const anchoAprox = (codigo.length + 3) * 11;
-      const xBarra = Math.max(4, cX - Math.round(anchoAprox / 2));
-      const yBarra = y + 8;
-      lineas.push('BARCODE ' + xBarra + ',' + yBarra + ',"128",70,0,0,1,2,"' + codigo + '"');
-      // Número legible bajo el código (el readable del BARCODE no es fiable en clone).
-      lineas.push('TEXT ' + centrarX(codigo, "1") + ',' + (yBarra + 76) + ',"1",0,1,1,0,"' + codigo + '"');
+      const temp = document.createElement("canvas");
+      JsBarcode(temp, codigo, {
+        format: "CODE128",
+        width: 2,
+        height: 78,
+        displayValue: true,
+        fontSize: 18,
+        font: "monospace",
+        textAlign: "center",
+        margin: 0,
+      });
+      ctx.drawImage(temp, Math.round((W - temp.width) / 2), y);
     }
-    lineas.push("PRINT 1,1");
-    return new Uint8Array(codificarCp1252(lineas.join("\r\n") + "\r\n"));
+
+    const img = ctx.getImageData(0, 0, W, H);
+    const p = img.data;
+    const rowBytes = Math.ceil(W / 8);
+    const out = [];
+    for (let r = 0; r < H; r++) {
+      for (let b = 0; b < rowBytes; b++) {
+        let byte = 0;
+        for (let bit = 0; bit < 8; bit++) {
+          const x = b * 8 + bit;
+          const i = (r * W + Math.min(x, W - 1)) * 4;
+          const lum = 0.299 * p[i] + 0.587 * p[i + 1] + 0.114 * p[i + 2];
+          if (lum < 128) byte |= 0x80 >>> bit;
+        }
+        out.push(byte);
+      }
+    }
+    const hex = out.map((bd) => bd.toString(16).padStart(2, "0")).join("");
+    const cmd =
+      "SIZE 50 mm, 60 mm\r\n" +
+      "GAP 2 mm, 0 mm\r\n" +
+      "CLS\r\n" +
+      "BITMAP 0,0," +
+      rowBytes +
+      "," +
+      H +
+      ',"' +
+      hex +
+      '"\r\n' +
+      "PRINT 1,1\r\n";
+    return new Uint8Array(codificarCp1252(cmd));
   }
   return new Uint8Array(codificarCp1252(texto));
 }
@@ -2908,21 +2946,34 @@ async function conectarImpresoraBluetooth() {
 }
 
 // Escribe los bytes en la impresora (con respuesta y, si falla, sin respuesta).
+// Los bitmaps largos se dividen en bloques de 480 bytes (límite BLE) con pausas;
+// la impresora acumula el flujo hasta el \r\n final.
+const MAX_BLESCRIBE = 480;
 async function escribirEnImpresora(server, target, data) {
   const svc = await server.getPrimaryService(target.svc);
   const char = await svc.getCharacteristic(target.uuid);
-  try {
-    if (target.props.write) {
-      await char.writeValue(data);
-    } else {
-      await char.writeValueWithoutResponse(data);
+  const doWrite = async (buf) => {
+    try {
+      if (target.props.write) {
+        await char.writeValue(buf);
+      } else {
+        await char.writeValueWithoutResponse(buf);
+      }
+    } catch (e) {
+      if (target.props.write) {
+        await char.writeValueWithoutResponse(buf);
+      } else {
+        throw e;
+      }
     }
-  } catch (e) {
-    if (target.props.write) {
-      await char.writeValueWithoutResponse(data);
-    } else {
-      throw e;
-    }
+  };
+  if (data.length <= MAX_BLESCRIBE) {
+    await doWrite(data);
+    return;
+  }
+  for (let i = 0; i < data.length; i += MAX_BLESCRIBE) {
+    await doWrite(data.subarray(i, i + MAX_BLESCRIBE));
+    await new Promise((r) => setTimeout(r, 6));
   }
 }
 
