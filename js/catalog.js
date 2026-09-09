@@ -170,12 +170,11 @@ function mostrarProductos(lista) {
 
       const tieneImagen = p.imagen_url && p.imagen_url.trim() !== "";
       const imagenHtml = tieneImagen
-        ? `<img src="${p.imagen_url}" alt="${p.nombre}" loading="lazy" onerror="this.parentElement.innerHTML='<div class=\\'placeholder-icon\\'>📦</div>'">`
+        ? `<img src="${p.imagen_url}" alt="${p.nombre}" loading="lazy" decoding="async" onerror="this.parentElement.innerHTML='<div class=\\'placeholder-icon\\'>📦</div>'">`
         : `<div class="placeholder-icon">📦</div>`;
 
       return `
-                <div class="col-lg-3 col-md-4 col-sm-6">
-                    <div class="card-premium" style="${
+                <div class="card-premium" style="${
                       agotado ? "opacity:0.5;" : ""
                     }">
                         <div class="img-container">
@@ -200,7 +199,6 @@ function mostrarProductos(lista) {
                             </button>
                         </div>
                     </div>
-                </div>
             `;
     })
     .join("");
@@ -284,7 +282,7 @@ function cargarSelectProductos(lista) {
     .map((p) => {
       const tieneImagen = p.imagen_url && p.imagen_url.trim() !== "";
       const imgHtml = tieneImagen
-        ? `<img class="producto-picker-item-img" src="${p.imagen_url}" alt="${p.nombre}" loading="lazy" onerror="this.outerHTML='<div class=\\'producto-picker-item-img placeholder\\'>📦</div>'">`
+        ? `<img class="producto-picker-item-img" src="${p.imagen_url}" alt="${p.nombre}" loading="lazy" decoding="async" onerror="this.outerHTML='<div class=\\'producto-picker-item-img placeholder\\'>📦</div>'">`
         : '<div class="producto-picker-item-img placeholder">📦</div>';
 
       return `

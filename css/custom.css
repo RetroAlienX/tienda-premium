@@ -725,7 +725,10 @@ body {
 }
 
 .marca-card {
-  animation: neonMarca 5s ease-in-out infinite;
+  /* Rendimiento: brillo estático base; la animación neón solo corre al hover. */
+  box-shadow:
+    0 0 10px rgba(167, 139, 250, 0.06),
+    inset 0 0 6px rgba(167, 139, 250, 0.04);
 }
 
 .marca-card::before {
@@ -749,12 +752,8 @@ body {
 
 .marca-card:hover {
   transform: translateY(-4px);
-  animation-play-state: paused;
+  animation: neonMarca 2.4s ease-in-out infinite;
   border-color: rgba(167, 139, 250, 0.55);
-  box-shadow:
-    0 0 22px rgba(167, 139, 250, 0.25),
-    0 0 46px rgba(167, 139, 250, 0.1),
-    inset 0 0 12px rgba(167, 139, 250, 0.07);
 }
 
 .marca-icon {
@@ -884,12 +883,21 @@ body {
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 35px;
   padding: 50px 0;
+  align-items: stretch;
+}
+
+.grid-luxury > * {
+  min-width: 0;
 }
 
 .card-premium {
   background: var(--bg-card);
   border: 1px solid rgba(255, 51, 51, 0.35);
-  animation: neonBordeRojo 4s ease-in-out infinite;
+  /* Rendimiento: brillo de borde estático base; la animación neón
+     (box-shadow) solo corre al hover, una sola card a la vez. */
+  box-shadow:
+    0 0 10px rgba(255, 51, 51, 0.12),
+    inset 0 0 6px rgba(255, 51, 51, 0.05);
   transition: transform 0.45s ease, border-color 0.45s ease, box-shadow 0.45s ease;
   display: flex;
   flex-direction: column;
@@ -920,13 +928,9 @@ body {
 }
 
 .card-premium:hover {
-  animation-play-state: paused;
+  animation: neonBordeRojo 1.2s ease-in-out infinite;
   border-color: rgba(255, 51, 51, 0.85);
   transform: translateY(-6px);
-  box-shadow:
-    0 0 26px rgba(255, 51, 51, 0.6),
-    0 0 60px rgba(255, 51, 51, 0.3),
-    inset 0 0 14px rgba(255, 51, 51, 0.2);
 }
 
 .img-container {
@@ -2441,4 +2445,32 @@ select.input-luxury option:active {
 
 .secret-modal-btn:hover {
   background: var(--accent-hover);
+}
+
+/* ============================================
+   RENDIMIENTO · render bajo demanda + accesibilidad
+   Las secciones fuera del viewport no se calculan/layout
+   hasta que el usuario hace scroll hasta ellas.
+   ============================================ */
+.section-promo,
+.section-adquirir,
+.pedido-section,
+.section-cancelar,
+.section-contacto,
+.section-politicas,
+.section-marcas,
+.footer {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 600px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }
