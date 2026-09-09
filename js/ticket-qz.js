@@ -437,6 +437,55 @@ function qzConectar(impresora) {
     });
 }
 
+// Envía texto ESC/POS (como bytes exactos por base64) a la impresora POS-58.
+// chunk divide la salida en bloques para que el barcode (imagen grande al
+// final del ticket) no desborde el buffer de la térmica.
+function qzImprimirTexto(texto, chunk) {
+  const $ = window.qz;
+  if (!$ || typeof $.websocket !== "object") return Promise.reject(new Error("QZ no disponible"));
+  const bytes = new Uint8Array(texto.length);
+  for (let i = 0; i < texto.length; i++) bytes[i] = texto.charCodeAt(i) & 0xff;
+  return qzConectar(qzNombreImpresora()).then(function (impresoraObj) {
+    const data = [
+      {
+        type: "raw",
+        format: "base64",
+        language: "POS",
+        data: qzBytesABase64(bytes),
+        options: { encoding: "windows-1252" },
+      },
+    ];
+    const cfg = $.configs.create(impresoraObj);
+    return $.print(cfg, data, chunk || 512);
+  });
+}
+
+// Diagnóstico aislado del código de barras: imprime un mini ticket con
+// marcadores antes y después del raster, para saber si el problema es el
+// comando GS v 0 o el tamaño del ticket completo.
+// Ejecutar desde la consola del admin (F12): imprimirPruebaBarcode()
+function imprimirPruebaBarcode() {
+  const N = qzCentrar("== TEST BARCODE ==", 32);
+  const texto =
+    N + "\n" +
+    "ANTES-DEL-RASTER" + "\n" +
+    escposCodigo128Raster("TEST-260909-1234", 48) + "\n" +
+    "DESPUES-DEL-RASTER" + "\n" +
+    escposCodigo128Raster("TEST-260909-1234", 24) + "\n" +
+    "FIN-OK (SI CORTA AQUI, TODO BIEN)" + "\n\n" +
+    ESC + "i";
+  return qzImprimirTexto(texto, 256)
+    .then(function () {
+      if (typeof mostrarModalAlerta === "function")
+        mostrarModalAlerta("✅ Prueba de barcode enviada");
+    })
+    .catch(function (err) {
+      console.error("QZ error:", err);
+      if (typeof mostrarModalAlerta === "function")
+        mostrarModalAlerta("❌ Prueba falló: " + (err && err.message ? err.message : err));
+    });
+}
+
 function imprimirConQZ(datos, fallback) {
   const $ = window.qz;
   // Si QZ no está disponible o instalado, ejecuta el fallback (abrir ventana).
@@ -446,32 +495,8 @@ function imprimirConQZ(datos, fallback) {
     return Promise.resolve();
   }
   const texto = construirTicketESC(datos);
-  const impresora = qzNombreImpresora();
 
-  return qzConectar(impresora)
-    .then(function (impresoraObj) {
-      // Se envía como bytes exactos (base64) para que el mapa de puntos del
-      // código de barras (bits 0x00-0xFF) llegue intacto a la impresora.
-      const bytes = new Uint8Array(texto.length);
-      for (let i = 0; i < texto.length; i++) bytes[i] = texto.charCodeAt(i) & 0xff;
-      const data = [
-        {
-          type: "raw",
-          format: "base64",
-          language: "POS",
-          data: qzBytesABase64(bytes),
-          options: {
-            encoding: "windows-1252",
-          },
-        },
-      ];
-      const cfg = $.configs.create(impresoraObj);
-      // Se envía en bloques de 512 bytes: el mapa de puntos del barcode hace
-      // el trabajo pesado al final del ticket y, si se manda de golpe, rebasa
-      // el buffer de la térmica (se corta justo en el barcode y no llega el
-      // corte de papel). El chunking de QZ evita ese desbordamiento.
-      return $.print(cfg, data, 512);
-    })
+  return qzImprimirTexto(texto, 512)
     .then(function () {
       if (typeof mostrarModalAlerta === "function") {
         mostrarModalAlerta("✅ Ticket enviado a la impresora");
@@ -595,5 +620,6 @@ function imprimirTicketAdmin(datos) {
 
 window.construirTicketESC = construirTicketESC;
 window.imprimirConQZ = imprimirConQZ;
-window.imprimirTicketAdmin = imprimirTicketAdmin;
-window.qzListarImpresoras = qzListarImpresoras;  
+window.qzListarImpresoras = qzListarImpresoras;
+window.imprimirPruebaBarcode = imprimirPruebaBarcode;
+window.escposCodigo128Raster = escposCodigo128Raster;
