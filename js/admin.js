@@ -2172,6 +2172,7 @@ function abrirEtiquetaProducto(id) {
         return;
       }
       etiquetaActiva = data;
+      actualizarCentroUI();
       contenedor.innerHTML = `
         <div class="etiqueta-producto">
           <div class="etiqueta-nombre">${data.nombre || ""}</div>
@@ -2547,6 +2548,40 @@ function codificarCp1252(texto) {
   return bytes;
 }
 
+// Centro horizontal de la etiqueta en puntos. Se calibra a ojo sobre el papel
+// con la "Prueba de centrado": así no depende del dpi ni del ancho imprimible
+// real de la impresora (el valor se guarda y se reutiliza en todas las etiquetas).
+let centroEtiquetaX = parseInt(localStorage.getItem("etiqueta_centro_x") || "", 10);
+if (!centroEtiquetaX || centroEtiquetaX < 60 || centroEtiquetaX > 300) centroEtiquetaX = 192;
+
+function actualizarCentroUI() {
+  const el = document.getElementById("centroEtiquetaVal");
+  if (el) el.textContent = String(centroEtiquetaX);
+}
+
+function ajustarCentro(delta) {
+  centroEtiquetaX = Math.min(300, Math.max(60, centroEtiquetaX + delta));
+  localStorage.setItem("etiqueta_centro_x", String(centroEtiquetaX));
+  actualizarCentroUI();
+}
+
+// Etiqueta de calibración: línea vertical gruesa en el centro actual con dos
+// referencias finas a ±6 pts. Si la línea no queda al centro del papel, ajustar
+// con ◂/▸ y volver a imprimir la prueba.
+function construirBytesPruebaCentrado(cX) {
+  const lineas = [
+    "SIZE 58 mm, 40 mm",
+    "GAP 2 mm, 0 mm",
+    "CLS",
+    "LINE " + (cX - 6) + ",16," + (cX - 6) + ",280,1",
+    "LINE " + (cX + 6) + ",16," + (cX + 6) + ",280,1",
+    "LINE " + cX + ",16," + cX + ",280,3",
+    'TEXT ' + cX + ',120,"3",0,1,1,1,"' + cX + '"',
+    "PRINT 1,1",
+  ];
+  return new Uint8Array(codificarCp1252(lineas.join("\r\n") + "\r\n"));
+}
+
 function construirBytesEtiqueta(proto, datos, texto) {
   if (proto === "escpos") {
     const out = [];
@@ -2564,10 +2599,10 @@ function construirBytesEtiqueta(proto, datos, texto) {
     return new Uint8Array(out);
   }
   if (proto === "tspl") {
-    // 203 dpi (8 pts/mm) es el estándar de las impresoras de etiquetas 58mm BLE.
-    // Con alineación=1 el x indicado es el CENTRO de la línea de texto.
-    const ETIQUETA_W = 58 * 8; // 464 pts de ancho útil
-    const cX = Math.floor(ETIQUETA_W / 2);
+    // El centro horizontal (centroEtiquetaX) se calibra con la "Prueba de
+    // centrado": se ajusta a ojo sobre el papel con ◂/▸ y se guarda, así no
+    // depende del dpi ni del ancho imprimible real de la impresora.
+    const cX = centroEtiquetaX;
     const tsplTexto = (t, max) => {
       const limpio = String(t || "").replace(/"/g, "'").replace(/\s+/g, " ").trim();
       return limpio.slice(0, max);
@@ -2588,7 +2623,7 @@ function construirBytesEtiqueta(proto, datos, texto) {
     if (datos.codigo) {
       // CODE128: ~11 módulos por símbolo (inicio+datos+check+fin) y módulo = narrow (2 pts).
       const anchoAprox = (String(datos.codigo).length + 4) * 11 * 2;
-      const xBarra = Math.max(4, Math.floor((ETIQUETA_W - anchoAprox) / 2));
+      const xBarra = Math.max(4, cX - Math.round(anchoAprox / 2));
       lineas.push('BARCODE ' + xBarra + ',152,"128",80,1,0,2,2,"' + datos.codigo + '"');
     }
     lineas.push("PRINT 1,1");
@@ -2614,132 +2649,23 @@ async function enviarEtiquetaBluetooth() {
   const codigo = etiquetaActiva.codigo_barras || "";
   const precio = formatearMoneda(etiquetaActiva.precio);
   const categoria = etiquetaActiva.categoria || "";
+  const texto =
+    nombre +
+    (marca ? "\n" + marca : "") +
+    (codigo ? "\n" + codigo : "") +
+    "\n" +
+    precio +
+    "\n\n";
+  const proto = (document.getElementById("protoEtiqueta") || { value: "tspl" }).value || "tspl";
+  const data = construirBytesEtiqueta(
+    proto,
+    { nombre: nombre.split("\n")[0], marca: marca, codigo: codigo, precio: precio, categoria: categoria },
+    texto
+  );
 
   try {
-    const device = await navigator.bluetooth.requestDevice({
-      acceptAllDevices: true,
-      optionalServices: [
-        "6e400001-b5a3-f393-e0a9-e50e24dcca9e", // Nordic UART
-        "000018f0-0000-1000-8000-00805f9b34fb",
-        "49535343-fe7d-4ae5-8fa9-9fafd205e455", // RedBear BLE
-        "0000ff00-0000-1000-8000-00805f9b34fb", // impresoras térmicas genéricas
-        "0000ffe0-0000-1000-8000-00805f9b34fb", // impresoras térmicas genéricas
-        "e7810a71-73ae-499d-8c15-faa9aef0c3f2", // perfil "FMP" de impresoras BLE
-        "0000feb3-0000-1000-8000-00805f9b34fb", // impresoras BLE (varios clones)
-      ],
-    });
-    const server = await device.gatt.connect();
-
-    const PREFER_SVC = [
-      "6e400001-b5a3-f393-e0a9-e50e24dcca9e",
-      "0000ff00-0000-1000-8000-00805f9b34fb",
-      "0000ffe0-0000-1000-8000-00805f9b34fb",
-      "e7810a71-73ae-499d-8c15-faa9aef0c3f2",
-      "0000feb3-0000-1000-8000-00805f9b34fb",
-      "000018f0-0000-1000-8000-00805f9b34fb",
-      "49535343-fe7d-4ae5-8fa9-9fafd205e455",
-    ];
-    const PREFER_CHAR = [
-      "6e400002-b5a3-f393-e0a9-e50e24dcca9e",
-      "0000ff01-0000-1000-8000-00805f9b34fb",
-      "0000ffe1-0000-1000-8000-00805f9b34fb",
-      "0000ff02-0000-1000-8000-00805f9b34fb",
-      "0000ffe2-0000-1000-8000-00805f9b34fb",
-      "0000fff1-0000-1000-8000-00805f9b34fb",
-    ];
-
-    // Enumerar TODOS los servicios/características accesibles y guardar el diagnóstico.
-    const writables = [];
-    for (const suuid of PREFER_SVC) {
-      let svc, chars;
-      try {
-        svc = await server.getPrimaryService(suuid);
-        chars = await svc.getCharacteristics();
-      } catch (e) {
-        continue;
-      }
-      for (const c of chars) {
-        writables.push({ svc: String(suuid).toLowerCase(), uuid: String(c.uuid).toLowerCase(), props: c.properties });
-      }
-    }
-    try {
-      const allSvcs = await server.getPrimaryServices();
-      for (const s of allSvcs) {
-        let chars;
-        try {
-          chars = await s.getCharacteristics();
-        } catch (e) {
-          continue;
-        }
-        for (const c of chars) {
-          const u = String(c.uuid).toLowerCase();
-          if (!writables.some((w) => w.uuid === u)) {
-            writables.push({ svc: String(s.uuid).toLowerCase(), uuid: u, props: c.properties });
-          }
-        }
-      }
-    } catch (e) {
-      /* opcional */
-    }
-
-    const diag = writables
-      .map(
-        (w) =>
-          w.svc +
-          " | " +
-          w.uuid +
-          " | write:" +
-          w.props.write +
-          " woR:" +
-          w.props.writeWithoutResponse +
-          " notify:" +
-          w.props.notify
-      )
-      .join("\n");
-
-    // Elegir objetivo: UUID conocido de impresora -> write con respuesta -> write sin respuesta.
-    let target = null;
-    for (const uuid of PREFER_CHAR) {
-      target = writables.find((w) => w.uuid === uuid && (w.props.write || w.props.writeWithoutResponse));
-      if (target) break;
-    }
-    if (!target) target = writables.find((w) => w.props.write) || writables.find((w) => w.props.writeWithoutResponse);
-    if (!target) {
-      throw new Error("No se encontró una característica escribible en la impresora. Abre F12 y copia BLUETOOTH_DIAG.");
-    }
-
-    const texto =
-      nombre +
-      (marca ? "\n" + marca : "") +
-      (codigo ? "\n" + codigo : "") +
-      "\n" +
-      precio +
-      "\n\n";
-    const proto =
-      (document.getElementById("protoEtiqueta") || { value: "tspl" }).value || "tspl";
-    const data = construirBytesEtiqueta(
-      proto,
-      { nombre: nombre.split("\n")[0], marca: marca, codigo: codigo, precio: precio, categoria: categoria },
-      texto
-    );
-
-    const svc = await server.getPrimaryService(target.svc);
-    const char = await svc.getCharacteristic(target.uuid);
-    try {
-      if (target.props.write) {
-        await char.writeValue(data);
-      } else {
-        await char.writeValueWithoutResponse(data);
-      }
-    } catch (e) {
-      // Si el tipo de escritura elegido falla, intenta el otro.
-      if (target.props.write) {
-        await char.writeValueWithoutResponse(data);
-      } else {
-        throw e;
-      }
-    }
-
+    const { server, target, diag } = await conectarImpresoraBluetooth();
+    await escribirEnImpresora(server, target, data);
     window._bluetoothDiag =
       "SERVICIOS / CARACTERÍSTICAS DE LA IMPRESORA:\n" +
       diag +
@@ -2757,15 +2683,151 @@ async function enviarEtiquetaBluetooth() {
         .join(" ") +
       "\ncontenido: " +
       texto.replace(/\n/g, " | ");
-
     console.log("BLUETOOTH_DIAG\n" + window._bluetoothDiag);
-
     notificar("✅ Etiqueta enviada a la impresora por Bluetooth (protocolo " + proto + ").");
   } catch (error) {
     if (error && error.name === "NotFoundError") {
       notificar("❌ No se pudo conectar con la impresora.", "error");
     } else {
       notificar("❌ Error al enviar por Bluetooth: " + (error.message || error), "error");
+    }
+  }
+}
+
+// Imprime una etiqueta de calibración de centrado. Si la línea vertical gruesa
+// no queda al centro del papel, ajustar con ◂/▸ (cambia y guarda el centro) y
+// volver a imprimir la prueba hasta que quede justo en medio.
+async function imprimirPruebaCentrado() {
+  if (!navigator.bluetooth) {
+    notificar("❌ Este navegador no soporta Web Bluetooth. Usa Chrome o Edge.", "error");
+    return;
+  }
+  const data = construirBytesPruebaCentrado(centroEtiquetaX);
+  try {
+    const { server, target } = await conectarImpresoraBluetooth();
+    await escribirEnImpresora(server, target, data);
+    notificar("🖨️ Prueba de centrado enviada. Si la línea vertical no queda en medio, usa ◂/▸ y vuelve a imprimir la prueba.");
+  } catch (error) {
+    if (error && error.name === "NotFoundError") {
+      notificar("❌ No se pudo conectar con la impresora.", "error");
+    } else {
+      notificar("❌ Error en la prueba: " + (error.message || error), "error");
+    }
+  }
+}
+
+// Conecta por Web Bluetooth y localiza la característica escribible de la
+// impresora (prefiere Nordic UART, luego los UUID genéricos de térmicas BLE).
+async function conectarImpresoraBluetooth() {
+  const device = await navigator.bluetooth.requestDevice({
+    acceptAllDevices: true,
+    optionalServices: [
+      "6e400001-b5a3-f393-e0a9-e50e24dcca9e", // Nordic UART
+      "000018f0-0000-1000-8000-00805f9b34fb",
+      "49535343-fe7d-4ae5-8fa9-9fafd205e455", // RedBear BLE
+      "0000ff00-0000-1000-8000-00805f9b34fb", // impresoras térmicas genéricas
+      "0000ffe0-0000-1000-8000-00805f9b34fb", // impresoras térmicas genéricas
+      "e7810a71-73ae-499d-8c15-faa9aef0c3f2", // perfil "FMP" de impresoras BLE
+      "0000feb3-0000-1000-8000-00805f9b34fb", // impresoras BLE (varios clones)
+    ],
+  });
+  const server = await device.gatt.connect();
+
+  const PREFER_SVC = [
+    "6e400001-b5a3-f393-e0a9-e50e24dcca9e",
+    "0000ff00-0000-1000-8000-00805f9b34fb",
+    "0000ffe0-0000-1000-8000-00805f9b34fb",
+    "e7810a71-73ae-499d-8c15-faa9aef0c3f2",
+    "0000feb3-0000-1000-8000-00805f9b34fb",
+    "000018f0-0000-1000-8000-00805f9b34fb",
+    "49535343-fe7d-4ae5-8fa9-9fafd205e455",
+  ];
+  const PREFER_CHAR = [
+    "6e400002-b5a3-f393-e0a9-e50e24dcca9e",
+    "0000ff01-0000-1000-8000-00805f9b34fb",
+    "0000ffe1-0000-1000-8000-00805f9b34fb",
+    "0000ff02-0000-1000-8000-00805f9b34fb",
+    "0000ffe2-0000-1000-8000-00805f9b34fb",
+    "0000fff1-0000-1000-8000-00805f9b34fb",
+  ];
+
+  // Enumerar TODOS los servicios/características accesibles y guardar el diagnóstico.
+  const writables = [];
+  for (const suuid of PREFER_SVC) {
+    let svc, chars;
+    try {
+      svc = await server.getPrimaryService(suuid);
+      chars = await svc.getCharacteristics();
+    } catch (e) {
+      continue;
+    }
+    for (const c of chars) {
+      writables.push({ svc: String(suuid).toLowerCase(), uuid: String(c.uuid).toLowerCase(), props: c.properties });
+    }
+  }
+  try {
+    const allSvcs = await server.getPrimaryServices();
+    for (const s of allSvcs) {
+      let chars;
+      try {
+        chars = await s.getCharacteristics();
+      } catch (e) {
+        continue;
+      }
+      for (const c of chars) {
+        const u = String(c.uuid).toLowerCase();
+        if (!writables.some((w) => w.uuid === u)) {
+          writables.push({ svc: String(s.uuid).toLowerCase(), uuid: u, props: c.properties });
+        }
+      }
+    }
+  } catch (e) {
+    /* opcional */
+  }
+
+  const diag = writables
+    .map(
+      (w) =>
+        w.svc +
+        " | " +
+        w.uuid +
+        " | write:" +
+        w.props.write +
+        " woR:" +
+        w.props.writeWithoutResponse +
+        " notify:" +
+        w.props.notify
+    )
+    .join("\n");
+
+  // Elegir objetivo: UUID conocido de impresora -> write con respuesta -> write sin respuesta.
+  let target = null;
+  for (const uuid of PREFER_CHAR) {
+    target = writables.find((w) => w.uuid === uuid && (w.props.write || w.props.writeWithoutResponse));
+    if (target) break;
+  }
+  if (!target) target = writables.find((w) => w.props.write) || writables.find((w) => w.props.writeWithoutResponse);
+  if (!target) {
+    throw new Error("No se encontró una característica escribible en la impresora. Abre F12 y copia BLUETOOTH_DIAG.");
+  }
+  return { server, target, diag };
+}
+
+// Escribe los bytes en la impresora (con respuesta y, si falla, sin respuesta).
+async function escribirEnImpresora(server, target, data) {
+  const svc = await server.getPrimaryService(target.svc);
+  const char = await svc.getCharacteristic(target.uuid);
+  try {
+    if (target.props.write) {
+      await char.writeValue(data);
+    } else {
+      await char.writeValueWithoutResponse(data);
+    }
+  } catch (e) {
+    if (target.props.write) {
+      await char.writeValueWithoutResponse(data);
+    } else {
+      throw e;
     }
   }
 }
@@ -6603,6 +6665,8 @@ window.descargarEtiquetas = descargarEtiquetas;
 window.subirImagenProducto = subirImagenProducto;
   window.cerrarEtiqueta = cerrarEtiqueta;
   window.enviarEtiquetaBluetooth = enviarEtiquetaBluetooth;
+window.imprimirPruebaCentrado = imprimirPruebaCentrado;
+window.ajustarCentro = ajustarCentro;
 window.generarCodigoBarrasProducto = generarCodigoBarrasProducto;
 window.cargarPedidos = cargarPedidos;
 window.cargarPedidosPendientes = cargarPedidosPendientes;
