@@ -2684,13 +2684,18 @@ function construirBytesEtiqueta(proto, datos, texto) {
     };
     const nombreLineas = envolver(datos.nombre, "3", 2);
     const marcaL = tsplTexto(datos.marca).slice(0, maxChars("2"));
-    const catL = tsplTexto(datos.categoria).slice(0, maxChars("2"));
+    const catL = tsplTexto(datos.categoria).toUpperCase().slice(0, maxChars("2"));
     let precioL = "$" + String(datos.precio || "").replace(/MX\$\s*/gi, "").replace(/^\$\s*/, "");
-    const precioFont = precioL.length <= maxChars("5") ? "5" : "3";
+    let precioFont = precioL.length <= maxChars("5") ? "5" : "3";
+    precioL = precioL.slice(0, maxChars(precioFont));
+    const codigo = datos.codigo ? String(datos.codigo).slice(0, 24) : "";
 
+    // Composición limpia para 50×60 mm (aprox. 354×425 pts): cascada compacta que
+    // aprovecha el alto: nombre (máx. 2 líneas), marca, precio destacado, categoría
+    // y abajo el código de barras con su número legible debajo.
     const lineas = ["SIZE " + ETIQUETA_ANCHO, "GAP 2 mm, 0 mm", "CLS"];
-    let y = 8;
-    const NOMBRE_STEP = 80;
+    const NOMBRE_STEP = 78;
+    let y = 12;
     (nombreLineas.length ? nombreLineas : [""]).forEach((nl, i) => {
       lineas.push('TEXT ' + centrarX(nl, "3") + ',' + (y + i * NOMBRE_STEP) + ',"3",0,1,1,0,"' + nl + '"');
     });
@@ -2700,21 +2705,21 @@ function construirBytesEtiqueta(proto, datos, texto) {
       y += 44;
     }
     lineas.push('TEXT ' + centrarX(precioL, precioFont) + ',' + y + ',"' + precioFont + '",0,1,1,0,"' + precioL + '"');
-    y += 56;
+    y += 60;
     if (catL) {
       lineas.push('TEXT ' + centrarX(catL, "2") + ',' + y + ',"2",0,1,1,0,"' + catL + '"');
-      y += 44;
+      y += 36;
     }
-    if (datos.codigo) {
-      // CODE128: ~11 módulos por símbolo (inicio+dato+check+fin) a narrow=1
-      // (dos veces más angosto: el código cabe siempre y el error de centrado
-      // queda en ±1 módulo, imperceptible). x se calcula para centrar en cX.
-      const anchoAprox = (String(datos.codigo).length + 3) * 11;
+    if (codigo) {
+      // CODE128 centrado y reducido (narrow=1, wide=2): escaneable y ocupa poco.
+      // ~11 módulos por símbolo (inicio+dato+check+fin).
+      const anchoAprox = (codigo.length + 3) * 11;
       const xBarra = Math.max(4, cX - Math.round(anchoAprox / 2));
-      lineas.push('BARCODE ' + xBarra + ',' + (y + 8) + ',"128",80,1,0,2,1,"' + datos.codigo + '"');
+      const yBarra = y + 8;
+      lineas.push('BARCODE ' + xBarra + ',' + yBarra + ',"128",70,0,0,1,2,"' + codigo + '"');
+      // Número legible bajo el código (el readable del BARCODE no es fiable en clone).
+      lineas.push('TEXT ' + centrarX(codigo, "1") + ',' + (yBarra + 76) + ',"1",0,1,1,0,"' + codigo + '"');
     }
-    // Marca temporal de versión: se quita cuando se confirme.
-    lineas.push('TEXT 4,392,"1",0,1,1,"C' + cX + ' 50x60"');
     lineas.push("PRINT 1,1");
     return new Uint8Array(codificarCp1252(lineas.join("\r\n") + "\r\n"));
   }
