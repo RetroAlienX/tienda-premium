@@ -2080,7 +2080,7 @@
 
     <!-- MODAL ETIQUETA DE PRODUCTO (código de barras) -->
     <div id="modalEtiqueta" class="modal-box">
-        <div class="modal-content" style="max-width:460px;">
+        <div class="modal-content" style="max-width:520px;">
             <h5 style="font-weight:400; margin-bottom:12px;">🏷️ Etiqueta de Producto</h5>
             <div id="contenidoEtiqueta"
                 style="background:#fff; color:#000; border-radius:6px; padding:14px; text-align:center; margin:10px 0;">
@@ -2095,24 +2095,28 @@
                 </select>
             </div>
             <div style="display:flex; align-items:center; gap:8px; margin:8px 0 2px 0; flex-wrap:nowrap;">
-                <button type="button" class="btn-premium-outline" style="width:auto; flex:0 0 auto;"
+                <button type="button" class="btn-premium-outline" style="width:auto; flex:0 0 auto; padding:8px 14px;"
                     onclick="ajustarCentro(-8)"
                     title="Mover el centro de la etiqueta 8 puntos a la izquierda (reimprime la prueba para ver el cambio).">◀</button>
-                <button type="button" class="btn-premium-outline" style="width:auto; flex:1 1 auto; min-width:0;"
+                <button type="button" class="btn-premium-outline" style="flex:1 1 auto; min-width:0; padding:8px 10px; white-space:nowrap;"
                     onclick="imprimirPruebaCentrado()"
                     title="Imprime una línea de calibración para ajustar el centrado horizontal de la etiqueta en tu impresora.">🎯
                     Prueba de centrado</button>
-                <button type="button" class="btn-premium-outline" style="width:auto; flex:0 0 auto;"
+                <button type="button" class="btn-premium-outline" style="width:auto; flex:0 0 auto; padding:8px 14px;"
                     onclick="ajustarCentro(8)"
                     title="Mover el centro de la etiqueta 8 puntos a la derecha (reimprime la prueba para ver el cambio).">▶</button>
-                <button type="button" class="btn-premium-outline" style="width:auto; flex:0 0 auto;"
+            </div>
+            <div style="display:flex; align-items:center; gap:8px; margin:4px 0 2px 0; flex-wrap:nowrap;">
+                <button type="button" class="btn-premium-outline" style="width:auto; flex:0 0 auto; padding:7px 12px;"
                     onclick="imprimirPruebaRegla()"
-                    title="Imprime una regla con marcas cada 16 puntos y el centro marcado, para medir las posiciones reales.">📏</button>
-                <button type="button" class="btn-premium-outline" style="width:auto; flex:0 0 auto;"
+                    title="Imprime una regla con marcas cada 16 puntos y el centro marcado, para medir las posiciones reales.">📏
+                    Regla</button>
+                <button type="button" class="btn-premium-outline" style="width:auto; flex:0 0 auto; padding:7px 12px;"
                     onclick="imprimirDiagnostico()"
-                    title="Imprime una sola etiqueta con filas de letras en varios X para medir el ancho real de la fuente 3.">🔍</button>
-                <span style="font-size:12px; color:#aaa; margin-left:4px; white-space:nowrap;">Centro: <span
-                        id="centroEtiquetaVal">--</span> pts</span>
+                    title="Imprime etiquetas con filas de letras en varios X para medir el ancho real de las fuentes.">🔍
+                    Diagnóstico</button>
+                <span style="flex:1 1 auto; text-align:right; font-size:13px; color:#ccc; white-space:nowrap; padding-left:8px;">Centro: <span
+                        id="centroEtiquetaVal" style="color:#4fc3f7; font-weight:700;">--</span> pts</span>
             </div>
             <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:14px;">
                 <button type="button" class="btn-premium-outline" style="width: auto;"
