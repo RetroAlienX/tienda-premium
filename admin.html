@@ -5,7 +5,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Panel Admin · Route66 Market</title>
-    <link rel="icon" type="image/jpeg" href="img/favicon.jpg">
     <meta name="robots" content="noindex, nofollow">
 
     <meta name="supabase-url" id="supabase-url" content="https://xsactvcmsaxrjwyeaimf.supabase.co">
@@ -375,17 +374,21 @@
             font-family: Arial, sans-serif;
             color: #000;
         }
+
         .etiqueta-nombre {
             font-size: 13px;
             font-weight: 700;
             margin-bottom: 6px;
-            word-break: break-word;
+            overflow-wrap: break-word;
+            word-break: normal;
         }
+
         .etiqueta-marca {
             font-size: 12px;
             font-weight: 600;
             margin-bottom: 4px;
         }
+
         .etiqueta-categoria {
             font-size: 11px;
             font-weight: 600;
@@ -394,36 +397,68 @@
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
+
         .etiqueta-codigo {
             font-size: 11px;
             letter-spacing: 1px;
             margin-top: 2px;
         }
+
         .etiqueta-precio {
             font-size: 22px;
             font-weight: 700;
             margin-top: 6px;
         }
+
         #etiquetaSVG {
             width: 100%;
             max-width: 100%;
             height: auto;
         }
+
         @media print {
             body.imprimiendoEtiqueta * {
                 visibility: hidden !important;
             }
+
             body.imprimiendoEtiqueta #contenidoEtiqueta,
             body.imprimiendoEtiqueta #contenidoEtiqueta * {
                 visibility: visible !important;
             }
+
+            /* Este rollo de ETIQUETAS es un rollo aparte del papel del
+               ticket: mide 50mm de ancho real (confirmado con regla), NO
+               58mm. Se usa 46mm para el contenido (deja ~2mm de margen de
+               seguridad por lado, por si el cabezal no imprime borde a
+               borde). Sin declarar @page aquí, Chrome imprimía la etiqueta
+               al tamaño de página que tuviera puesto por defecto
+               (Carta/A4), no al ancho real de la etiqueta — por eso salía
+               desfasada e incompleta. */
             body.imprimiendoEtiqueta #contenidoEtiqueta {
                 position: fixed;
-                left: 0;
+                left: 50%;
                 top: 0;
-                width: 100%;
+                transform: translateX(-50%);
+                width: 46mm;
+                max-width: 46mm;
+                margin: 0 !important;
+                padding: 2mm 0 !important;
                 box-shadow: none;
-                background: #fff;
+                background: #fff !important;
+                color: #000 !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
+            body.imprimiendoEtiqueta #contenidoEtiqueta * {
+                color: #000 !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
+            @page {
+                margin: 0;
+                size: 50mm 60mm;
             }
         }
 
@@ -866,8 +901,8 @@
                     <input type="text" id="buscarNumeroPedido" class="input-luxury"
                         placeholder="🔍 Buscar por N° de pedido..." style="max-width:240px; margin:0;"
                         title="Escribe parte del número de pedido para filtrar la lista.">
-                    <input type="text" id="buscarEmailPedido" class="input-luxury"
-                        placeholder="📧 Buscar por correo..." style="max-width:240px; margin:0;"
+                    <input type="text" id="buscarEmailPedido" class="input-luxury" placeholder="📧 Buscar por correo..."
+                        style="max-width:240px; margin:0;"
                         title="Escribe parte del correo del cliente para filtrar la lista.">
                     <input type="text" id="buscarNombrePedido" class="input-luxury"
                         placeholder="👤 Buscar por nombre..." style="max-width:240px; margin:0;"
@@ -919,17 +954,6 @@
                         style="color:var(--accent);">$0.00</span></div>
             </div>
             <div class="admin-card">
-                <h5>Gráficas Financieras</h5>
-                <div class="chart-grid-finanzas">
-                    <div class="chart-box">
-                        <canvas id="graficaFinanzasBarras" height="260"></canvas>
-                    </div>
-                    <div class="chart-box">
-                        <canvas id="graficaFinanzasPastel" height="260"></canvas>
-                    </div>
-                </div>
-            </div>
-            <div class="admin-card">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
                     <h5>Control Financiero</h5>
                     <div style="display: flex; gap: 10px; width: auto;">
@@ -942,8 +966,7 @@
                             style="padding:10px 16px;font-size:0.75rem; width: auto; background:var(--regio-red); color:white; border:none;"
                             title="⚠️ BORRA todos los movimientos de finanzas de forma permanente (pide confirmación).">🧹
                             Limpiar base de datos</button>
-                        <button class="btn-premium danger"
-                            onclick="reiniciarContadoresFinanzas()"
+                        <button class="btn-premium danger" onclick="reiniciarContadoresFinanzas()"
                             style="padding:10px 16px;font-size:0.75rem; width: auto; background:#b45309; color:white; border:none;"
                             title="Pone Ingresos, Gastos y Ganancia en $0.00 SIN borrar el historial de movimientos (pide confirmación).">🔁
                             Reiniciar contadores a $0.00</button>
@@ -956,8 +979,7 @@
                 </div>
                 <div style="display:flex; gap:10px; flex-wrap:wrap; margin:12px 0; align-items:center;">
                     <select id="filtroCategoriaFinanzas" class="input-luxury" style="max-width:240px; margin:0;"
-                        title="Filtra los movimientos de finanzas por categoría contable."
-                        onchange="cargarFinanzas()">
+                        title="Filtra los movimientos de finanzas por categoría contable." onchange="cargarFinanzas()">
                         <option value="todas">🗂️ Todas las categorías</option>
                         <option value="venta">Venta</option>
                         <option value="compra">Compra</option>
@@ -998,11 +1020,13 @@
                     stock ni crea otra venta). O déjalo así para llenar manualmente una venta directa desde cero
                     (descuenta stock) e imprimir su ticket.
                     <br><em>💡 El código de barras impreso en cada ticket es el mismo N° de pedido (código único por
-                    venta). Escanéalo en cualquier pestaña para buscar/reenviar/reimprimir el pedido al instante.</em>
+                        venta). Escanéalo en cualquier pestaña para buscar/reenviar/reimprimir el pedido al
+                        instante.</em>
                 </label>
                 <select id="ticketPedidoSelect" class="input-luxury" style="margin-bottom:18px;"
                     title="Precarga aquí un pedido existente (para imprimir/reimprimir su ticket), o déjalo así para llenar manualmente una venta directa e imprimir su ticket.">
-                    <option value="">Precarga pedidos existentes para imprimir o reimprimir ticket, o llena manualmente para una venta directa, generar el pedido e imprimir su ticket.</option>
+                    <option value="">Precarga pedidos existentes para imprimir o reimprimir ticket, o llena manualmente
+                        para una venta directa, generar el pedido e imprimir su ticket.</option>
                 </select>
 
                 <form id="formTicketVenta">
@@ -1106,8 +1130,8 @@
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                         <input type="email" id="correoCliente" class="input-luxury" placeholder="Correo" readonly
                             title="Correo del cliente a quien irá el mensaje (viene del pedido).">
-                        <input type="text" id="numeroPedidoCorreo" class="input-luxury" placeholder="N° Pedido"
-                            readonly title="Número único del pedido que se envía en el correo.">
+                        <input type="text" id="numeroPedidoCorreo" class="input-luxury" placeholder="N° Pedido" readonly
+                            title="Número único del pedido que se envía en el correo.">
                     </div>
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                         <input type="text" id="nombreClienteCorreo" class="input-luxury" placeholder="Cliente" readonly
@@ -1115,8 +1139,8 @@
                         <input type="text" id="telefonoCorreo" class="input-luxury" placeholder="Teléfono" readonly
                             title="Teléfono de contacto mostrado en el correo.">
                     </div>
-                    <textarea id="productosCorreo" class="input-luxury" rows="3" placeholder="Productos"
-                        readonly title="Lista de productos del pedido con cantidades y precios."></textarea>
+                    <textarea id="productosCorreo" class="input-luxury" rows="3" placeholder="Productos" readonly
+                        title="Lista de productos del pedido con cantidades y precios."></textarea>
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                         <input type="text" id="metodoPagoCorreo" class="input-luxury" placeholder="Método de pago"
                             title="Método de pago del pedido (transferencia, efectivo, etc.).">
@@ -1245,7 +1269,8 @@
                 <input type="hidden" id="prodId">
                 <input type="text" id="prodNombre" class="input-luxury" placeholder="Nombre del producto *" required
                     title="Nombre comercial del producto tal como lo verá el cliente en la tarjeta.">
-                <input type="text" id="prodMarca" class="input-luxury" placeholder="Marca del producto (ej: Bath and Body Works)"
+                <input type="text" id="prodMarca" class="input-luxury"
+                    placeholder="Marca del producto (ej: Bath and Body Works)"
                     title="Marca o casa fabricante. Se muestra en la columna Marca del tab Productos y en la etiqueta impresa.">
                 <input type="number" id="prodPrecio" class="input-luxury" placeholder="Precio *" step="0.01" required
                     title="Precio final de venta en pesos (el IVA ya está incluido en este precio).">
@@ -1254,17 +1279,20 @@
                 <div style="display:flex; gap:8px; align-items:center;">
                     <input type="text" id="prodCodigoBarras" class="input-luxury" placeholder="Código de barras"
                         title="Opcional. Código de barras físico del producto, solo como referencia interna.">
-                    <button type="button" class="btn-premium-outline" style="padding:10px 14px; font-size:0.75rem; white-space:nowrap;"
+                    <button type="button" class="btn-premium-outline"
+                        style="padding:10px 14px; font-size:0.75rem; white-space:nowrap;"
                         onclick="generarCodigoBarrasProducto()"
-                        title="Genera automáticamente el siguiente código EAN-13 (prefijo 750) y lo coloca en el campo.">⚙️ Generar</button>
+                        title="Genera automáticamente el siguiente código EAN-13 (prefijo 750) y lo coloca en el campo.">⚙️
+                        Generar</button>
                 </div>
                 <div style="display:flex; gap:8px; align-items:center;">
                     <input type="text" id="prodImagen" class="input-luxury" placeholder="URL de imagen (opcional)"
                         title="Pega el enlace directo a una imagen del producto (debe empezar con http:// o https://). Se muestra una mini vista previa debajo mientras escribes."
                         oninput="vistaPreviaImagenProducto()" style="flex:1;">
-                    <button type="button" class="btn-premium-outline" style="padding:10px 14px; font-size:0.75rem; white-space:nowrap;"
-                        onclick="abrirImagenProducto()"
-                        title="Ver la foto del producto en grande (nueva ventana).">👁 Ver foto</button>
+                    <button type="button" class="btn-premium-outline"
+                        style="padding:10px 14px; font-size:0.75rem; white-space:nowrap;"
+                        onclick="abrirImagenProducto()" title="Ver la foto del producto en grande (nueva ventana).">👁
+                        Ver foto</button>
                 </div>
                 <div id="prodImagenPreview" style="display:none; margin:2px 0 2px 0;">
                     <p style="font-size:0.7rem; color:var(--text-silver); margin:0 0 4px 0;">Vista previa:</p>
@@ -1274,7 +1302,8 @@
                 <div style="display:flex; align-items:center; gap:8px; margin:4px 0 6px 0;">
                     <input type="file" id="prodImagenArchivo" accept="image/png,image/jpeg,image/webp,image/gif"
                         onchange="subirImagenProducto(this)" style="display:none;">
-                    <button type="button" class="btn-premium-outline" style="padding:10px 14px; font-size:0.75rem; white-space:nowrap;"
+                    <button type="button" class="btn-premium-outline"
+                        style="padding:10px 14px; font-size:0.75rem; white-space:nowrap;"
                         onclick="document.getElementById('prodImagenArchivo').click()"
                         title="Selecciona la foto desde tu computadora: se sube a tu Storage de Supabase SIN redimensionar, en calidad y resolución originales.">📤
                         Subir imagen</button>
@@ -1443,10 +1472,10 @@
             <h3 id="formNoticiaTitulo" style="font-weight:400; margin-bottom:20px;">➕ Agregar Noticia</h3>
             <form id="formNoticia">
                 <input type="hidden" id="noticiaId">
-                <input type="text" id="noticiaTitulo" class="input-luxury" placeholder="Título de la noticia *"
-                    required title="Título principal de la noticia, visible en negritas en la página.">
-                <textarea id="noticiaDescripcion" class="input-luxury" rows="3" placeholder="Descripción *"
-                    required title="Texto completo o resumen de la noticia que verá el cliente."></textarea>
+                <input type="text" id="noticiaTitulo" class="input-luxury" placeholder="Título de la noticia *" required
+                    title="Título principal de la noticia, visible en negritas en la página.">
+                <textarea id="noticiaDescripcion" class="input-luxury" rows="3" placeholder="Descripción *" required
+                    title="Texto completo o resumen de la noticia que verá el cliente."></textarea>
                 <label
                     style="display:flex; align-items:center; gap:8px; font-size:0.7rem; color:var(--text-silver); margin:-8px 0 12px; cursor:pointer;">
                     <input type="checkbox" id="noticiaFechaEsTexto" style="width:auto; margin:0;"
@@ -1601,9 +1630,8 @@
                 política de lealtad.
             </label>
             <div style="display:flex; gap:10px; flex-wrap:wrap; margin:12px 0; align-items:center;">
-                <input type="text" id="buscarLealtadNombre" class="input-luxury"
-                    placeholder="👤 Buscar por nombre..." style="max-width:260px; margin:0;"
-                    oninput="filtrarLealtadNombre()"
+                <input type="text" id="buscarLealtadNombre" class="input-luxury" placeholder="👤 Buscar por nombre..."
+                    style="max-width:260px; margin:0;" oninput="filtrarLealtadNombre()"
                     title="Filtrar los clientes del programa de lealtad por nombre (búsqueda en vivo).">
             </div>
             <div id="listaLealtad" class="table-responsive">
@@ -1641,13 +1669,11 @@
                 hace.
             </label>
             <div style="display:flex; gap:10px; flex-wrap:wrap; margin:12px 0; align-items:center;">
-                <input type="text" id="buscarPagoNombre" class="input-luxury"
-                    placeholder="👤 Buscar por nombre..." style="max-width:260px; margin:0;"
-                    oninput="filtrarPagosNombre()"
+                <input type="text" id="buscarPagoNombre" class="input-luxury" placeholder="👤 Buscar por nombre..."
+                    style="max-width:260px; margin:0;" oninput="filtrarPagosNombre()"
                     title="Filtrar los clientes del control de pagos por nombre (búsqueda en vivo).">
                 <select id="filtroEstadoPagos" class="input-luxury" style="max-width:240px; margin:0;"
-                    title="Filtra los pagos por estado."
-                    onchange="filtrarPagosEstado()">
+                    title="Filtra los pagos por estado." onchange="filtrarPagosEstado()">
                     <option value="todos">🗂️ Todos los estados</option>
                     <option value="en_mora">⏰ En mora</option>
                     <option value="al_corriente">💵 Al corriente</option>
@@ -1669,12 +1695,13 @@
             <input type="text" id="pagoCliente" class="input-luxury" placeholder="Nombre del cliente *"
                 title="Nombre del cliente que tiene este crédito/pago.">
             <input type="number" id="pagoAdeudoTotal" class="input-luxury" placeholder="Adeudo total *" step="0.01"
-                min="0" title="Deuda actual del cliente. Los cargos (+) y abonos (−) y las moras (+$50) se aplican a este valor. Al llegar a 0 se marca como liquidado.">
+                min="0"
+                title="Deuda actual del cliente. Los cargos (+) y abonos (−) y las moras (+$50) se aplican a este valor. Al llegar a 0 se marca como liquidado.">
             <input type="number" id="pagoQuincenasTotales" class="input-luxury" placeholder="Quincenas totales *"
                 min="1" step="1" oninput="sincronizarQuincenas()"
                 title="Número total de quincenas acordadas para cubrir el pago. Ej: si vendes a 10 quincenas, escribe 10.">
-            <input type="number" id="pagoQuincenasPagadas" class="input-luxury" placeholder="Quincenas pagadas"
-                min="0" step="1" oninput="sincronizarQuincenas()"
+            <input type="number" id="pagoQuincenasPagadas" class="input-luxury" placeholder="Quincenas pagadas" min="0"
+                step="1" oninput="sincronizarQuincenas()"
                 title="Cuántas quincenas ya ha pagado el cliente. No puede superar las totales ni ser negativa.">
             <label style="display:block; font-size:0.7rem; color:var(--text-silver); margin-bottom:6px;">
                 💳 Quincenas: <strong>pendientes = totales − pagadas</strong>. Las quincenas pagadas se limitan
@@ -1697,7 +1724,8 @@
                 Haz clic sobre una fila para copiar su <strong>costo de envío</strong> al campo de envío del ticket
                 (llenado manual).
             </p>
-            <div id="listaModalLugares" class="table-responsive" style="margin-top:0; max-height:380px; overflow-y:auto;">
+            <div id="listaModalLugares" class="table-responsive"
+                style="margin-top:0; max-height:380px; overflow-y:auto;">
                 <div style="text-align:center; padding:24px; color:var(--text-silver);">Cargando...</div>
             </div>
             <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:16px;">
@@ -1738,8 +1766,7 @@
             <input type="text" id="lealtadNombreCliente" class="input-luxury" placeholder="Nombre del cliente *"
                 title="Nombre del cliente participante del programa de lealtad.">
             <input type="number" id="lealtadProductosComprados" class="input-luxury" placeholder="Productos comprados *"
-                min="0" step="1"
-                title="Cuántos productos ha comprado acumulados (se suma cada vez que compra).">
+                min="0" step="1" title="Cuántos productos ha comprado acumulados (se suma cada vez que compra).">
             <input type="text" id="lealtadProductoRegalo" class="input-luxury" placeholder="Producto de regalo"
                 title="Producto que le toca de regalo según tu política de lealtad (opcional).">
             <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:20px;">
@@ -1783,8 +1810,8 @@
             <h5 style="color:var(--regio-red); font-weight:400; font-size:1.4rem;">⚠️ ¿Estás seguro?</h5>
             <p id="modalConfirmarAccionMensaje" style="color:var(--text-silver); margin-top:10px;"></p>
             <div style="display:flex; gap:10px; justify-content:center; margin-top:20px;">
-                <button id="modalConfirmarAccionCancel" class="btn-premium-outline"
-                    style="width: auto;" title="Cancelar y no hacer cambios.">Cancelar</button>
+                <button id="modalConfirmarAccionCancel" class="btn-premium-outline" style="width: auto;"
+                    title="Cancelar y no hacer cambios.">Cancelar</button>
                 <button id="modalConfirmarAccionOk" class="btn-premium danger"
                     style="background:var(--regio-red); color:white; border:none; width: auto;"
                     title="Confirmar la acción.">Confirmar</button>
@@ -1813,17 +1840,15 @@
             </div>
             <input type="text" id="modalCorreoDireccion" class="input-luxury" placeholder="Dirección" readonly
                 title="Dirección de entrega del pedido (si aplica).">
-            <textarea id="modalCorreoProductos" class="input-luxury" rows="3" placeholder="Productos"
-                readonly title="Lista de productos del pedido con cantidades y precios."></textarea>
+            <textarea id="modalCorreoProductos" class="input-luxury" rows="3" placeholder="Productos" readonly
+                title="Lista de productos del pedido con cantidades y precios."></textarea>
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                 <input type="text" id="modalCorreoTotal" class="input-luxury" placeholder="Total" readonly
                     title="Total del pedido que aparece en el correo.">
                 <input type="number" id="modalCorreoEnvio" class="input-luxury" placeholder="Costo de envío *"
-                    step="0.01" required
-                    title="Costo de envío en pesos que aparecerá en el correo.">
+                    step="0.01" required title="Costo de envío en pesos que aparecerá en el correo.">
             </div>
-            <textarea id="modalCorreoMensaje" class="input-luxury" rows="2"
-                placeholder="Mensaje adicional (opcional)"
+            <textarea id="modalCorreoMensaje" class="input-luxury" rows="2" placeholder="Mensaje adicional (opcional)"
                 title="Texto personalizado (saludo, instrucciones o aviso) que se incluye en el correo."></textarea>
             <div id="mensajeModalCorreo" style="margin-bottom:15px;"></div>
             <div style="display:flex; gap:10px; justify-content:flex-end;">
@@ -1849,8 +1874,7 @@
                     onclick="verVistaPreviaDetallePedidoActual()"
                     title="Ver un adelanto de cómo se vería la impresión de este pedido."><i class="fas fa-eye"></i>
                     Vista Previa</button>
-                <button type="button" class="btn-premium" style="width: auto;"
-                    onclick="imprimirDetallePedidoActual()"
+                <button type="button" class="btn-premium" style="width: auto;" onclick="imprimirDetallePedidoActual()"
                     title="Imprimir el detalle de este pedido (con QZ si hay impresora, o en el navegador)."><i
                         class="fas fa-print"></i> Imprimir</button>
             </div>
@@ -1877,8 +1901,7 @@
                     title="Dirección de entrega del pedido (si aplica).">
             </div>
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                <select id="editarLugarEntrega" class="input-luxury"
-                    title="Lugar/zona de entrega del pedido.">
+                <select id="editarLugarEntrega" class="input-luxury" title="Lugar/zona de entrega del pedido.">
                     <option value="" selected>Selecciona lugar de entrega...</option>
                 </select>
                 <input type="text" id="editarPuntoEntrega" class="input-luxury"
@@ -1888,8 +1911,7 @@
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top:15px;">
                 <input type="time" id="editarHoraAcordada" class="input-luxury" step="60"
                     title="Hora EXACTA acordada con el comprador">
-                <select id="editarMetodoPago" class="input-luxury"
-                    title="Cómo pagará el cliente este pedido.">
+                <select id="editarMetodoPago" class="input-luxury" title="Cómo pagará el cliente este pedido.">
                     <option value="efectivo">Efectivo</option>
                     <option value="transferencia">Transferencia</option>
                 </select>
@@ -1937,20 +1959,16 @@
     <div id="emojiPopup" style="display:none;"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
     <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 
+    <script src="js/config.netlify.generated.js"></script>
     <script src="js/config.netlify.js"></script>
     <script>
-        // config.local.js solo existe en local: nunca cargarlo en producción para
-        // evitar que Netlify responda con su página de error como si fuera JS.
         try {
-            if (["localhost", "127.0.0.1"].includes(window.location.hostname)) {
-                var script = document.createElement('script');
-                script.src = 'js/config.local.js';
-                script.onerror = function () { console.log('ℹ️ config.local.js no encontrado'); };
-                document.head.appendChild(script);
-            }
+            var script = document.createElement('script');
+            script.src = 'js/config.local.js';
+            script.onerror = function () { console.log('ℹ️ config.local.js no encontrado'); };
+            document.head.appendChild(script);
         } catch (e) { console.log('ℹ️ config.local.js no disponible'); }
     </script>
     <script src="js/config.js"></script>
@@ -2075,32 +2093,14 @@
                     <option value="texto">Protocolo: Texto plano</option>
                 </select>
             </div>
-            <div style="display:flex; align-items:center; gap:8px; margin:8px 0 2px 0;">
-                <button type="button" class="btn-premium-outline" style="width:auto; flex:0 0 auto;"
-                    onclick="ajustarCentro(-8)"
-                    title="Mover el centro de la etiqueta 8 puntos a la izquierda (reimprime la prueba para ver el cambio).">◀</button>
-                <button type="button" class="btn-premium-outline" style="width:auto; flex:1 1 auto;"
-                    onclick="imprimirPruebaCentrado()"
-                    title="Imprime una línea de calibración para ajustar el centrado horizontal de la etiqueta en tu impresora.">🎯
-                    Prueba de centrado</button>
-                <button type="button" class="btn-premium-outline" style="width:auto; flex:0 0 auto;"
-                    onclick="ajustarCentro(8)"
-                    title="Mover el centro de la etiqueta 8 puntos a la derecha (reimprime la prueba para ver el cambio).">▶</button>
-                <button type="button" class="btn-premium-outline" style="width:auto; flex:0 0 auto;"
-                    onclick="imprimirPruebaRegla()"
-                    title="Imprime una regla con marcas cada 16 puntos y el centro marcado, para medir las posiciones reales con una foto.">📏</button>
-                <span style="font-size:12px; color:#aaa; margin-left:4px; white-space:nowrap;">Centro: <span
-                        id="centroEtiquetaVal">--</span> pts</span>
-            </div>
             <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:14px;">
                 <button type="button" class="btn-premium-outline" style="width: auto;"
                     onclick="enviarEtiquetaBluetooth()"
-                    title="Enviar la etiqueta por Bluetooth a tu impresora portátil."><i
-                        class="fas fa-bluetooth-b"></i> Enviar a Bluetooth</button>
-                <button type="button" class="btn-premium-outline" style="width: auto;"
-                    onclick="cerrarEtiqueta()" title="Cerrar esta ventana sin imprimir.">Cerrar</button>
-                <button type="button" class="btn-premium" style="width: auto;"
-                    onclick="imprimirEtiqueta()"
+                    title="Enviar la etiqueta por Bluetooth a tu impresora portátil."><i class="fas fa-bluetooth-b"></i>
+                    Enviar a Bluetooth</button>
+                <button type="button" class="btn-premium-outline" style="width: auto;" onclick="cerrarEtiqueta()"
+                    title="Cerrar esta ventana sin imprimir.">Cerrar</button>
+                <button type="button" class="btn-premium" style="width: auto;" onclick="imprimirEtiqueta()"
                     title="Imprimir la etiqueta desde esta página (con QZ o en el navegador)."><i
                         class="fas fa-print"></i> Imprimir</button>
             </div>

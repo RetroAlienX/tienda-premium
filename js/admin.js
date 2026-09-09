@@ -2570,7 +2570,7 @@ function ajustarCentro(delta) {
 // con ◂/▸ y volver a imprimir la prueba.
 function construirBytesPruebaCentrado(cX) {
   const lineas = [
-    "SIZE 58 mm, 40 mm",
+    "SIZE 50 mm, 60 mm",
     "GAP 2 mm, 0 mm",
     "CLS",
     "LINE " + (cX - 6) + ",16," + (cX - 6) + ",280,1",
@@ -2588,7 +2588,7 @@ function construirBytesPruebaCentrado(cX) {
 // y ajustar el centrado sin adivinar el ancho de cada fuente.
 function construirBytesReglaCalibracion() {
   const cX = centroEtiquetaX;
-  const lineas = ["SIZE 58 mm, 40 mm", "GAP 2 mm, 0 mm", "CLS"];
+  const lineas = ["SIZE 50 mm, 60 mm", "GAP 2 mm, 0 mm", "CLS"];
   for (let x = 8; x <= 344; x += 16) {
     lineas.push("LINE " + x + ",20," + x + ",32,1");
   }
@@ -2653,8 +2653,9 @@ function construirBytesEtiqueta(proto, datos, texto) {
     const marcaL = tsplTexto(datos.marca, 36);
     const catL = tsplTexto(datos.categoria, 36);
     const precioL = "$" + String(datos.precio || "").replace(/MX\$\s*/gi, "").replace(/^\$\s*/, "");
+    const ETIQUETA_ANCHO = "50 mm, 60 mm"; // real de la etiqueta (medida con regla)
     const lineas = [
-      "SIZE 58 mm, 40 mm",
+      "SIZE " + ETIQUETA_ANCHO,
       "GAP 2 mm, 0 mm",
       "CLS",
       'TEXT ' + cX + ',8,"4",0,1,1,1,"' + nombreL + '"',
@@ -2663,10 +2664,12 @@ function construirBytesEtiqueta(proto, datos, texto) {
     lineas.push('TEXT ' + cX + ',72,"5",0,1,1,1,"' + precioL + '"');
     if (catL) lineas.push('TEXT ' + cX + ',128,"2",0,1,1,1,"' + catL + '"');
     if (datos.codigo) {
-      // CODE128: ~11 módulos por símbolo (inicio+datos+check+fin) y módulo = narrow (2 pts).
-      const anchoAprox = (String(datos.codigo).length + 4) * 11 * 2;
+      // CODE128: ~11 módulos por símbolo (inicio+dato+check+fin) a narrow=1
+      // (dos veces más angosto: el código cabe siempre y el error de centrado
+      // queda en ±1 módulo, imperceptible). x se calcula para centrar en cX.
+      const anchoAprox = (String(datos.codigo).length + 3) * 11;
       const xBarra = Math.max(4, cX - Math.round(anchoAprox / 2));
-      lineas.push('BARCODE ' + xBarra + ',152,"128",80,1,0,2,2,"' + datos.codigo + '"');
+      lineas.push('BARCODE ' + xBarra + ',152,"128",80,1,0,2,1,"' + datos.codigo + '"');
     }
     lineas.push("PRINT 1,1");
     return new Uint8Array(codificarCp1252(lineas.join("\r\n") + "\r\n"));
