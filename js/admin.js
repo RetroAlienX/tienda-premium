@@ -2647,79 +2647,53 @@ function construirBytesEtiqueta(proto, datos, texto) {
     return new Uint8Array(out);
   }
   if (proto === "tspl") {
-    // IMPORTANTE: esta impresora IGNORA el flag de alineación del TEXT (aunque
-    // sea "1"): el x indicado es el borde IZQUIERDO de la línea. Por eso cada
-    // línea se centra a mano: x = centro − ancho/2 (ancho = caracteres × FONT_W).
-    // FONT_W usa las medidas OFICIALES de las fuentes TSC/TSPL (celdas fijas,
-    // independientes del dpi): 1: 8×12 · 2: 12×20 · 3: 16×24 · 4: 24×32 · 5: 32×48.
-    const cX = centroEtiquetaX;
-    const ETIQUETA_ANCHO = "50 mm, 60 mm"; // real de la etiqueta (medida con regla)
-    const FONT_W = { "1": 8, "2": 12, "3": 16, "4": 24, "5": 32 }; // pts/ancho por carácter (TSC)
-    const FONT_H = { "1": 12, "2": 20, "3": 24, "4": 32, "5": 48 }; // pts/alto por carácter (TSC)
-    const ANCHO_PTS = 352; // 50 mm reales a ~180 dpi
-    const tsplTexto = (t) =>
-      String(t || "").replace(/"/g, "'").replace(/\s+/g, " ").trim();
-    const maxChars = (f) => Math.max(1, Math.floor((ANCHO_PTS - 8) / (FONT_W[f] || 16)));
-    const centrarX = (s, f) => cX - Math.round(((FONT_W[f] || 16) * s.length) / 2);
-    // Divide el texto en líneas completas (por espacios) que quepan en la fuente,
-    // como máximo maxLineas; si se acaba el espacio, recorta la última.
-    const envolver = (t, f, maxLineas) => {
-      const limpio = tsplTexto(t);
-      if (!limpio) return [];
-      const m = maxChars(f);
-      const lineas = [];
-      let linea = "";
-      for (const p of limpio.split(" ")) {
-        const palabra = p.slice(0, m);
-        const candidata = linea ? linea + " " + palabra : palabra;
-        if (candidata.length <= m) {
-          linea = candidata;
-        } else {
-          lineas.push(linea);
-          linea = palabra;
-          if (lineas.length === maxLineas) return lineas;
-        }
-      }
-      if (linea) lineas.push(linea);
-      return lineas.slice(0, maxLineas);
-    };
-    const nombreLineas = envolver(datos.nombre, "3", 2);
-    const marcaL = tsplTexto(datos.marca).slice(0, maxChars("2"));
-    const catL = tsplTexto(datos.categoria).toUpperCase().slice(0, maxChars("2"));
-    let precioL = "$" + String(datos.precio || "").replace(/MX\$\s*/gi, "").replace(/^\$\s*/, "");
-    let precioFont = precioL.length <= maxChars("5") ? "5" : "3";
-    precioL = precioL.slice(0, maxChars(precioFont));
+    // Estrategia definitiva: BLOCK con align=2. El comando TEXT de TSPL NO tiene
+    // alineación nativa (lo documentan el manual TSC y librerías como portakal),
+    // y las celdas de las fuentes de este clon NO son las oficiales TSC, por lo
+    // que el centrado manual X = centro − ancho/2 se desvía. BLOCK centra el
+    // texto usando las medidas reales de la impresora, sin calcular anchos.
+    // BLOCK x,y,width,height,"font",rot,x_mul,y_mul,espaciado,align,"texto"
+    // con align: 1=izquierda, 2=centro, 3=derecha.
+    const FONT_H = { "1": 12, "2": 20, "3": 24, "4": 32, "5": 48 }; // alto aprox (solo para el layout vertical)
+    const W = 352; // ancho útil aprox de la etiqueta (50 mm)
+    const tsplTexto = (t) => String(t || "").replace(/"/g, "'").replace(/\s+/g, " ").trim();
+    const bloque = (y, h, f, texto) =>
+      'BLOCK 0,' + y + ',' + W + ',' + h + ',"' + f + '",0,1,1,0,2,"' + texto + '"';
+
+    const nombre = tsplTexto(datos.nombre);
+    const marca = tsplTexto(datos.marca);
+    const cat = tsplTexto(datos.categoria).toUpperCase();
+    let precio = "$" + String(datos.precio || "").replace(/MX\$\s*/gi, "").replace(/^\$\s*/, "");
+    let precioFont = precio.length <= 10 ? "5" : "3";
+    precio = precio.slice(0, 16);
     const codigo = datos.codigo ? String(datos.codigo).slice(0, 24) : "";
 
-    // Composición para 50×60 mm (aprox. 354×425 pts): cascada que aprovecha el
-    // alto: nombre (máx. 2 líneas, fuente 3), marca (fuente 2), precio destacado
-    // (fuente 5 o 3), categoría (fuente 2) y el código de barras con su número.
-    const lineas = ["SIZE " + ETIQUETA_ANCHO, "GAP 2 mm, 0 mm", "CLS"];
-    const NOMBRE_STEP = FONT_H["3"] + 12;
-    let y = 20;
-    (nombreLineas.length ? nombreLineas : [""]).forEach((nl, i) => {
-      lineas.push('TEXT ' + centrarX(nl, "3") + ',' + (y + i * NOMBRE_STEP) + ',"3",0,1,1,0,"' + nl + '"');
-    });
-    y += nombreLineas.length * NOMBRE_STEP + 12;
-    if (marcaL) {
-      lineas.push('TEXT ' + centrarX(marcaL, "2") + ',' + y + ',"2",0,1,1,0,"' + marcaL + '"');
+    const lineas = ["SIZE 50 mm, 60 mm", "GAP 2 mm, 0 mm", "CLS"];
+    let y = 18;
+    if (nombre) {
+      lineas.push(bloque(y, FONT_H["3"] * 2, "3", nombre)); // hasta 2 líneas
+      y += FONT_H["3"] * 2 + 14;
+    }
+    if (marca) {
+      lineas.push(bloque(y, FONT_H["2"], "2", marca));
       y += FONT_H["2"] + 16;
     }
-    lineas.push('TEXT ' + centrarX(precioL, precioFont) + ',' + y + ',"' + precioFont + '",0,1,1,0,"' + precioL + '"');
-    y += FONT_H[precioFont] + 18;
-    if (catL) {
-      lineas.push('TEXT ' + centrarX(catL, "2") + ',' + y + ',"2",0,1,1,0,"' + catL + '"');
+    if (precio && precio !== "$") {
+      lineas.push(bloque(y, FONT_H[precioFont], precioFont, precio));
+      y += FONT_H[precioFont] + 18;
+    }
+    if (cat) {
+      lineas.push(bloque(y, FONT_H["2"], "2", cat));
       y += FONT_H["2"] + 12;
     }
     if (codigo) {
-      // CODE128 centrado y reducido (narrow=1, wide=2): escaneable y ocupa poco.
-      // ~11 módulos por símbolo (inicio+dato+check+fin).
+      // Código de barras centrado: la impresora no mide BARCODE con BLOCK, así
+      // que aquí sí calculamos el ancho (~11 módulos por símbolo, narrow=1).
       const anchoAprox = (codigo.length + 3) * 11;
-      const xBarra = Math.max(4, cX - Math.round(anchoAprox / 2));
-      const yBarra = y + 8;
+      const xBarra = Math.max(0, Math.round(W / 2) - Math.round(anchoAprox / 2));
+      const yBarra = y + 4;
       lineas.push('BARCODE ' + xBarra + ',' + yBarra + ',"128",70,0,0,1,2,"' + codigo + '"');
-      // Número legible bajo el código (el readable del BARCODE no es fiable en clone).
-      lineas.push('TEXT ' + centrarX(codigo, "1") + ',' + (yBarra + 76) + ',"1",0,1,1,0,"' + codigo + '"');
+      lineas.push(bloque(yBarra + 78, FONT_H["1"], "1", codigo));
     }
     lineas.push("PRINT 1,1");
     return new Uint8Array(codificarCp1252(lineas.join("\r\n") + "\r\n"));
