@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Panel Admin · Route66 Market</title>
+    <link rel="icon" type="image/jpeg" href="img/favicon.jpg">
     <meta name="robots" content="noindex, nofollow">
 
     <meta name="supabase-url" id="supabase-url" content="https://xsactvcmsaxrjwyeaimf.supabase.co">
@@ -2092,6 +2093,23 @@
                     <option value="escpos">Protocolo: ESC/POS térmico</option>
                     <option value="texto">Protocolo: Texto plano</option>
                 </select>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px; margin:8px 0 2px 0; flex-wrap:nowrap;">
+                <button type="button" class="btn-premium-outline" style="width:auto; flex:0 0 auto;"
+                    onclick="ajustarCentro(-8)"
+                    title="Mover el centro de la etiqueta 8 puntos a la izquierda (reimprime la prueba para ver el cambio).">◀</button>
+                <button type="button" class="btn-premium-outline" style="width:auto; flex:1 1 auto; min-width:0;"
+                    onclick="imprimirPruebaCentrado()"
+                    title="Imprime una línea de calibración para ajustar el centrado horizontal de la etiqueta en tu impresora.">🎯
+                    Prueba de centrado</button>
+                <button type="button" class="btn-premium-outline" style="width:auto; flex:0 0 auto;"
+                    onclick="ajustarCentro(8)"
+                    title="Mover el centro de la etiqueta 8 puntos a la derecha (reimprime la prueba para ver el cambio).">▶</button>
+                <button type="button" class="btn-premium-outline" style="width:auto; flex:0 0 auto;"
+                    onclick="imprimirPruebaRegla()"
+                    title="Imprime una regla con marcas cada 16 puntos y el centro marcado, para medir las posiciones reales.">📏</button>
+                <span style="font-size:12px; color:#aaa; margin-left:4px; white-space:nowrap;">Centro: <span
+                        id="centroEtiquetaVal">--</span> pts</span>
             </div>
             <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:14px;">
                 <button type="button" class="btn-premium-outline" style="width: auto;"
