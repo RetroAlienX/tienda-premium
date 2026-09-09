@@ -2564,6 +2564,10 @@ function construirBytesEtiqueta(proto, datos, texto) {
     return new Uint8Array(out);
   }
   if (proto === "tspl") {
+    // 203 dpi (8 pts/mm) es el estándar de las impresoras de etiquetas 58mm BLE.
+    // Con alineación=1 el x indicado es el CENTRO de la línea de texto.
+    const ETIQUETA_W = 58 * 8; // 464 pts de ancho útil
+    const cX = Math.floor(ETIQUETA_W / 2);
     const tsplTexto = (t, max) => {
       const limpio = String(t || "").replace(/"/g, "'").replace(/\s+/g, " ").trim();
       return limpio.slice(0, max);
@@ -2576,12 +2580,17 @@ function construirBytesEtiqueta(proto, datos, texto) {
       "SIZE 58 mm, 40 mm",
       "GAP 2 mm, 0 mm",
       "CLS",
-      'TEXT 8,8,"4",0,1,1,"' + nombreL + '"',
+      'TEXT ' + cX + ',8,"4",0,1,1,1,"' + nombreL + '"',
     ];
-    if (marcaL) lineas.push('TEXT 8,48,"2",0,1,1,"' + marcaL + '"');
-    lineas.push('TEXT 8,72,"5",0,1,1,"' + precioL + '"');
-    if (catL) lineas.push('TEXT 8,128,"2",0,1,1,"' + catL + '"');
-    if (datos.codigo) lineas.push('BARCODE 8,152,"128",80,1,0,2,2,"' + datos.codigo + '"');
+    if (marcaL) lineas.push('TEXT ' + cX + ',48,"2",0,1,1,1,"' + marcaL + '"');
+    lineas.push('TEXT ' + cX + ',72,"5",0,1,1,1,"' + precioL + '"');
+    if (catL) lineas.push('TEXT ' + cX + ',128,"2",0,1,1,1,"' + catL + '"');
+    if (datos.codigo) {
+      // CODE128: ~11 módulos por símbolo (inicio+datos+check+fin) y módulo = narrow (2 pts).
+      const anchoAprox = (String(datos.codigo).length + 4) * 11 * 2;
+      const xBarra = Math.max(4, Math.floor((ETIQUETA_W - anchoAprox) / 2));
+      lineas.push('BARCODE ' + xBarra + ',152,"128",80,1,0,2,2,"' + datos.codigo + '"');
+    }
     lineas.push("PRINT 1,1");
     return new Uint8Array(codificarCp1252(lineas.join("\r\n") + "\r\n"));
   }
