@@ -2601,6 +2601,11 @@ function construirBytesReglaCalibracion() {
     if (Math.abs(v - cX) < 8) return;
     lineas.push('TEXT ' + v + ',44,"1",0,1,1,"' + v + '"');
   });
+  // Filas para medir el ancho por carácter de cada fuente (empiezan en x=0):
+  // leer en qué marca termina cada fila y darla para afinar el centrado.
+  lineas.push('TEXT 0,80,"2",0,1,1,"F2-AAAAAAAAAA"');
+  lineas.push('TEXT 0,150,"4",0,1,1,"F4-AAAAAAA"');
+  lineas.push('TEXT 0,240,"5",0,1,1,"F5-AAAAAA"');
   lineas.push("PRINT 1,1");
   return new Uint8Array(codificarCp1252(lineas.join("\r\n") + "\r\n"));
 }
@@ -2641,28 +2646,36 @@ function construirBytesEtiqueta(proto, datos, texto) {
     return new Uint8Array(out);
   }
   if (proto === "tspl") {
-    // El centro horizontal (centroEtiquetaX) se calibra con la "Prueba de
-    // centrado": se ajusta a ojo sobre el papel con ◂/▸ y se guarda, así no
-    // depende del dpi ni del ancho imprimible real de la impresora.
+    // IMPORTANTE: esta impresora IGNORA el flag de alineación del TEXT (aunque
+    // sea "1"), así que en el centro indicado ancla el texto por la IZQUIERDA.
+    // Por eso todo se centra calculando manualmente x = centro - ancho/2, y las
+    // líneas se recortan para que SIEMPRE entren en el ancho real (50 mm → ~352
+    // pts a 180 dpi). Sin esto el texto se corría a la derecha y se cortaba.
     const cX = centroEtiquetaX;
-    const tsplTexto = (t, max) => {
-      const limpio = String(t || "").replace(/"/g, "'").replace(/\s+/g, " ").trim();
-      return limpio.slice(0, max);
+    const FONT_W = { "1": 12, "2": 16, "3": 24, "4": 32, "5": 48 }; // pts/carácter (aprox, afinable)
+    const ANCHO_PTS = 352;
+    const tsplTexto = (t) =>
+      String(t || "").replace(/"/g, "'").replace(/\s+/g, " ").trim();
+    const encajar = (t, f) => {
+      const limpio = tsplTexto(t);
+      const maxC = Math.max(1, Math.floor((ANCHO_PTS - 8) / (FONT_W[f] || 16)));
+      return limpio.slice(0, maxC);
     };
-    const nombreL = tsplTexto(datos.nombre, 18);
-    const marcaL = tsplTexto(datos.marca, 36);
-    const catL = tsplTexto(datos.categoria, 36);
-    const precioL = "$" + String(datos.precio || "").replace(/MX\$\s*/gi, "").replace(/^\$\s*/, "");
+    const centrarX = (s, f) => cX - Math.round(((FONT_W[f] || 16) * s.length) / 2);
+    const nombreL = encajar(datos.nombre, "4");
+    const marcaL = encajar(datos.marca, "2");
+    const catL = encajar(datos.categoria, "2");
+    const precioL = encajar("$" + String(datos.precio || "").replace(/MX\$\s*/gi, "").replace(/^\$\s*/, ""), "5");
     const ETIQUETA_ANCHO = "50 mm, 60 mm"; // real de la etiqueta (medida con regla)
     const lineas = [
       "SIZE " + ETIQUETA_ANCHO,
       "GAP 2 mm, 0 mm",
       "CLS",
-      'TEXT ' + cX + ',8,"4",0,1,1,1,"' + nombreL + '"',
+      'TEXT ' + centrarX(nombreL, "4") + ',8,"4",0,1,1,0,"' + nombreL + '"',
     ];
-    if (marcaL) lineas.push('TEXT ' + cX + ',48,"2",0,1,1,1,"' + marcaL + '"');
-    lineas.push('TEXT ' + cX + ',72,"5",0,1,1,1,"' + precioL + '"');
-    if (catL) lineas.push('TEXT ' + cX + ',128,"2",0,1,1,1,"' + catL + '"');
+    if (marcaL) lineas.push('TEXT ' + centrarX(marcaL, "2") + ',48,"2",0,1,1,0,"' + marcaL + '"');
+    lineas.push('TEXT ' + centrarX(precioL, "5") + ',72,"5",0,1,1,0,"' + precioL + '"');
+    if (catL) lineas.push('TEXT ' + centrarX(catL, "2") + ',128,"2",0,1,1,0,"' + catL + '"');
     if (datos.codigo) {
       // CODE128: ~11 módulos por símbolo (inicio+dato+check+fin) a narrow=1
       // (dos veces más angosto: el código cabe siempre y el error de centrado
