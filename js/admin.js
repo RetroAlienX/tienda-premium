@@ -2085,7 +2085,16 @@ async function procesarCodigoLeido(codigo) {
       input.value = "";
       input.focus();
     }
-    if (!input && typeof mostrarModalAlerta === "function") {
+    // Pregunta si desea crear el producto con ese código de barras recién leído.
+    if (typeof modalConfirmar === "function") {
+      modalConfirmar(
+        `❌ No se encontró ningún producto con el código: ${codigo}. ¿Deseas crear un producto nuevo con este código de barras?`,
+        function () {
+          mostrarFormProducto(null);
+          setValue("prodCodigoBarras", codigo);
+        },
+      );
+    } else if (!input && typeof mostrarModalAlerta === "function") {
       mostrarModalAlerta(
         `❌ Producto no encontrado: ${codigo}. Agrega el producto manualmente.`,
       );
