@@ -2671,6 +2671,9 @@ function construirBytesEtiqueta(proto, datos, texto) {
       const xBarra = Math.max(4, cX - Math.round(anchoAprox / 2));
       lineas.push('BARCODE ' + xBarra + ',152,"128",80,1,0,2,1,"' + datos.codigo + '"');
     }
+    // Marca temporal de versión: si NO se imprime, el navegador está con el
+    // admin.js en caché (haz Ctrl+Shift+R). Se quita cuando se confirme.
+    lineas.push('TEXT 4,380,"1",0,1,1,"C' + cX + ' 50x60"');
     lineas.push("PRINT 1,1");
     return new Uint8Array(codificarCp1252(lineas.join("\r\n") + "\r\n"));
   }
