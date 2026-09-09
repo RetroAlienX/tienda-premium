@@ -1928,14 +1928,17 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 
-    <script src="js/config.netlify.generated.js"></script>
     <script src="js/config.netlify.js"></script>
     <script>
+        // config.local.js solo existe en local: nunca cargarlo en producción para
+        // evitar que Netlify responda con su página de error como si fuera JS.
         try {
-            var script = document.createElement('script');
-            script.src = 'js/config.local.js';
-            script.onerror = function () { console.log('ℹ️ config.local.js no encontrado'); };
-            document.head.appendChild(script);
+            if (["localhost", "127.0.0.1"].includes(window.location.hostname)) {
+                var script = document.createElement('script');
+                script.src = 'js/config.local.js';
+                script.onerror = function () { console.log('ℹ️ config.local.js no encontrado'); };
+                document.head.appendChild(script);
+            }
         } catch (e) { console.log('ℹ️ config.local.js no disponible'); }
     </script>
     <script src="js/config.js"></script>

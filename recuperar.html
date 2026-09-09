@@ -158,7 +158,16 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/config.netlify.js"></script>
-    <script src="js/config.local.js" onerror="console.log('ℹ️ config.local.js no encontrado')"></script>
+    <script>
+        // config.local.js solo existe en local: nunca cargarlo en producción para
+        // evitar que Netlify responda con su página de error como si fuera JS.
+        if (["localhost", "127.0.0.1"].includes(window.location.hostname)) {
+            var l = document.createElement("script");
+            l.src = "js/config.local.js";
+            l.onerror = function () { console.log("config.local.js no encontrado"); };
+            document.head.appendChild(l);
+        }
+    </script>
     <script src="js/config.js"></script>
     <script src="js/supabase.js"></script>
     <script>
