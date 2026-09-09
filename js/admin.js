@@ -2654,7 +2654,7 @@ function construirBytesEtiqueta(proto, datos, texto) {
     // (filas F2/F3/F4/F5) anotando en qué marca termina cada fila.
     const cX = centroEtiquetaX;
     const ETIQUETA_ANCHO = "50 mm, 60 mm"; // real de la etiqueta (medida con regla)
-    const FONT_W = { "1": 12, "2": 16, "3": 24, "4": 32, "5": 48 }; // pts/carácter (aprox)
+    const FONT_W = { "1": 12, "2": 13, "3": 24, "4": 30, "5": 28 }; // pts/carácter (afinar con la regla)
     const ANCHO_PTS = 352; // 50 mm reales a 180 dpi
     const tsplTexto = (t) =>
       String(t || "").replace(/"/g, "'").replace(/\s+/g, " ").trim();
