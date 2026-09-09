@@ -2652,7 +2652,7 @@ function construirBytesEtiqueta(proto, datos, texto) {
     // de FONT_W son aproximaciones; se afinan con el diagnóstico de centrado.
     const cX = centroEtiquetaX;
     const ETIQUETA_ANCHO = "50 mm, 60 mm";
-    const FONT_W = { "1": 12, "2": 13, "3": 24, "4": 30, "5": 28 };
+    const FONT_W = { "1": 12, "2": 13, "3": 13, "4": 30, "5": 28 };
     const ANCHO_PTS = 352;
     const tsplTexto = (t) =>
       String(t || "").replace(/"/g, "'").replace(/\s+/g, " ").trim();
@@ -2798,19 +2798,25 @@ async function imprimirPruebaCentrado() {
   }
 }
 
-// Diagnóstico de centrado en UNA sola etiqueta: imprime filas de 10 letras "A"
-// con la fuente 3 comenzando en x=0, 44, 88, 132 y 176. El usuario elige la fila
-// cuyo final de letras quede justo en la rayita central (o la que se vea más
-// centrada). Con ese dato se fija el ancho real de la fuente.
+// Diagnóstico de centrado en TRES etiquetas (fuentes 2, 3 y 5): cada una imprime
+// 5 filas de 10 letras "A" con la fuente en x=0, 44, 88, 132 y 176, más una barra
+// vertical al centro. El usuario dice, para cada etiqueta, el nº de fila cuyas A
+// terminan justo en la barra → con eso se fija el ancho real de esa fuente.
 function construirBytesDiagnostico() {
-  const lineas = ["SIZE 50 mm, 60 mm", "GAP 2 mm, 0 mm", "CLS"];
-  [0, 44, 88, 132, 176].forEach((x, i) => {
-    lineas.push('TEXT 0,' + (20 + i * 70) + ',"1",0,1,1,"x=' + x + '"');
-    lineas.push('TEXT ' + x + ',' + (30 + i * 70) + ',"3",0,1,1,"AAAAAAAAAA"');
-  });
-  lineas.push('BAR 176,20,2,340');
-  lineas.push("PRINT 1,1");
-  return new Uint8Array(codificarCp1252(lineas.join("\r\n") + "\r\n"));
+  const filas = [0, 44, 88, 132, 176];
+  const partes = [];
+  for (const f of ["2", "3", "5"]) {
+    const l = ["SIZE 50 mm,60 mm", "GAP 2 mm,0 mm", "CLS"];
+    l.push('TEXT 0,6,"1",0,1,1,"FUENTE ' + f + ' x=0..176 filas:1 2 3 4 5"');
+    filas.forEach((x, i) => {
+      l.push('TEXT 6,' + (16 + i * 55) + ',"1",0,1,1,"f' + f + ' x=' + x + '"');
+      l.push('TEXT ' + x + ',' + (24 + i * 55) + ',"' + f + '",0,1,1,"AAAAAAAAAA"');
+    });
+    l.push('BAR 176,10,2,300');
+    l.push("PRINT 1,1");
+    partes.push(l.join("\r\n"));
+  }
+  return new Uint8Array(codificarCp1252(partes.join("\r\n") + "\r\n"));
 }
 async function imprimirDiagnostico() {
   if (!navigator.bluetooth) {
@@ -2821,7 +2827,7 @@ async function imprimirDiagnostico() {
   try {
     const { server, target } = await conectarImpresoraBluetooth();
     await escribirEnImpresora(server, target, data);
-    notificar("🩺 Diagnóstico enviado (1 etiqueta). Dime la fila cuyo A termina en la rayita del centro.");
+    notificar("🩺 Enviadas 3 etiquetas (fuentes 2, 3 y 5). Dime por cuál fila terminan las A en la etiqueta FUENTE 2 y en la FUENTE 5.");
   } catch (error) {
     if (error && error.name === "NotFoundError") {
       notificar("❌ No se pudo conectar con la impresora.", "error");
