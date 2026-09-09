@@ -2647,113 +2647,69 @@ function construirBytesEtiqueta(proto, datos, texto) {
     return new Uint8Array(out);
   }
   if (proto === "tspl") {
-    // Impresión por IMAGEN (píxel exacto): el clon ignora/falla con BLOCK y sus
-    // fuentes no son las TSC oficiales, así que TEXT/BLOCK descentraban. Aquí la
-    // etiqueta se renderiza en un canvas (igual al preview) y se envía como
-    // BITMAP 1bpp con mode=0. BITMAP es el único comando que garantiza que
-    // lo impreso sea idéntico a lo dibujado, sin métricas de fuente.
-    const W = 352;
-    const H = 425;
-    const canvas = document.createElement("canvas");
-    canvas.width = W;
-    canvas.height = H;
-    const ctx = canvas.getContext("2d");
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, W, H);
-    ctx.fillStyle = "#000000";
-    ctx.textBaseline = "top";
-    ctx.textAlign = "center";
-    const cX = W / 2;
-    const slim = (t) => String(t || "").replace(/"/g, "'").replace(/\s+/g, " ").trim();
-    const envolver = (t, fuente, maxAncho, maxLineas) => {
-      const limpio = slim(t);
+    // Este clon no soporta BLOCK y sus fuentes no son TSC oficiales, así que
+    // el centrado se calcula manualmente: x = centro − ancho/2. Las estimaciones
+    // de FONT_W son aproximaciones; se afinan con el diagnóstico de centrado.
+    const cX = centroEtiquetaX;
+    const ETIQUETA_ANCHO = "50 mm, 60 mm";
+    const FONT_W = { "1": 12, "2": 13, "3": 24, "4": 30, "5": 28 };
+    const ANCHO_PTS = 352;
+    const tsplTexto = (t) =>
+      String(t || "").replace(/"/g, "'").replace(/\s+/g, " ").trim();
+    const maxChars = (f) => Math.max(1, Math.floor((ANCHO_PTS - 8) / (FONT_W[f] || 16)));
+    const centrarX = (s, f) => cX - Math.round(((FONT_W[f] || 16) * s.length) / 2);
+    const envolver = (t, f, maxLineas) => {
+      const limpio = tsplTexto(t);
       if (!limpio) return [];
-      ctx.font = fuente;
-      const palabras = limpio.split(" ");
+      const m = maxChars(f);
       const lineas = [];
       let linea = "";
-      for (const p of palabras) {
-        const cand = linea ? linea + " " + p : p;
-        if (ctx.measureText(cand).width <= maxAncho) {
-          linea = cand;
+      for (const p of limpio.split(" ")) {
+        const palabra = p.slice(0, m);
+        const candidata = linea ? linea + " " + palabra : palabra;
+        if (candidata.length <= m) {
+          linea = candidata;
         } else {
           lineas.push(linea);
-          linea = p;
+          linea = palabra;
           if (lineas.length === maxLineas) return lineas;
         }
       }
       if (linea) lineas.push(linea);
       return lineas.slice(0, maxLineas);
     };
-    const dibujar = (t, y, fuente) => {
-      ctx.font = fuente;
-      ctx.fillText(t, cX, y);
-    };
-
-    const PAD = 16;
-    let y = 18;
-    const fuenteNombre = "bold 34px Arial";
-    for (const nl of envolver(datos.nombre, fuenteNombre, W - 2 * PAD, 2)) {
-      dibujar(nl, y, fuenteNombre);
-      y += 52;
-    }
-    y += 14;
-    const marca = slim(datos.marca);
-    if (marca) {
-      dibujar(marca, y, "24px Arial");
-      y += 38;
-    }
-    const precio =
-      "$" + String(datos.precio || "").replace(/MX\$\s*/gi, "").replace(/^\$\s*/, "").slice(0, 20);
-    if (precio && precio !== "$") {
-      dibujar(precio, y, "bold 40px Arial");
-      y += 54;
-    }
-    const cat = slim(datos.categoria).toUpperCase();
-    if (cat) {
-      dibujar(cat, y, "18px Arial");
-      y += 26;
-    }
+    const nombreLineas = envolver(datos.nombre, "3", 2);
+    const marcaL = tsplTexto(datos.marca).slice(0, maxChars("2"));
+    const catL = tsplTexto(datos.categoria).toUpperCase().slice(0, maxChars("2"));
+    let precioL = "$" + String(datos.precio || "").replace(/MX\$\s*/gi, "").replace(/^\$\s*/, "");
+    let precioFont = precioL.length <= maxChars("5") ? "5" : "3";
+    precioL = precioL.slice(0, maxChars(precioFont));
     const codigo = datos.codigo ? String(datos.codigo).slice(0, 24) : "";
-    if (codigo) {
-      const temp = document.createElement("canvas");
-      JsBarcode(temp, codigo, {
-        format: "CODE128",
-        width: 2,
-        height: 76,
-        displayValue: true,
-        fontSize: 18,
-        font: "monospace",
-        textAlign: "center",
-        margin: 0,
-      });
-      ctx.drawImage(temp, Math.round((W - temp.width) / 2), y);
-    }
 
-    const img = ctx.getImageData(0, 0, W, H);
-    const p = img.data;
-    const rowBytes = Math.ceil(W / 8);
-    const out = [];
-    for (let r = 0; r < H; r++) {
-      for (let bc = 0; bc < rowBytes; bc++) {
-        let byte = 0;
-        for (let bit = 0; bit < 8; bit++) {
-          const x = bc * 8 + bit;
-          const i = (r * W + (x < W ? x : W - 1)) * 4;
-          const lum = 0.299 * p[i] + 0.587 * p[i + 1] + 0.114 * p[i + 2];
-          if (lum < 128) byte |= 0x80 >>> bit;
-        }
-        out.push(byte);
-      }
+    const lineas = ["SIZE " + ETIQUETA_ANCHO, "GAP 2 mm, 0 mm", "CLS"];
+    const NOMBRE_STEP = 78;
+    let y = 12;
+    (nombreLineas.length ? nombreLineas : [""]).forEach((nl, i) => {
+      lineas.push('TEXT ' + centrarX(nl, "3") + ',' + (y + i * NOMBRE_STEP) + ',"3",0,1,1,0,"' + nl + '"');
+    });
+    y += nombreLineas.length * NOMBRE_STEP + 8;
+    if (marcaL) {
+      lineas.push('TEXT ' + centrarX(marcaL, "2") + ',' + y + ',"2",0,1,1,0,"' + marcaL + '"');
+      y += 44;
     }
-    const hex = out.map((bd) => bd.toString(16).padStart(2, "0")).join("");
-    const cmd =
-      "SIZE 50 mm,60 mm\r\n" +
-      "GAP 2 mm,0 mm\r\n" +
-      "CLS\r\n" +
-      "BITMAP 0,0," + W + "," + H + ',0,"' + hex + '"\r\n' +
-      "PRINT 1,1\r\n";
-    return new Uint8Array(codificarCp1252(cmd));
+    lineas.push('TEXT ' + centrarX(precioL, precioFont) + ',' + y + ',"' + precioFont + '",0,1,1,0,"' + precioL + '"');
+    y += 56;
+    if (catL) {
+      lineas.push('TEXT ' + centrarX(catL, "2") + ',' + y + ',"2",0,1,1,0,"' + catL + '"');
+      y += 44;
+    }
+    if (codigo) {
+      const anchoAprox = (codigo.length + 3) * 11;
+      const xBarra = Math.max(4, cX - Math.round(anchoAprox / 2));
+      lineas.push('BARCODE ' + xBarra + ',' + (y + 8) + ',"128",80,1,0,2,1,"' + codigo + '"');
+    }
+    lineas.push("PRINT 1,1");
+    return new Uint8Array(codificarCp1252(lineas.join("\r\n") + "\r\n"));
   }
   return new Uint8Array(codificarCp1252(texto));
 }
@@ -2838,6 +2794,39 @@ async function imprimirPruebaCentrado() {
       notificar("❌ No se pudo conectar con la impresora.", "error");
     } else {
       notificar("❌ Error en la prueba: " + (error.message || error), "error");
+    }
+  }
+}
+
+// Diagnóstico de centrado en UNA sola etiqueta: imprime filas de 10 letras "A"
+// con la fuente 3 comenzando en x=0, 44, 88, 132 y 176. El usuario elige la fila
+// cuyo final de letras quede justo en la rayita central (o la que se vea más
+// centrada). Con ese dato se fija el ancho real de la fuente.
+function construirBytesDiagnostico() {
+  const lineas = ["SIZE 50 mm, 60 mm", "GAP 2 mm, 0 mm", "CLS"];
+  [0, 44, 88, 132, 176].forEach((x, i) => {
+    lineas.push('TEXT 0,' + (20 + i * 70) + ',"1",0,1,1,"x=' + x + '"');
+    lineas.push('TEXT ' + x + ',' + (30 + i * 70) + ',"3",0,1,1,"AAAAAAAAAA"');
+  });
+  lineas.push('BAR 176,20,2,340');
+  lineas.push("PRINT 1,1");
+  return new Uint8Array(codificarCp1252(lineas.join("\r\n") + "\r\n"));
+}
+async function imprimirDiagnostico() {
+  if (!navigator.bluetooth) {
+    notificar("❌ Este navegador no soporta Web Bluetooth. Usa Chrome o Edge.", "error");
+    return;
+  }
+  const data = construirBytesDiagnostico();
+  try {
+    const { server, target } = await conectarImpresoraBluetooth();
+    await escribirEnImpresora(server, target, data);
+    notificar("🩺 Diagnóstico enviado (1 etiqueta). Dime la fila cuyo A termina en la rayita del centro.");
+  } catch (error) {
+    if (error && error.name === "NotFoundError") {
+      notificar("❌ No se pudo conectar con la impresora.", "error");
+    } else {
+      notificar("❌ Error en el diagnóstico: " + (error.message || error), "error");
     }
   }
 }
@@ -6806,6 +6795,7 @@ window.subirImagenProducto = subirImagenProducto;
   window.enviarEtiquetaBluetooth = enviarEtiquetaBluetooth;
 window.imprimirPruebaCentrado = imprimirPruebaCentrado;
 window.imprimirPruebaRegla = imprimirPruebaRegla;
+window.imprimirDiagnostico = imprimirDiagnostico;
 window.ajustarCentro = ajustarCentro;
 window.generarCodigoBarrasProducto = generarCodigoBarrasProducto;
 window.cargarPedidos = cargarPedidos;
