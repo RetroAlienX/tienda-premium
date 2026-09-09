@@ -343,6 +343,10 @@ function construirTicketESC(datos) {
     const codigoPedido = String(datos.numero_pedido).toUpperCase();
     L.push(qzCentrar("CODIGO DE PEDIDO", ANCHO));
     L.push(qzCentrar("(informativo)", ANCHO));
+    // Marcador de partición: el barcode va en un segundo trabajo de impresión
+    // para que el raster nunca conviva con el ticket largo (este clon se traga
+    // la imagen cuando llega al final de un trabajo muy extenso).
+    L.push("§§RASTER§§");
     L.push(escposCodigo128Raster(codigoPedido, 48));
     L.push(qzCentrar(codigoPedido, ANCHO));
   }
@@ -461,18 +465,23 @@ function qzImprimirTexto(texto, chunk) {
 }
 
 // Diagnóstico aislado del código de barras: imprime un mini ticket con
-// marcadores antes y después del raster, para saber si el problema es el
-// comando GS v 0 o el tamaño del ticket completo.
+// ~60 líneas de relleno antes del raster para reproducir el ticket largo real,
+// con marcadores antes y después del raster. Confirma si el clon se traga la
+// imagen cuando hay mucho texto previo (job largo de un solo envío).
 // Ejecutar desde la consola del admin (F12): imprimirPruebaBarcode()
 function imprimirPruebaBarcode() {
-  const N = qzCentrar("== TEST BARCODE ==", 32);
+  const filler = [];
+  for (let i = 0; i < 60; i++) {
+    filler.push("FILLER-" + String(i).padStart(2, "0") + " ..........");
+  }
   const texto =
-    N + "\n" +
+    qzCentrar("== TEST BARCODE CON COLCHON ==", 32) + "\n" +
+    filler.join("\n") + "\n" +
+    "FILLER-FIN-INICIO-DE-RASTER" + "\n" +
     "ANTES-DEL-RASTER" + "\n" +
     escposCodigo128Raster("TEST-260909-1234", 48) + "\n" +
     "DESPUES-DEL-RASTER" + "\n" +
-    escposCodigo128Raster("TEST-260909-1234", 24) + "\n" +
-    "FIN-OK (SI CORTA AQUI, TODO BIEN)" + "\n\n" +
+    "FIN-OK" + "\n\n" +
     ESC + "i";
   return qzImprimirTexto(texto, 256)
     .then(function () {
@@ -496,7 +505,22 @@ function imprimirConQZ(datos, fallback) {
   }
   const texto = construirTicketESC(datos);
 
-  return qzImprimirTexto(texto, 512)
+  // Se parte el ticket en dos trabajos: primero todo hasta el barcode y luego
+  // el barcode + corte. Así el mapa de puntos va en un job corto y aislado.
+  const SEP = "§§RASTER§§";
+  const idx = texto.indexOf(SEP);
+  const p1 = idx < 0 ? texto : texto.slice(0, idx);
+  const p2 = idx < 0 ? "" : texto.slice(idx + SEP.length);
+
+  return qzImprimirTexto(p1, 512)
+    .then(function () {
+      if (!p2) return undefined;
+      return new Promise(function (resolve) {
+        setTimeout(resolve, 200);
+      }).then(function () {
+        return qzImprimirTexto(p2, 256);
+      });
+    })
     .then(function () {
       if (typeof mostrarModalAlerta === "function") {
         mostrarModalAlerta("✅ Ticket enviado a la impresora");
