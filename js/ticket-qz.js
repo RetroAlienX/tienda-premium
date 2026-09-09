@@ -149,6 +149,100 @@ function qzSinEmojis(texto) {
 }
 
 // ============================================
+// Código de barras CODE128 como imagen (GS v 0).
+// Esta impresora NO soporta GS k, así que se rasteriza el código: se genera
+// la secuencia de módulos CODE128, se convierten a una imagen 1-bit y se envía
+// como mapa de puntos con el comando universal de imagen ESC/POS.
+// ============================================
+const C128_PAT = [
+  "11011001100", "11001101100", "11001100110", "10010011000", "10010001100",
+  "10001001100", "10011001000", "10011000100", "10001100100", "11001001000",
+  "11001000100", "11000100100", "10110011100", "10011011100", "10011001110",
+  "10111001100", "10011101100", "10011100110", "11001110010", "11001011100",
+  "11001001110", "11011100100", "11001110100", "11101101110", "11101001100",
+  "11100101100", "11100100110", "11101100100", "11100110100", "11100110010",
+  "11011011000", "11011000110", "11000110110", "10100011000", "10001011000",
+  "10001000110", "10110001000", "10001101000", "10001100010", "11010001000",
+  "11000101000", "11000100010", "10110111000", "10110001110", "10001101110",
+  "10111011000", "10111000110", "10001110110", "11101110110", "11010001110",
+  "11000101110", "11011101000", "11011100010", "11011101110", "11101011000",
+  "11101000110", "11100010110", "11101101000", "11101100010", "11100011010",
+  "11101111010", "11001000010", "11110001010", "10100110000", "10100001100",
+  "10010110000", "10010000110", "10000101100", "10000100110", "10110010000",
+  "10110000100", "10011010000", "10011000010", "10000110100", "10000110010",
+  "11000010010", "11001010000", "11110111010", "11000010100", "10001111010",
+  "10100111100", "10010111100", "10010011110", "10111100100", "10011110100",
+  "10011110010", "11110100100", "11110010100", "11110010010", "11011011110",
+  "11011110110", "11110110110", "10101111000", "10100011110", "10001011110",
+  "10111101000", "10111100010", "11110101000", "11110100010", "10111011110",
+  "10111101110", "11101011110", "11110101110", "11010000100", "11010010000",
+  "11010011100", "1100011101011",
+];
+// Ancho de impresión en puntos de una térmica 58mm (384 dots ≈ 48mm); el
+// rectángulo de referencia se hace con el mismo comando.
+const ESCPOS_ANCHO_PTS = 384;
+
+function escposCodigo128Raster(codigo, alturaDots) {
+  const texto = String(codigo || "").toUpperCase();
+  const vals = [104]; // START CODE SET B
+  for (let i = 0; i < texto.length; i++) {
+    let v = texto.charCodeAt(i) - 32;
+    if (v < 0 || v > 94) v = 63; // '?' por caracteres fuera de CODE-B
+    vals.push(v);
+  }
+  let suma = 104;
+  for (let i = 1; i < vals.length; i++) suma += vals[i] * i;
+  vals.push(suma % 103); // checksum
+  vals.push(106); // stop
+
+  const quiet = 10;
+  let mods = [];
+  for (let i = 0; i < quiet; i++) mods.push(0);
+  for (let i = 0; i < vals.length; i++) {
+    const p = C128_PAT[vals[i]] || C128_PAT[106];
+    for (let k = 0; k < p.length; k++) mods.push(p[k] === "1" ? 1 : 0);
+  }
+  for (let i = 0; i < quiet; i++) mods.push(0);
+
+  const MW = mods.length * 2 > ESCPOS_ANCHO_PTS ? 1 : 2;
+  const ancho = mods.length * MW;
+  const xIni = Math.floor((ESCPOS_ANCHO_PTS - ancho) / 2);
+  const xBytes = Math.ceil(ancho / 8);
+  const filas = [];
+  for (let y = 0; y < alturaDots; y++) {
+    for (let i = 0; i < xBytes; i++) {
+      let byte = 0;
+      for (let b = 0; b < 8; b++) {
+        const dot = i * 8 + b;
+        if (dot < ancho && mods[Math.floor(dot / MW)] === 1) byte |= 0x80 >> b;
+      }
+      filas.push(byte);
+    }
+  }
+  const bytes = [
+    0x1b, 0x24, xIni & 0xff, (xIni >> 8) & 0xff, // ESC $  posición absoluta (centra)
+    0x1d, 0x76, 0x30, 0x00, // GS v 0 m=0
+    xBytes & 0xff, (xBytes >> 8) & 0xff, // ancho en bytes
+    alturaDots & 0xff, (alturaDots >> 8) & 0xff, // alto en puntos
+  ].concat(filas);
+  return String.fromCharCode.apply(null, bytes);
+}
+
+function escposBloqueReferenciaRaster() {
+  // Rectángulo negro pequeño (8 puntos de ancho x 16 de alto) para confirmar
+  // visualmente que esta impresora soporta GS v 0.
+  const filas = [];
+  for (let y = 0; y < 16; y++) filas.push(0xff);
+  const bytes = [
+    0x1b, 0x24, 8 & 0xff, 0x00, // ESC $ centrado cerca del centro
+    0x1d, 0x76, 0x30, 0x00,
+    1, 0, // 1 byte = 8 puntos de ancho
+    16, 0, // 16 puntos de alto
+  ].concat(filas);
+  return String.fromCharCode.apply(null, bytes);
+}
+
+// ============================================
 // Constructor del contenido del ticket (ESC/POS).
 // ============================================
 function construirTicketESC(datos) {
@@ -253,39 +347,21 @@ function construirTicketESC(datos) {
   L.push(qzCentrar("* COMPROBANTE DE COMPRA *", ANCHO));
   L.push(qzLinea(ANCHO, "*"));
 
-  // Código de pedido en barras (GS k · CODE39): va al final, debajo del pie.
-  // Su valor es el mismo N° de pedido (código UNICO por venta) que el
-  // administrador puede escanear en Pedidos, Ticket o el correo para buscar
-  // el pedido al instante. Es informativo para caja/depósito.
+  // Código de pedido en barras (CODE128 rasterizado): va al final, debajo del
+  // pie. Su valor es el mismo N° de pedido (código UNICO por venta) que el
+  // administrador puede escanear en Pedidos, Ticket o el correo para buscar el
+  // pedido al instante. Es informativo para caja/depósito.
+  // Esta POS58 NO soporta el comando ESC/POS GS k (imprimía el dato como texto),
+  // así que se dibuja el código como imagen de mapa de bits con GS v 0.
   if (datos.numero_pedido) {
     const codigoPedido = String(datos.numero_pedido).toUpperCase();
     L.push(qzCentrar("CODIGO DE PEDIDO", ANCHO));
     L.push(qzCentrar("(informativo)", ANCHO));
-    L.push(
-      "\x1Dk" +
-        String.fromCharCode(4) + // GS k (CODE39)
-        codigoPedido +
-        String.fromCharCode(0), // fin de datos (NUL)
-    );
+    L.push(escposCodigo128Raster(codigoPedido, 48));
     L.push(qzCentrar(codigoPedido, ANCHO));
-
-    // ▼▼▼ PRUEBA VARIANTES DE CODIGO DE BARRAS (temporal) ▼▼▼
-    // Imprime 3 formas distintas del comando GS k. Solo 1 (o ninguna) debería
-    // renderizar barras de verdad. El usuario reporta cuál sale OK (V1/V2/V3).
-    const f = (m) => "\x1Dk" + String.fromCharCode(m) + String.fromCharCode(codigoPedido.length) + codigoPedido;
-    L.push(qzLinea(ANCHO, "-"));
-    L.push(qzCentrar("PRUEBA V1: GS k 4 (CODE39 viejo)", ANCHO));
-    L.push("\x1Dk" + String.fromCharCode(4) + codigoPedido + String.fromCharCode(0));
-    L.push(qzCentrar(codigoPedido, ANCHO));
-    L.push(qzCentrar("PRUEBA V2: GS k 69 (CODE39 nuevo)", ANCHO));
-    L.push(f(69));
-    L.push(qzCentrar(codigoPedido, ANCHO));
-    L.push(qzCentrar("PRUEBA V3: GS k 73 (CODE128)", ANCHO));
-    L.push(f(73));
-    L.push(qzCentrar(codigoPedido, ANCHO));
-    L.push(qzLinea(ANCHO, "-"));
-    L.push(qzCentrar("¿CUAL SALIO OK?  V1 / V2 / V3", ANCHO));
-    // ▲▲▲ FIN PRUEBA VARIANTES DE CODIGO DE BARRAS ▲▲▲
+    // Bloque de referencia: si GS v 0 NO está soportado, verás caracteres
+    // raros también aquí; si sale un rectángulo negro pequeño, todo ok.
+    L.push(escposBloqueReferenciaRaster());
   }
 
   L.push("\n\n"); // espacio final
@@ -391,12 +467,16 @@ function imprimirConQZ(datos, fallback) {
 
   return qzConectar(impresora)
     .then(function (impresoraObj) {
+      // Se envía como bytes exactos (base64) para que el mapa de puntos del
+      // código de barras (bits 0x00-0xFF) llegue intacto a la impresora.
+      const bytes = new Uint8Array(texto.length);
+      for (let i = 0; i < texto.length; i++) bytes[i] = texto.charCodeAt(i) & 0xff;
       const data = [
         {
           type: "raw",
-          format: "plain",
+          format: "base64",
           language: "POS",
-          data: texto,
+          data: qzBytesABase64(bytes),
           options: {
             encoding: "windows-1252",
           },
@@ -440,6 +520,27 @@ function qzNombreImpresora() {
   // "Dispositivos e impresoras" de Windows / lo que QZ detecta.
   // Para ver el listado: abre la consola (F12) y ejecuta qzListarImpresoras()
   return "POS-58";
+}
+
+// Codifica bytes a base64 sin depender de helpers internos de QZ.
+function qzBytesABase64(bytes) {
+  const CHARS =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  let out = "";
+  let i;
+  for (i = 0; i + 2 < bytes.length; i += 3) {
+    const n = (bytes[i] << 16) | (bytes[i + 1] << 8) | bytes[i + 2];
+    out += CHARS[(n >> 18) & 63] + CHARS[(n >> 12) & 63] + CHARS[(n >> 6) & 63] + CHARS[n & 63];
+  }
+  const rest = bytes.length - i;
+  if (rest === 1) {
+    const n = bytes[i] << 16;
+    out += CHARS[(n >> 18) & 63] + CHARS[(n >> 12) & 63] + "==";
+  } else if (rest === 2) {
+    const n = (bytes[i] << 16) | (bytes[i + 1] << 8);
+    out += CHARS[(n >> 18) & 63] + CHARS[(n >> 12) & 63] + CHARS[(n >> 6) & 63] + "=";
+  }
+  return out;
 }
 
 // Diagnóstico: lista las impresoras que QZ Tray detecta.
