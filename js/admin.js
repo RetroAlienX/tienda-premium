@@ -1140,24 +1140,48 @@ document.addEventListener("DOMContentLoaded", function () {
         return;
       }
 
-      // 3) Tab Pedidos → filtrar por el código del ticket (N° de pedido).
+      // 3) Tab Inventario → filtrar movimientos por nombre o código de barras.
+      if (tabVisible("tab-inventario")) {
+        const input = document.getElementById("buscarProductoInventario");
+        if (input) input.value = codigo;
+        cargarInventario();
+        return;
+      }
+
+      // 4) Tab Enviar Email → cargar el pedido (N° de pedido = código del ticket).
+      if (tabVisible("tab-envios")) {
+        const pedido = await buscarPedidoPorNumero(codigo);
+        const select = document.getElementById("selectPedidoEnvio");
+        if (select && pedido) select.value = String(pedido.id);
+        if (select && pedido) select.dispatchEvent(new Event("change"));
+        const mensaje = document.getElementById("mensajeScanEnvio");
+        if (mensaje) {
+          mensaje.innerHTML = pedido
+            ? `✅ Pedido ${pedido.numero_pedido} cargado para enviar correo.`
+            : `❌ No se encontró ningún pedido con el código: ${codigo}`;
+          mensaje.className = pedido ? "text-success" : "text-danger";
+        }
+        return;
+      }
+
+      // 5) Tab Pedidos → filtrar por el código del ticket (N° de pedido).
       if (tabVisible("tab-pedidos")) {
         const pedido = await buscarPedidoPorNumero(codigo);
         const input = document.getElementById("buscarNumeroPedido");
         if (input) input.value = codigo;
         const activeFilter = document.querySelector(".filtro-pedido.active");
         await cargarPedidos(activeFilter?.dataset?.estado || "todos");
-        if (!pedido) {
-          if (typeof mostrarModalAlerta === "function") {
-            mostrarModalAlerta(
-              `❌ No se encontró ningún pedido con el código: ${codigo}`,
-            );
-          }
+        const mensaje = document.getElementById("mensajeScanPedidos");
+        if (mensaje) {
+          mensaje.innerHTML = pedido
+            ? `✅ Pedido ${pedido.numero_pedido} encontrado (filtrado en la lista).`
+            : `❌ No se encontró ningún pedido con el código: ${codigo}`;
+          mensaje.className = pedido ? "text-success" : "text-danger";
         }
         return;
       }
 
-      // 4) Tab Ticket → precargar el pedido para reimprimir.
+      // 6) Tab Ticket → precargar el pedido para reimprimir.
       if (tabVisible("tab-ticket")) {
         const pedido = await buscarPedidoPorNumero(codigo);
         if (!pedido) {
@@ -1205,6 +1229,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
     const activo =
       tabVisible("tab-productos") ||
+      tabVisible("tab-inventario") ||
+      tabVisible("tab-envios") ||
       tabVisible("tab-pedidos") ||
       tabVisible("tab-ticket") ||
       modalCorreoAbierto();
@@ -3129,17 +3155,22 @@ async function cargarInventario() {
 
     cargarSelectProductosInventario();
 
-    // Búsqueda por producto (filtro en memoria sobre el nombre del producto).
+    // Búsqueda por producto (filtro en memoria por nombre O código de barras).
     const busquedaInventario = document
       .getElementById("buscarProductoInventario")
       ?.value.trim()
       .toLowerCase();
     const movimientosVisibles = busquedaInventario
-      ? data.filter((m) =>
-          String(m.productos?.nombre || "")
-            .toLowerCase()
-            .includes(busquedaInventario),
-        )
+      ? data.filter((m) => {
+          const nombre = String(m.productos?.nombre || "").toLowerCase();
+          const codigo = String(
+            m.productos?.codigo_barras || "",
+          ).toLowerCase();
+          return (
+            nombre.includes(busquedaInventario) ||
+            codigo.includes(busquedaInventario)
+          );
+        })
       : data;
 
     if (!movimientosVisibles.length) {
@@ -4518,10 +4549,15 @@ async function cargarFinanzas() {
     if (!registros.length) {
       // No hay movimientos tras reinicio o limpieza → muestro contadores a 0.
       destruirGraficasFinanzas();
-      document.getElementById("ingresosHoy").textContent = formatearMoneda(0);
-      document.getElementById("gastosHoy").textContent = formatearMoneda(0);
-      document.getElementById("gananciaHoy").textContent = formatearMoneda(0);
-      document.getElementById("gananciaHoy").className = "dashboard-metric-number text-dim";
+      const iHoy = document.getElementById("ingresosHoy");
+      const gHoy = document.getElementById("gastosHoy");
+      const gnHoy = document.getElementById("gananciaHoy");
+      if (iHoy) iHoy.textContent = formatearMoneda(0);
+      if (gHoy) gHoy.textContent = formatearMoneda(0);
+      if (gnHoy) {
+        gnHoy.textContent = formatearMoneda(0);
+        gnHoy.className = "dashboard-metric-number text-dim";
+      }
       container.innerHTML =
         '<p class="text-center text-dim py-3">💰 No hay movimientos</p>';
       return;
