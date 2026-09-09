@@ -2652,7 +2652,7 @@ function construirBytesEtiqueta(proto, datos, texto) {
     // de FONT_W son aproximaciones; se afinan con el diagnóstico de centrado.
     const cX = centroEtiquetaX;
     const ETIQUETA_ANCHO = "50 mm, 60 mm";
-    const FONT_W = { "1": 12, "2": 13, "3": 13, "4": 30, "5": 28 };
+    const FONT_W = { "1": 12, "2": 13, "3": 13, "4": 13, "5": 13 };
     const ANCHO_PTS = 352;
     const tsplTexto = (t) =>
       String(t || "").replace(/"/g, "'").replace(/\s+/g, " ").trim();
