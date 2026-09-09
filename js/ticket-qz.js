@@ -228,20 +228,6 @@ function escposCodigo128Raster(codigo, alturaDots) {
   return String.fromCharCode.apply(null, bytes);
 }
 
-function escposBloqueReferenciaRaster() {
-  // Rectángulo negro pequeño (8 puntos de ancho x 16 de alto) para confirmar
-  // visualmente que esta impresora soporta GS v 0.
-  const filas = [];
-  for (let y = 0; y < 16; y++) filas.push(0xff);
-  const bytes = [
-    0x1b, 0x24, 8 & 0xff, 0x00, // ESC $ centrado cerca del centro
-    0x1d, 0x76, 0x30, 0x00,
-    1, 0, // 1 byte = 8 puntos de ancho
-    16, 0, // 16 puntos de alto
-  ].concat(filas);
-  return String.fromCharCode.apply(null, bytes);
-}
-
 // ============================================
 // Constructor del contenido del ticket (ESC/POS).
 // ============================================
@@ -359,9 +345,6 @@ function construirTicketESC(datos) {
     L.push(qzCentrar("(informativo)", ANCHO));
     L.push(escposCodigo128Raster(codigoPedido, 48));
     L.push(qzCentrar(codigoPedido, ANCHO));
-    // Bloque de referencia: si GS v 0 NO está soportado, verás caracteres
-    // raros también aquí; si sale un rectángulo negro pequeño, todo ok.
-    L.push(escposBloqueReferenciaRaster());
   }
 
   L.push("\n\n"); // espacio final
