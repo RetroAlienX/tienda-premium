@@ -2552,7 +2552,7 @@ function codificarCp1252(texto) {
 // con la "Prueba de centrado": así no depende del dpi ni del ancho imprimible
 // real de la impresora (el valor se guarda y se reutiliza en todas las etiquetas).
 let centroEtiquetaX = parseInt(localStorage.getItem("etiqueta_centro_x") || "", 10);
-if (!centroEtiquetaX || centroEtiquetaX < 60 || centroEtiquetaX > 300) centroEtiquetaX = 176;
+if (!centroEtiquetaX || centroEtiquetaX < 60 || centroEtiquetaX > 300) centroEtiquetaX = 184;
 
 function actualizarCentroUI() {
   const el = document.getElementById("centroEtiquetaVal");
