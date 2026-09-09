@@ -466,7 +466,11 @@ function imprimirConQZ(datos, fallback) {
         },
       ];
       const cfg = $.configs.create(impresoraObj);
-      return $.print(cfg, data);
+      // Se envía en bloques de 512 bytes: el mapa de puntos del barcode hace
+      // el trabajo pesado al final del ticket y, si se manda de golpe, rebasa
+      // el buffer de la térmica (se corta justo en el barcode y no llega el
+      // corte de papel). El chunking de QZ evita ese desbordamiento.
+      return $.print(cfg, data, 512);
     })
     .then(function () {
       if (typeof mostrarModalAlerta === "function") {
