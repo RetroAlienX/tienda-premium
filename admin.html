@@ -919,6 +919,17 @@
                         style="color:var(--accent);">$0.00</span></div>
             </div>
             <div class="admin-card">
+                <h5>Gráficas Financieras</h5>
+                <div class="chart-grid-finanzas">
+                    <div class="chart-box">
+                        <canvas id="graficaFinanzasBarras" height="260"></canvas>
+                    </div>
+                    <div class="chart-box">
+                        <canvas id="graficaFinanzasPastel" height="260"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="admin-card">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
                     <h5>Control Financiero</h5>
                     <div style="display: flex; gap: 10px; width: auto;">
@@ -1926,6 +1937,7 @@
     <div id="emojiPopup" style="display:none;"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
     <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 
     <script src="js/config.netlify.js"></script>

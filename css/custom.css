@@ -2448,6 +2448,31 @@ select.input-luxury option:active {
 }
 
 /* ============================================
+   GRÁFICAS FINANZAS (Chart.js)
+   ============================================ */
+.chart-grid-finanzas {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-top: 16px;
+}
+
+.chart-box {
+  position: relative;
+  height: 280px;
+  min-height: 280px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border);
+  padding: 14px;
+}
+
+@media (max-width: 1200px) {
+  .chart-grid-finanzas {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ============================================
    RENDIMIENTO · render bajo demanda + accesibilidad
    Las secciones fuera del viewport no se calculan/layout
    hasta que el usuario hace scroll hasta ellas.
