@@ -2650,12 +2650,13 @@ function construirBytesEtiqueta(proto, datos, texto) {
     // IMPORTANTE: esta impresora IGNORA el flag de alineación del TEXT (aunque
     // sea "1"): el x indicado es el borde IZQUIERDO de la línea. Por eso cada
     // línea se centra a mano: x = centro − ancho/2 (ancho = caracteres × FONT_W).
-    // FONT_W son valores temporales; se afinan con la "Regla de calibración"
-    // (filas F2/F3/F4/F5) anotando en qué marca termina cada fila.
+    // FONT_W usa las medidas OFICIALES de las fuentes TSC/TSPL (celdas fijas,
+    // independientes del dpi): 1: 8×12 · 2: 12×20 · 3: 16×24 · 4: 24×32 · 5: 32×48.
     const cX = centroEtiquetaX;
     const ETIQUETA_ANCHO = "50 mm, 60 mm"; // real de la etiqueta (medida con regla)
-    const FONT_W = { "1": 12, "2": 13, "3": 24, "4": 30, "5": 28 }; // pts/carácter (afinar con la regla)
-    const ANCHO_PTS = 352; // 50 mm reales a 180 dpi
+    const FONT_W = { "1": 8, "2": 12, "3": 16, "4": 24, "5": 32 }; // pts/ancho por carácter (TSC)
+    const FONT_H = { "1": 12, "2": 20, "3": 24, "4": 32, "5": 48 }; // pts/alto por carácter (TSC)
+    const ANCHO_PTS = 352; // 50 mm reales a ~180 dpi
     const tsplTexto = (t) =>
       String(t || "").replace(/"/g, "'").replace(/\s+/g, " ").trim();
     const maxChars = (f) => Math.max(1, Math.floor((ANCHO_PTS - 8) / (FONT_W[f] || 16)));
@@ -2690,25 +2691,25 @@ function construirBytesEtiqueta(proto, datos, texto) {
     precioL = precioL.slice(0, maxChars(precioFont));
     const codigo = datos.codigo ? String(datos.codigo).slice(0, 24) : "";
 
-    // Composición limpia para 50×60 mm (aprox. 354×425 pts): cascada compacta que
-    // aprovecha el alto: nombre (máx. 2 líneas), marca, precio destacado, categoría
-    // y abajo el código de barras con su número legible debajo.
+    // Composición para 50×60 mm (aprox. 354×425 pts): cascada que aprovecha el
+    // alto: nombre (máx. 2 líneas, fuente 3), marca (fuente 2), precio destacado
+    // (fuente 5 o 3), categoría (fuente 2) y el código de barras con su número.
     const lineas = ["SIZE " + ETIQUETA_ANCHO, "GAP 2 mm, 0 mm", "CLS"];
-    const NOMBRE_STEP = 78;
-    let y = 12;
+    const NOMBRE_STEP = FONT_H["3"] + 12;
+    let y = 20;
     (nombreLineas.length ? nombreLineas : [""]).forEach((nl, i) => {
       lineas.push('TEXT ' + centrarX(nl, "3") + ',' + (y + i * NOMBRE_STEP) + ',"3",0,1,1,0,"' + nl + '"');
     });
-    y += nombreLineas.length * NOMBRE_STEP + 8;
+    y += nombreLineas.length * NOMBRE_STEP + 12;
     if (marcaL) {
       lineas.push('TEXT ' + centrarX(marcaL, "2") + ',' + y + ',"2",0,1,1,0,"' + marcaL + '"');
-      y += 44;
+      y += FONT_H["2"] + 16;
     }
     lineas.push('TEXT ' + centrarX(precioL, precioFont) + ',' + y + ',"' + precioFont + '",0,1,1,0,"' + precioL + '"');
-    y += 60;
+    y += FONT_H[precioFont] + 18;
     if (catL) {
       lineas.push('TEXT ' + centrarX(catL, "2") + ',' + y + ',"2",0,1,1,0,"' + catL + '"');
-      y += 36;
+      y += FONT_H["2"] + 12;
     }
     if (codigo) {
       // CODE128 centrado y reducido (narrow=1, wide=2): escaneable y ocupa poco.
