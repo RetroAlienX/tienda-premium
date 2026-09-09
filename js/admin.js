@@ -2751,7 +2751,7 @@ function construirBytesEtiqueta(proto, datos, texto) {
       "SIZE 50 mm,60 mm\r\n" +
       "GAP 2 mm,0 mm\r\n" +
       "CLS\r\n" +
-      "BITMAP 0,0," + rowBytes + "," + H + ',0,"' + hex + '"\r\n' +
+      "BITMAP 0,0," + W + "," + H + ',0,"' + hex + '"\r\n' +
       "PRINT 1,1\r\n";
     return new Uint8Array(codificarCp1252(cmd));
   }
