@@ -2603,9 +2603,10 @@ function construirBytesReglaCalibracion() {
   });
   // Filas para medir el ancho por carácter de cada fuente (empiezan en x=0):
   // leer en qué marca termina cada fila y darla para afinar el centrado.
-  lineas.push('TEXT 0,80,"2",0,1,1,"F2-AAAAAAAAAA"');
-  lineas.push('TEXT 0,150,"4",0,1,1,"F4-AAAAAAA"');
-  lineas.push('TEXT 0,240,"5",0,1,1,"F5-AAAAAA"');
+  lineas.push('TEXT 0,70,"2",0,1,1,"F2-AAAAAAAAAA"');
+  lineas.push('TEXT 0,130,"3",0,1,1,"F3-AAAAAAAAAA"');
+  lineas.push('TEXT 0,190,"4",0,1,1,"F4-AAAAAAA"');
+  lineas.push('TEXT 0,250,"5",0,1,1,"F5-AAAAAA"');
   lineas.push("PRINT 1,1");
   return new Uint8Array(codificarCp1252(lineas.join("\r\n") + "\r\n"));
 }
@@ -2647,46 +2648,73 @@ function construirBytesEtiqueta(proto, datos, texto) {
   }
   if (proto === "tspl") {
     // IMPORTANTE: esta impresora IGNORA el flag de alineación del TEXT (aunque
-    // sea "1"), así que en el centro indicado ancla el texto por la IZQUIERDA.
-    // Por eso todo se centra calculando manualmente x = centro - ancho/2, y las
-    // líneas se recortan para que SIEMPRE entren en el ancho real (50 mm → ~352
-    // pts a 180 dpi). Sin esto el texto se corría a la derecha y se cortaba.
+    // sea "1"): el x indicado es el borde IZQUIERDO de la línea. Por eso cada
+    // línea se centra a mano: x = centro − ancho/2 (ancho = caracteres × FONT_W).
+    // FONT_W son valores temporales; se afinan con la "Regla de calibración"
+    // (filas F2/F3/F4/F5) anotando en qué marca termina cada fila.
     const cX = centroEtiquetaX;
-    const FONT_W = { "1": 12, "2": 16, "3": 24, "4": 32, "5": 48 }; // pts/carácter (aprox, afinable)
-    const ANCHO_PTS = 352;
+    const ETIQUETA_ANCHO = "50 mm, 60 mm"; // real de la etiqueta (medida con regla)
+    const FONT_W = { "1": 12, "2": 16, "3": 24, "4": 32, "5": 48 }; // pts/carácter (aprox)
+    const ANCHO_PTS = 352; // 50 mm reales a 180 dpi
     const tsplTexto = (t) =>
       String(t || "").replace(/"/g, "'").replace(/\s+/g, " ").trim();
-    const encajar = (t, f) => {
-      const limpio = tsplTexto(t);
-      const maxC = Math.max(1, Math.floor((ANCHO_PTS - 8) / (FONT_W[f] || 16)));
-      return limpio.slice(0, maxC);
-    };
+    const maxChars = (f) => Math.max(1, Math.floor((ANCHO_PTS - 8) / (FONT_W[f] || 16)));
     const centrarX = (s, f) => cX - Math.round(((FONT_W[f] || 16) * s.length) / 2);
-    const nombreL = encajar(datos.nombre, "4");
-    const marcaL = encajar(datos.marca, "2");
-    const catL = encajar(datos.categoria, "2");
-    const precioL = encajar("$" + String(datos.precio || "").replace(/MX\$\s*/gi, "").replace(/^\$\s*/, ""), "5");
-    const ETIQUETA_ANCHO = "50 mm, 60 mm"; // real de la etiqueta (medida con regla)
-    const lineas = [
-      "SIZE " + ETIQUETA_ANCHO,
-      "GAP 2 mm, 0 mm",
-      "CLS",
-      'TEXT ' + centrarX(nombreL, "4") + ',8,"4",0,1,1,0,"' + nombreL + '"',
-    ];
-    if (marcaL) lineas.push('TEXT ' + centrarX(marcaL, "2") + ',48,"2",0,1,1,0,"' + marcaL + '"');
-    lineas.push('TEXT ' + centrarX(precioL, "5") + ',72,"5",0,1,1,0,"' + precioL + '"');
-    if (catL) lineas.push('TEXT ' + centrarX(catL, "2") + ',128,"2",0,1,1,0,"' + catL + '"');
+    // Divide el texto en líneas completas (por espacios) que quepan en la fuente,
+    // como máximo maxLineas; si se acaba el espacio, recorta la última.
+    const envolver = (t, f, maxLineas) => {
+      const limpio = tsplTexto(t);
+      if (!limpio) return [];
+      const m = maxChars(f);
+      const lineas = [];
+      let linea = "";
+      for (const p of limpio.split(" ")) {
+        const palabra = p.slice(0, m);
+        const candidata = linea ? linea + " " + palabra : palabra;
+        if (candidata.length <= m) {
+          linea = candidata;
+        } else {
+          lineas.push(linea);
+          linea = palabra;
+          if (lineas.length === maxLineas) return lineas;
+        }
+      }
+      if (linea) lineas.push(linea);
+      return lineas.slice(0, maxLineas);
+    };
+    const nombreLineas = envolver(datos.nombre, "3", 2);
+    const marcaL = tsplTexto(datos.marca).slice(0, maxChars("2"));
+    const catL = tsplTexto(datos.categoria).slice(0, maxChars("2"));
+    let precioL = "$" + String(datos.precio || "").replace(/MX\$\s*/gi, "").replace(/^\$\s*/, "");
+    const precioFont = precioL.length <= maxChars("5") ? "5" : "3";
+
+    const lineas = ["SIZE " + ETIQUETA_ANCHO, "GAP 2 mm, 0 mm", "CLS"];
+    let y = 8;
+    const NOMBRE_STEP = 80;
+    (nombreLineas.length ? nombreLineas : [""]).forEach((nl, i) => {
+      lineas.push('TEXT ' + centrarX(nl, "3") + ',' + (y + i * NOMBRE_STEP) + ',"3",0,1,1,0,"' + nl + '"');
+    });
+    y += nombreLineas.length * NOMBRE_STEP + 8;
+    if (marcaL) {
+      lineas.push('TEXT ' + centrarX(marcaL, "2") + ',' + y + ',"2",0,1,1,0,"' + marcaL + '"');
+      y += 44;
+    }
+    lineas.push('TEXT ' + centrarX(precioL, precioFont) + ',' + y + ',"' + precioFont + '",0,1,1,0,"' + precioL + '"');
+    y += 56;
+    if (catL) {
+      lineas.push('TEXT ' + centrarX(catL, "2") + ',' + y + ',"2",0,1,1,0,"' + catL + '"');
+      y += 44;
+    }
     if (datos.codigo) {
       // CODE128: ~11 módulos por símbolo (inicio+dato+check+fin) a narrow=1
       // (dos veces más angosto: el código cabe siempre y el error de centrado
       // queda en ±1 módulo, imperceptible). x se calcula para centrar en cX.
       const anchoAprox = (String(datos.codigo).length + 3) * 11;
       const xBarra = Math.max(4, cX - Math.round(anchoAprox / 2));
-      lineas.push('BARCODE ' + xBarra + ',152,"128",80,1,0,2,1,"' + datos.codigo + '"');
+      lineas.push('BARCODE ' + xBarra + ',' + (y + 8) + ',"128",80,1,0,2,1,"' + datos.codigo + '"');
     }
-    // Marca temporal de versión: si NO se imprime, el navegador está con el
-    // admin.js en caché (haz Ctrl+Shift+R). Se quita cuando se confirme.
-    lineas.push('TEXT 4,380,"1",0,1,1,"C' + cX + ' 50x60"');
+    // Marca temporal de versión: se quita cuando se confirme.
+    lineas.push('TEXT 4,392,"1",0,1,1,"C' + cX + ' 50x60"');
     lineas.push("PRINT 1,1");
     return new Uint8Array(codificarCp1252(lineas.join("\r\n") + "\r\n"));
   }
