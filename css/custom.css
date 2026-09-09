@@ -2473,6 +2473,35 @@ select.input-luxury option:active {
 }
 
 /* ============================================
+   RESPONSIVIDAD · panel de administración
+   En pantallas chicas las tablas (pedidos, productos, pagos, etc.) se
+   desplazan en horizontal en lugar de romper el layout, y los modales
+   nunca exceden el ancho del móvil.
+   ============================================ */
+@media (max-width: 992px) {
+  .tab-content {
+    overflow-x: auto;
+  }
+}
+
+@media (max-width: 576px) {
+  .modal-content {
+    max-width: 92vw !important;
+    width: 92vw !important;
+    padding: 20px 16px !important;
+  }
+  .form-overlay .admin-card {
+    max-width: 92vw !important;
+    width: 92vw !important;
+    padding: 20px 16px !important;
+  }
+  .chart-box {
+    height: 240px;
+    min-height: 240px;
+  }
+}
+
+/* ============================================
    RENDIMIENTO · render bajo demanda + accesibilidad
    Las secciones fuera del viewport no se calculan/layout
    hasta que el usuario hace scroll hasta ellas.

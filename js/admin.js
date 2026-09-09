@@ -2574,6 +2574,12 @@ async function descargarEtiquetas(id) {
     notificar("⚠️ No hay productos con código de barras.", "error");
     return;
   }
+  // jsPDF se carga bajo demanda; si falla, se usa el respaldo HTML.
+  try {
+    await cargarJsPDF();
+  } catch (e) {
+    console.warn("jsPDF no disponible, usando respaldo HTML:", e);
+  }
   const pdfOk = await generarPDFEtiquetas(productos);
   if (!pdfOk) descargarEtiquetasHTML(productos);
 }
@@ -4362,6 +4368,46 @@ async function verVistaPreviaPedido(id) {
 // 5. FINANZAS
 // ============================================
 
+// Carga bajo demanda de librerías pesadas (se descargan del HTML inicial).
+let chartJsPromise = null;
+let jsPdfPromise = null;
+
+function cargarChartJs() {
+  if (window.Chart) return Promise.resolve(window.Chart);
+  if (!chartJsPromise) {
+    chartJsPromise = new Promise((resolve, reject) => {
+      const s = document.createElement("script");
+      s.src =
+        "https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js";
+      s.onload = () => resolve(window.Chart);
+      s.onerror = () => {
+        chartJsPromise = null;
+        reject(new Error("No se pudo cargar Chart.js"));
+      };
+      document.head.appendChild(s);
+    });
+  }
+  return chartJsPromise;
+}
+
+function cargarJsPDF() {
+  if (window.jspdf && window.jspdf.jsPDF) return Promise.resolve();
+  if (!jsPdfPromise) {
+    jsPdfPromise = new Promise((resolve, reject) => {
+      const s = document.createElement("script");
+      s.src =
+        "https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js";
+      s.onload = () => resolve();
+      s.onerror = () => {
+        jsPdfPromise = null;
+        reject(new Error("No se pudo cargar jsPDF"));
+      };
+      document.head.appendChild(s);
+    });
+  }
+  return jsPdfPromise;
+}
+
 let graficaFinanzasBarras = null;
 let graficaFinanzasPastel = null;
 
@@ -4379,8 +4425,12 @@ function destruirGraficasFinanzas() {
 // Barras: Ingresos vs Gastos vs Ganancia por mes (últimos 6 meses).
 // Pastel: gastos por categoría contable. Usa los MISMO registros que los
 // indicadores y la tabla de finanzas.
-function renderGraficasFinanzas(registros) {
-  if (typeof Chart === "undefined") return;
+async function renderGraficasFinanzas(registros) {
+  try {
+    await cargarChartJs();
+  } catch (e) {
+    return;
+  }
 
   const canvasBarras = document.getElementById("graficaFinanzasBarras");
   const canvasPastel = document.getElementById("graficaFinanzasPastel");
@@ -4656,7 +4706,7 @@ async function cargarFinanzas() {
             </table>
         `;
 
-    renderGraficasFinanzas(registros);
+    await renderGraficasFinanzas(registros);
   } catch (error) {
     console.error("Error:", error);
     container.innerHTML =
