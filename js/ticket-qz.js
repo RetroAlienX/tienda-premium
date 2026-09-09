@@ -268,6 +268,24 @@ function construirTicketESC(datos) {
         String.fromCharCode(0), // fin de datos (NUL)
     );
     L.push(qzCentrar(codigoPedido, ANCHO));
+
+    // ▼▼▼ PRUEBA VARIANTES DE CODIGO DE BARRAS (temporal) ▼▼▼
+    // Imprime 3 formas distintas del comando GS k. Solo 1 (o ninguna) debería
+    // renderizar barras de verdad. El usuario reporta cuál sale OK (V1/V2/V3).
+    const f = (m) => "\x1Dk" + String.fromCharCode(m) + String.fromCharCode(codigoPedido.length) + codigoPedido;
+    L.push(qzLinea(ANCHO, "-"));
+    L.push(qzCentrar("PRUEBA V1: GS k 4 (CODE39 viejo)", ANCHO));
+    L.push("\x1Dk" + String.fromCharCode(4) + codigoPedido + String.fromCharCode(0));
+    L.push(qzCentrar(codigoPedido, ANCHO));
+    L.push(qzCentrar("PRUEBA V2: GS k 69 (CODE39 nuevo)", ANCHO));
+    L.push(f(69));
+    L.push(qzCentrar(codigoPedido, ANCHO));
+    L.push(qzCentrar("PRUEBA V3: GS k 73 (CODE128)", ANCHO));
+    L.push(f(73));
+    L.push(qzCentrar(codigoPedido, ANCHO));
+    L.push(qzLinea(ANCHO, "-"));
+    L.push(qzCentrar("¿CUAL SALIO OK?  V1 / V2 / V3", ANCHO));
+    // ▲▲▲ FIN PRUEBA VARIANTES DE CODIGO DE BARRAS ▲▲▲
   }
 
   L.push("\n\n"); // espacio final
