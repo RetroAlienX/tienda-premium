@@ -1992,6 +1992,27 @@ async function guardarProducto(e) {
 // 2. BÚSQUEDA POR CÓDIGO DE BARRAS
 // ============================================
 
+// Modal intuitivo: el código no existe → ofrecer crear el producto.
+function mostrarModalProductoNoEncontrado(codigo) {
+  const modal = document.getElementById("modalProductoNoEncontrado");
+  if (!modal) return;
+  const msg = document.getElementById("productoNoEncontradoMsg");
+  if (msg) {
+    msg.textContent = `No existe un producto con el código: ${codigo}. ¿Quieres crearlo ahora? El código de barras se asigna manualmente.`;
+  }
+  modal.style.display = "flex";
+}
+
+function cerrarModalProductoNoEncontrado() {
+  const modal = document.getElementById("modalProductoNoEncontrado");
+  if (modal) modal.style.display = "none";
+}
+
+function crearProductoDesdeModal() {
+  cerrarModalProductoNoEncontrado();
+  mostrarFormProducto(null);
+}
+
 async function buscarPorCodigoBarras() {
   const input = document.getElementById("inputCodigoBarras");
   const resultado = document.getElementById("resultadoBusquedaCodigo");
@@ -2087,13 +2108,8 @@ async function procesarCodigoLeido(codigo) {
     }
     // Pregunta si desea crear un producto nuevo (el código de barras no se
     // pre-llena: se asigna manualmente en el formulario).
-    if (typeof modalConfirmar === "function") {
-      modalConfirmar(
-        `❌ No se encontró ningún producto con el código escaneado. ¿Deseas crear un producto nuevo?`,
-        function () {
-          mostrarFormProducto(null);
-        },
-      );
+    if (typeof mostrarModalProductoNoEncontrado === "function") {
+      mostrarModalProductoNoEncontrado(codigo);
     } else if (!input && typeof mostrarModalAlerta === "function") {
       mostrarModalAlerta(
         `❌ Producto no encontrado: ${codigo}. Agrega el producto manualmente.`,

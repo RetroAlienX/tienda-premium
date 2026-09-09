@@ -1836,6 +1836,24 @@
         </div>
     </div>
 
+    <!-- MODAL PRODUCTO NO ENCONTRADO (crear nuevo) -->
+    <div id="modalProductoNoEncontrado" class="modal-box">
+        <div class="modal-content" style="max-width:440px; text-align:center;">
+            <h5 style="color:var(--accent); font-weight:400; font-size:1.3rem;">📦 Producto no encontrado</h5>
+            <p id="productoNoEncontradoMsg" style="color:var(--text-silver); margin-top:10px;"></p>
+            <div style="display:flex; gap:10px; justify-content:center; margin-top:20px;">
+                <button id="btnCancelarProductoNuevo" class="btn-premium-outline" style="width: auto;"
+                    onclick="cerrarModalProductoNoEncontrado()"
+                    title="Cerrar sin crear nada.">Cancelar</button>
+                <button id="btnCrearProductoNuevoModal" class="btn-premium"
+                    style="width: auto;"
+                    onclick="crearProductoDesdeModal()"
+                    title="Abrir el formulario en blanco para registrar el producto nuevo.">➕ Crear
+                    producto nuevo</button>
+            </div>
+        </div>
+    </div>
+
     <div id="modalEnvioCorreo" class="modal-box">
         <div class="modal-content">
             <h5 style="font-weight:400; margin-bottom:20px;">📧 Enviar Correo al Cliente</h5>
