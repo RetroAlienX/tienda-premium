@@ -20,6 +20,13 @@ desktop.ini
 manuales/
 servidor-local.js
 
+# Archivos locales grandes / herramientas de impresión (NO SUBIR A GITHUB)
+Codigo de Barras/
+Imagenes/
+Printer Driver/
+QZ Tray Demo Cert/
+tienda-premium.rar
+
 # IDE
 .vscode/
 .idea/
