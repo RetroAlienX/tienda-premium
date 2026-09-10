@@ -74,21 +74,31 @@ Campos:
 Al guardar se inserta/actualiza en Supabase y el producto aparece en la tienda.
 
 ### Impresion de etiquetas y calibracion
-- **Descargar etiquetas**: descarga un archivo imprimible (PDF via jsPDF y,
-  si falla, respaldo HTML) con todos los productos, listo para impresora normal
-  (USB). Cada producto de la tabla tambien tiene boton de etiqueta individual.
-- **Calibracion del centro** (panel "Calibracion del centro de la etiqueta"):
-  - **Izquierda (−1) / Derecha (+1)**: mueven el centro horizontal de la
-    etiqueta TSPL 50x60 mm en puntos; el valor se **guarda automaticamente**
-    (por defecto **184 pts**) y se usa en todas las etiquetas.
-  - **Prueba de centrado**: imprime una linea vertical en la posicion del
-    centro para ajustar a ojo.
-  - **Regla**: imprime una regla de calibracion (marcas cada 16 pts, mas largas
-    cada 64) con la posicion del centro; sirve para medir con una foto los
-    anchos reales de las fuentes (F1-F5).
-  - **Diagnostico**: imprime el diagnostico de fuentes/anchos de la impresora.
-- La etiqueta se envia por **Bluetooth (Web Bluetooth, requiere Chrome/Edge)**
-  o se descarga como PDF/HTML para imprimir en USB.
+- **Etiqueta de un solo producto**: el boton del producto en la tabla abre el
+  modal "Etiqueta de Producto" con la **vista previa** (nombre, marca, precio,
+  categoria, codigo de barras EAN-13) y las opciones:
+  - Selector de **protocolo**: TSPL etiquetas (recomendado), ESC/POS termico o
+    texto plano.
+  - **Calibracion del centro** (dentro del modal):
+    - **◀ / ▶**: mueven el centro horizontal 8 puntos; el valor se
+      **guarda automaticamente** y se usa en todas las etiquetas (por defecto
+      **184 pts**).
+    - **Prueba de centrado**: imprime una linea vertical en la posicion del
+      centro para ajustar a ojo.
+    - **Regla**: imprime una regla con marcas cada 16 pts (mas largas cada 64)
+      y el centro marcado, para medir las posiciones reales con una foto.
+    - **Diagnostico**: imprime filas de letras en distintas X (fuentes F1-F5)
+      para medir el ancho real de las fuentes.
+  - Indicador **"Centro: -- pts"** en vivo.
+  - Botones: **Enviar a Bluetooth** (impresora portatil), **Imprimir**
+    (con QZ o en el navegador) y **Cerrar**.
+- **Descargar etiquetas** (boton del encabezado de Productos o el boton del
+  producto): descarga un PDF (jsPDF, cargado bajo demanda) con la etiqueta del
+  producto o de todos; si falla, **respaldo HTML** imprimible. Servira para
+  impresora normal (USB).
+- El **centrado en la impresion** (HTML/PDF) usa la misma posicion calibrada.
+  En el modo imprimir del navegador, la etiqueta se imprime centrada en papel
+  50x60 mm con contenido de 46 mm y @page propio (Chrome).
 
 ## 4. Pestana 2: Pedidos
 
