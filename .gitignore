@@ -20,6 +20,9 @@ desktop.ini
 manuales/
 servidor-local.js
 
+# Carpeta local "Materiales" (manuales, SDK's de impresoras, respaldos...)
+Materiales/
+
 # Archivos locales grandes / herramientas de impresión (NO SUBIR A GITHUB)
 Codigo de Barras/
 Imagenes/

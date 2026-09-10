@@ -983,6 +983,8 @@ document.addEventListener("DOMContentLoaded", function () {
     if (tabId === "lealtad" && typeof cargarLealtad === "function")
       cargarLealtad();
     if (tabId === "pagos" && typeof cargarPagos === "function") cargarPagos();
+    if (tabId === "tiendas" && typeof cargarTiendas === "function")
+      cargarTiendas();
   }
 
   document.querySelectorAll("[data-tab]").forEach((btn) => {
@@ -1028,6 +1030,16 @@ document.addEventListener("DOMContentLoaded", function () {
         if (typeof cargarPagos === "function") return cargarPagos();
       },
       "tab-pagos",
+    );
+  }
+
+  if (document.getElementById("btnRefrescarTiendas")) {
+    agregarEventoRefrescar(
+      "btnRefrescarTiendas",
+      function () {
+        if (typeof cargarTiendas === "function") return cargarTiendas();
+      },
+      "tab-tiendas",
     );
   }
 
@@ -6878,6 +6890,276 @@ function pedirEliminarMarca(id) {
 }
 
 // ============================================
+// TIENDAS (tab Tiendas): registro informativo de
+// tiendas visitadas en McAllen (nombre, dirección,
+// tipo de producto y casilla de visitada).
+// ============================================
+
+const TIPOS_TIENDA = ["ropa", "bebidas", "alimentos", "general", "otros"];
+let tiendasCache = [];
+
+function escTienda(s) {
+  return String(s == null ? "" : s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function opcionesTipoTienda(actual) {
+  const valor = TIPOS_TIENDA.includes(actual) ? actual : "general";
+  return TIPOS_TIENDA.map(
+    (t) => `<option value="${t}"${t === valor ? " selected" : ""}>${t}</option>`,
+  ).join("");
+}
+
+function filaTiendaHTML(t) {
+  const id = t.id || "nueva";
+  const visitada = t.visitada ? "checked" : "";
+  const chequeoOnchange =
+    id === "nueva"
+      ? ""
+      : ` onchange="cambiarVisitadaTienda('${id}', this)"`;
+  return `<tr data-id="${id}" data-nombre="${escTienda(t.nombre)}">
+    <td><input type="text" class="input-luxury tienda-nombre" style="margin:0;min-width:160px;" value="${escTienda(t.nombre)}" title="Nombre de la tienda."></td>
+    <td><input type="text" class="input-luxury tienda-direccion" style="margin:0;min-width:220px;" value="${escTienda(t.direccion || "McAllen, Texas")}" title="Dirección. Por defecto McAllen, Texas."></td>
+    <td><select class="input-luxury tienda-tipo" style="margin:0;min-width:140px;" title="Tipo de producto que maneja la tienda.">${opcionesTipoTienda(t.tipo || "general")}</select></td>
+    <td style="text-align:center;"><input type="checkbox" class="tienda-visitada" ${visitada}${chequeoOnchange} title="Marca aquí si ya la visitaron." style="width:16px;height:16px;cursor:pointer;"></td>
+    <td style="text-align:center; white-space:nowrap;">
+      <button class="btn btn-outline-success btn-sm btn-guardar-tienda" onclick="guardarTienda('${id}')" title="Guardar los cambios de esta tienda.">💾</button>
+      <button class="btn btn-outline-danger btn-sm" onclick="pedirEliminarTienda('${id}')" title="Eliminar esta tienda de la lista.">🗑️</button>
+    </td>
+  </tr>`;
+}
+
+function renderTiendas() {
+  const container = document.getElementById("listaTiendas");
+  if (!container) return;
+
+  const visitadas = tiendasCache.filter((t) => t.visitada).length;
+  const contador = document.getElementById("contadorTiendas");
+  if (contador)
+    contador.textContent = `${tiendasCache.length} tiendas · ${visitadas} visitadas`;
+
+  if (!tiendasCache.length) {
+    container.innerHTML =
+      '<p class="text-center text-dim py-3">🏬 No hay tiendas registradas. Usa "Agregar Tienda".</p>';
+    return;
+  }
+
+  container.innerHTML = `
+    <table class="table table-dark table-hover table-sm">
+      <thead>
+        <tr>
+          <th>Nombre</th>
+          <th>Dirección</th>
+          <th>Tipo de producto</th>
+          <th style="text-align:center;">Visitada</th>
+          <th style="text-align:center;">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${tiendasCache.map(filaTiendaHTML).join("")}
+      </tbody>
+    </table>`;
+}
+
+async function cargarTiendas() {
+  const container = document.getElementById("listaTiendas");
+  if (!container) return;
+
+  const tab = document.getElementById("tab-tiendas");
+  if (tab && tab.style.display === "none") return;
+
+  container.innerHTML =
+    '<div class="text-center text-dim py-3">Cargando...</div>';
+
+  try {
+    const { data, error } = await window.supabase
+      .from("tiendas")
+      .select("*");
+    if (error) throw error;
+
+    tiendasCache = (data || []).sort((a, b) =>
+      String(a.nombre || "").localeCompare(String(b.nombre || ""), undefined, {
+        sensitivity: "base",
+      }),
+    );
+    renderTiendas();
+  } catch (error) {
+    console.error("Error cargando tiendas:", error);
+    container.innerHTML =
+      '<p class="text-danger text-center">❌ Error al cargar tiendas. ¿Ejecutaste el SQL para crear la tabla "tiendas"?</p>';
+  }
+}
+
+function buscarTiendasAdmin() {
+  const input = document.getElementById("buscarTienda");
+  const q = ((input && input.value) || "").trim().toLowerCase();
+  document.querySelectorAll("#listaTiendas tbody tr").forEach((tr) => {
+    const nombre = (tr.dataset.nombre || "").toLowerCase();
+    tr.style.display = !q || nombre.includes(q) ? "" : "none";
+  });
+}
+
+function agregarTiendaFila() {
+  const container = document.getElementById("listaTiendas");
+  if (!container) return;
+
+  const yaExiste = container.querySelector('tbody tr[data-id="nueva"]');
+  if (yaExiste) {
+    yaExiste.scrollIntoView({ behavior: "smooth", block: "center" });
+    const input = yaExiste.querySelector(".tienda-nombre");
+    if (input) input.focus();
+    return;
+  }
+
+  let tbody = container.querySelector("tbody");
+  if (!tbody) {
+    container.innerHTML = `<table class="table table-dark table-hover table-sm">
+        <thead>
+          <tr>
+            <th>Nombre</th>
+            <th>Dirección</th>
+            <th>Tipo de producto</th>
+            <th style="text-align:center;">Visitada</th>
+            <th style="text-align:center;">Acciones</th>
+          </tr>
+        </thead>
+        <tbody></tbody></table>`;
+    tbody = container.querySelector("tbody");
+  }
+
+  tbody.insertAdjacentHTML(
+    "afterbegin",
+    filaTiendaHTML({
+      id: "nueva",
+      nombre: "",
+      direccion: "McAllen, Texas",
+      tipo: "general",
+      visitada: false,
+    }),
+  );
+
+  const fila = tbody.querySelector('tr[data-id="nueva"]');
+  if (fila) {
+    fila.scrollIntoView({ behavior: "smooth", block: "center" });
+    const input = fila.querySelector(".tienda-nombre");
+    if (input) input.focus();
+  }
+}
+
+async function guardarTienda(id) {
+  const row = document.querySelector(`#listaTiendas tr[data-id="${id}"]`);
+  if (!row) return;
+
+  const inputNombre = row.querySelector(".tienda-nombre");
+  const inputDir = row.querySelector(".tienda-direccion");
+  const selectTipo = row.querySelector(".tienda-tipo");
+  const check = row.querySelector(".tienda-visitada");
+
+  const nombre = (inputNombre.value || "").trim();
+  const direccion = (inputDir.value || "").trim() || "McAllen, Texas";
+  const tipo = selectTipo.value || "general";
+  const visitada = check.checked;
+
+  if (!nombre) {
+    mostrarModalAlerta("❌ El nombre de la tienda es obligatorio");
+    inputNombre.focus();
+    return;
+  }
+
+  const btn = row.querySelector(".btn-guardar-tienda");
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "⏳";
+  }
+
+  try {
+    let result;
+    if (id === "nueva") {
+      result = await window.supabase
+        .from("tiendas")
+        .insert([{ nombre, direccion, tipo, visitada }]);
+    } else {
+      result = await window.supabase
+        .from("tiendas")
+        .update({ nombre, direccion, tipo, visitada })
+        .eq("id", id);
+    }
+    if (result.error) throw result.error;
+
+    mostrarModalAlerta("✅ Tienda guardada");
+    cargarTiendas();
+  } catch (error) {
+    console.error("Error guardando tienda:", error);
+    const duplicado = error && error.code === "23505";
+    mostrarModalAlerta(
+      "❌ " +
+        (error && error.message ? error.message : "Error al guardar la tienda") +
+        (duplicado ? " (ya existe una tienda con ese nombre)" : ""),
+    );
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = "💾";
+    }
+  }
+}
+
+async function cambiarVisitadaTienda(id, chk) {
+  if (!chk || id === "nueva") return;
+  try {
+    const { error } = await window.supabase
+      .from("tiendas")
+      .update({ visitada: chk.checked })
+      .eq("id", id);
+    if (error) throw error;
+
+    const item = tiendasCache.find((t) => t.id === id);
+    if (item) item.visitada = chk.checked;
+
+    const visitadas = tiendasCache.filter((t) => t.visitada).length;
+    const contador = document.getElementById("contadorTiendas");
+    if (contador)
+      contador.textContent = `${tiendasCache.length} tiendas · ${visitadas} visitadas`;
+  } catch (error) {
+    console.error("Error guardando tienda:", error);
+    chk.checked = !chk.checked;
+    mostrarModalAlerta(
+      "❌ No se pudo guardar el cambio: " +
+        (error && error.message ? error.message : "error"),
+    );
+  }
+}
+
+function pedirEliminarTienda(id) {
+  modalConfirmar(
+    "¿Eliminar esta tienda de la lista?",
+    async function () {
+      try {
+        if (id && id !== "nueva") {
+          const { error } = await window.supabase
+            .from("tiendas")
+            .delete()
+            .eq("id", id);
+          if (error) throw error;
+        }
+        mostrarModalAlerta("✅ Tienda eliminada");
+        cargarTiendas();
+      } catch (error) {
+        console.error("Error eliminando tienda:", error);
+        mostrarModalAlerta(
+          "❌ Error al eliminar: " +
+            (error && error.message ? error.message : "error"),
+        );
+      }
+    },
+  );
+}
+
+// ============================================
 // 9. EXPONER FUNCIONES AL WINDOW
 // ============================================
 
@@ -6973,3 +7255,11 @@ window.editarMarca = editarMarca;
 window.guardarMarca = guardarMarca;
 window.pedirEliminarMarca = pedirEliminarMarca;
 window.pedirMarcarEntregado = pedirMarcarEntregado;
+
+// Exponer funciones del tab Tiendas
+window.cargarTiendas = cargarTiendas;
+window.buscarTiendasAdmin = buscarTiendasAdmin;
+window.agregarTiendaFila = agregarTiendaFila;
+window.guardarTienda = guardarTienda;
+window.cambiarVisitadaTienda = cambiarVisitadaTienda;
+window.pedirEliminarTienda = pedirEliminarTienda;

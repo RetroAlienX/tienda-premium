@@ -796,6 +796,9 @@
             <button class="tab-btn" data-tab="pagos"
                 title="Control de pagos y crédito: liquidar, cargar morosidad, cargos y quincenas pendientes">💳
                 Pagos</button>
+            <button class="tab-btn" data-tab="tiendas"
+                title="Registro informativo de las tiendas que visitan (McAllen) y qué tipo de producto maneja cada una.">🏬
+                Tiendas</button>
         </div>
 
         <div id="tab-productos" class="tab-content active">
@@ -1732,6 +1735,43 @@
                     onclick="document.getElementById('modalPago').style.display='none';">Cancelar</button>
                 <button type="button" class="btn-premium" style="width: auto;" onclick="guardarPago()"><i
                         class="fas fa-save"></i> Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB TIENDAS -->
+    <div id="tab-tiendas" class="tab-content" style="display:none;">
+        <div class="admin-card">
+            <div
+                style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:16px;">
+                <h5>🏬 Tiendas (registro informativo)</h5>
+                <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                    <button id="btnRefrescarTiendas" class="btn-premium-outline"
+                        style="padding:10px 16px;font-size:0.75rem; width:auto;"
+                        title="Recargar la lista de tiendas desde la base de datos.">🔄 Refrescar</button>
+                    <button id="btnAgregarTienda" class="btn-premium"
+                        style="padding:10px 16px;font-size:0.75rem; width:auto;"
+                        onclick="agregarTiendaFila()"
+                        title="Añadir una tienda nueva (queda una fila en blanco lista para llenar).">
+                        <i class="fas fa-plus"></i> Agregar Tienda
+                    </button>
+                </div>
+            </div>
+            <p style="font-size:0.72rem; color:var(--text-silver); margin:-6px 0 14px; line-height:1.5;">
+                Solo para llevar el control de <strong>qué tiendas ya visitaron y qué venden</strong> (registro
+                informativo). Todas las tiendas están en <strong>McAllen, Texas</strong>. Marca la casilla ✔ si ya la
+                visitaron; edita cualquier campo y guarda con el botón 💾 de la fila. La lista se ordena
+                alfabéticamente.
+            </p>
+            <div style="display:flex; gap:10px; flex-wrap:wrap; margin:12px 0; align-items:center;">
+                <input type="text" id="buscarTienda" class="input-luxury"
+                    placeholder="🔍 Buscar tienda por nombre..." style="max-width:260px; margin:0;" autocomplete="off"
+                    oninput="buscarTiendasAdmin()"
+                    title="Filtrar la lista de tiendas escribiendo parte del nombre (búsqueda en vivo).">
+                <span id="contadorTiendas" style="font-size:0.75rem; color:var(--text-silver);"></span>
+            </div>
+            <div id="listaTiendas" class="table-responsive">
+                <div style="text-align:center; padding:40px; color:var(--text-silver);">Cargando...</div>
             </div>
         </div>
     </div>
