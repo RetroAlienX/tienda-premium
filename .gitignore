@@ -16,6 +16,10 @@ emailjs_template.html
 Thumbs.db
 desktop.ini
 
+# Manuales y scripts locales (NO SUBIR A GITHUB)
+manuales/
+servidor-local.js
+
 # IDE
 .vscode/
 .idea/

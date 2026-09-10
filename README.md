@@ -104,13 +104,6 @@ tienda-premium/
 ├── README.md               # Este documento
 ├── .gitignore              # Archivos excluidos del repositorio
 │
-├── manuales/               # Manuales en MD y PDF (carpeta documentación)
-│   ├── manual-uso-website.md        (+ .pdf)
-│   ├── manual-uso-admin.md          (+ .pdf)
-│   ├── manual-base-de-datos.md      (+ .pdf)
-│   ├── manual-netlify.md            (+ .pdf)
-│   └── manual-github.md             (+ .pdf)
-│
 ├── css/
 │   └── custom.css          # Estilos globales + paleta (:root)
 │
@@ -126,23 +119,14 @@ tienda-premium/
 │   ├── supabase.js         # Cliente Supabase
 │   ├── utils.js            # Utilidades (número de pedido, moneda, fechas)
 │   ├── config.js           # Config de la tienda (nombre, WhatsApp…)
-│   ├── config.netlify.js   # Lee Supabase desde meta tags / archivo generado
-│   └── config.netlify.generated.js  # GENERADO por Netlify (no se sube)
+│   └── config.netlify.js   # Lee Supabase desde meta tags / archivo generado
 │
 ├── img/
 │   ├── favicon.png         # Favicon optimizado (2.7 KB)
 │   └── banner.webp         # Banner para redes sociales (12.3 KB)
-│
-├── sql_completo.sql        # Reparación/esquema completo de la BD
-├── sql_datos_reales.sql    # Limpiar BD para cargar datos reales
-├── sql_datos_dummy.sql     # Limpiar BD + cargar datos de ejemplo
-├── sql_lugares_entrega.sql # Puntos de entrega definitivos (v2)
-├── sql_storage_productos.sql  # Bucket de fotos en Supabase Storage
-│
-├── emailjs_template.html   # Plantilla de correo (EmailJS)
-├── servidor-local.js       # Servidor local de desarrollo
-└── _backup_before_mods/    # Respaldo local (fuera de GitHub)
 ```
 
-> Nota: `js/config.local.js` y `js/config.netlify.generated.js` existen solo en
-> local / en el build de Netlify y están excluidos del repositorio (`.gitignore`).
+> Nota: estos archivos existen solo en local y están excluidos del repositorio
+> (`.gitignore`): `js/config.local.js`, `js/config.netlify.generated.js`,
+> `manuales/`, `servidor-local.js`, `_backup_before_mods/`, `*.sql` y
+> `emailjs_template.html`.
