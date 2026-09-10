@@ -805,6 +805,37 @@
                         <div id="resultadoBusquedaCodigo" style="margin-top:6px; font-size:0.75rem;"></div>
                     </div>
                 </div>
+                <div class="admin-card" style="margin-top:8px; padding:12px;">
+                    <h6 style="margin:0 0 8px 0;">📐 Calibración del centro de la etiqueta</h6>
+                    <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center;">
+                        <button type="button" class="btn-premium-outline" style="padding:8px 14px;font-size:0.75rem; width:auto;"
+                            onclick="ajustarCentro(-1)"
+                            title="Mueve el centro de la etiqueta 1 punto a la izquierda (se guarda automáticamente).">◂
+                            Izquierda (−1)</button>
+                        <button type="button" class="btn-premium-outline" style="padding:8px 14px;font-size:0.75rem; width:auto;"
+                            onclick="ajustarCentro(1)"
+                            title="Mueve el centro de la etiqueta 1 punto a la derecha (se guarda automáticamente).">▸
+                            Derecha (+1)</button>
+                        <span id="centroEtiquetaVal" style="font-size:0.9rem; color:var(--text-silver); min-width:70px;">184 pts</span>
+                        <button type="button" class="btn-premium-outline" style="padding:8px 14px;font-size:0.75rem; width:auto;"
+                            onclick="imprimirPruebaCentrado()"
+                            title="Imprime la prueba de centrado: una línea vertical en la posición actual del centro.">📏
+                            Prueba de centrado</button>
+                        <button type="button" class="btn-premium-outline" style="padding:8px 14px;font-size:0.75rem; width:auto;"
+                            onclick="imprimirPruebaRegla()"
+                            title="Imprime la regla de calibración (marcas cada 16 pts) para medir posiciones reales.">📐
+                            Regla</button>
+                        <button type="button" class="btn-premium-outline" style="padding:8px 14px;font-size:0.75rem; width:auto;"
+                            onclick="imprimirDiagnostico()"
+                            title="Imprime el diagnóstico de fuentes/anchos de la impresora de etiquetas.">🩺
+                            Diagnóstico</button>
+                    </div>
+                    <p style="font-size:0.7rem; color:var(--text-silver); margin:8px 0 0; line-height:1.5;">
+                        El centro se guarda solo (184 pts por defecto) y se aplica a todas las etiquetas. Requiere
+                        impresora por Bluetooth (Web Bluetooth en Chrome/Edge); alternativamente se descargan en
+                        PDF/HTML para imprimir en USB.
+                    </p>
+                </div>
                 <div style="display:flex; gap:10px; flex-wrap:wrap; margin:12px 0; align-items:center;">
                     <input type="text" id="buscarProducto" class="input-luxury"
                         placeholder="🔍 Buscar por producto (nombre)..." style="max-width:260px; margin:0;"
@@ -1801,6 +1832,23 @@
                 <button id="modalConfirmarAccionOk" class="btn-premium danger"
                     style="background:var(--regio-red); color:white; border:none; width: auto;"
                     title="Confirmar la acción.">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL PRODUCTO NO ENCONTRADO (escáner) -->
+    <div id="modalProductoNoEncontrado" class="modal-box">
+        <div class="modal-content" style="max-width:420px; text-align:center;">
+            <h5 style="color:var(--regio-red); font-weight:400; font-size:1.3rem;">📦 Producto no encontrado</h5>
+            <p id="productoNoEncontradoMsg" style="color:var(--text-silver); margin-top:10px;"></p>
+            <div style="display:flex; gap:10px; justify-content:center; margin-top:20px;">
+                <button type="button" class="btn-premium-outline" style="width:auto;"
+                    onclick="cerrarModalProductoNoEncontrado()"
+                    title="Cerrar sin crear el producto.">Cancelar</button>
+                <button type="button" class="btn-premium" style="width:auto;"
+                    onclick="crearProductoDesdeModal()"
+                    title="Abrir el formulario para crear el producto nuevo (se asigna el código manualmente).">➕
+                    Crear producto nuevo</button>
             </div>
         </div>
     </div>
