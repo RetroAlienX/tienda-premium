@@ -5,7 +5,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Panel Admin · Route66 Market</title>
-    <link rel="icon" type="image/jpeg" href="img/favicon.jpg">
     <meta name="robots" content="noindex, nofollow">
 
     <meta name="supabase-url" id="supabase-url" content="https://xsactvcmsaxrjwyeaimf.supabase.co">
@@ -319,6 +318,9 @@
         .table .bg-success,
         .table .bg-danger,
         .table .bg-warning {
+            display: inline-flex !important;
+            align-items: center;
+            white-space: nowrap !important;
             font-size: 0.7rem !important;
             padding: 5px 8px !important;
             border-radius: 6px !important;
@@ -380,8 +382,7 @@
             font-size: 13px;
             font-weight: 700;
             margin-bottom: 6px;
-            overflow-wrap: break-word;
-            word-break: normal;
+            word-break: break-word;
         }
 
         .etiqueta-marca {
@@ -427,39 +428,13 @@
                 visibility: visible !important;
             }
 
-            /* Este rollo de ETIQUETAS es un rollo aparte del papel del
-               ticket: mide 50mm de ancho real (confirmado con regla), NO
-               58mm. Se usa 46mm para el contenido (deja ~2mm de margen de
-               seguridad por lado, por si el cabezal no imprime borde a
-               borde). Sin declarar @page aquí, Chrome imprimía la etiqueta
-               al tamaño de página que tuviera puesto por defecto
-               (Carta/A4), no al ancho real de la etiqueta — por eso salía
-               desfasada e incompleta. */
             body.imprimiendoEtiqueta #contenidoEtiqueta {
                 position: fixed;
-                left: 50%;
+                left: 0;
                 top: 0;
-                transform: translateX(-50%);
-                width: 46mm;
-                max-width: 46mm;
-                margin: 0 !important;
-                padding: 2mm 0 !important;
+                width: 100%;
                 box-shadow: none;
-                background: #fff !important;
-                color: #000 !important;
-                -webkit-print-color-adjust: exact !important;
-                print-color-adjust: exact !important;
-            }
-
-            body.imprimiendoEtiqueta #contenidoEtiqueta * {
-                color: #000 !important;
-                -webkit-print-color-adjust: exact !important;
-                print-color-adjust: exact !important;
-            }
-
-            @page {
-                margin: 0;
-                size: 50mm 60mm;
+                background: #fff;
             }
         }
 
@@ -873,9 +848,9 @@
                 </div>
                 <div style="display:flex; gap:10px; flex-wrap:wrap; margin:12px 0; align-items:center;">
                     <input type="text" id="buscarProductoInventario" class="input-luxury"
-                        placeholder="🔍 Buscar por producto o código de barras..." style="max-width:300px; margin:0;"
+                        placeholder="🔍 Buscar por producto (nombre)..." style="max-width:260px; margin:0;"
                         oninput="buscarInventarioAdmin()"
-                        title="Filtrar los movimientos de stock por nombre de producto o por su código de barras (escanea para buscarlo).">
+                        title="Filtrar los movimientos de stock por nombre de producto (búsqueda en vivo).">
                 </div>
                 <div id="listaInventario" class="table-responsive">
                     <div style="text-align:center; padding:40px; color:var(--text-silver);">Cargando...</div>
@@ -913,7 +888,6 @@
                     📷 Genera el ticket y escanea su <strong>código de barras</strong> para encontrar el pedido al
                     instante (el código del ticket es el mismo N° de pedido).
                 </div>
-                <div id="mensajeScanPedidos" style="font-size:0.8rem; margin:-4px 0 10px;"></div>
                 <div style="display: flex; gap: 10px; flex-wrap: wrap; margin: 15px 0;">
                     <button class="btn-premium-outline filtro-pedido active" data-estado="todos"
                         style="padding:8px 16px;font-size:0.75rem;"
@@ -1139,11 +1113,6 @@
                         title="Elige un pedido existente para precargar sus datos en el correo (se puede editar).">
                         <option value="">Selecciona un pedido (todos los estados)...</option>
                     </select>
-                    <div style="font-size:0.7rem; color:var(--text-silver); margin:-2px 0 8px;">
-                        📷 Escanea el <strong>código de barras</strong> del ticket para cargar ese pedido al instante
-                        (el código del ticket es el mismo N° de pedido).
-                    </div>
-                    <div id="mensajeScanEnvio" style="font-size:0.8rem; margin:0 0 8px;"></div>
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                         <input type="email" id="correoCliente" class="input-luxury" placeholder="Correo" readonly
                             title="Correo del cliente a quien irá el mensaje (viene del pedido).">
@@ -1836,24 +1805,6 @@
         </div>
     </div>
 
-    <!-- MODAL PRODUCTO NO ENCONTRADO (crear nuevo) -->
-    <div id="modalProductoNoEncontrado" class="modal-box">
-        <div class="modal-content" style="max-width:440px; text-align:center;">
-            <h5 style="color:var(--accent); font-weight:400; font-size:1.3rem;">📦 Producto no encontrado</h5>
-            <p id="productoNoEncontradoMsg" style="color:var(--text-silver); margin-top:10px;"></p>
-            <div style="display:flex; gap:10px; justify-content:center; margin-top:20px;">
-                <button id="btnCancelarProductoNuevo" class="btn-premium-outline" style="width: auto;"
-                    onclick="cerrarModalProductoNoEncontrado()"
-                    title="Cerrar sin crear nada.">Cancelar</button>
-                <button id="btnCrearProductoNuevoModal" class="btn-premium"
-                    style="width: auto;"
-                    onclick="crearProductoDesdeModal()"
-                    title="Abrir el formulario en blanco para registrar el producto nuevo.">➕ Crear
-                    producto nuevo</button>
-            </div>
-        </div>
-    </div>
-
     <div id="modalEnvioCorreo" class="modal-box">
         <div class="modal-content">
             <h5 style="font-weight:400; margin-bottom:20px;">📧 Enviar Correo al Cliente</h5>
@@ -2016,8 +1967,7 @@
     <script src="js/ticket-qz.js"></script>
     <!-- Códigos de barras (JsBarcode) para etiquetas imprimibles -->
     <script src="js/JsBarcode.all.min.js"></script>
-    <!-- Chart.js y jsPDF se cargan bajo demanda (solo al abrir Finanzas o
-         descargar etiquetas PDF) desde js/admin.js para agilizar el arranque. -->
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
     <script src="js/admin.js"></script>
     <script src="js/lealtad.js"></script>
     <script src="js/pagos.js"></script>
@@ -2115,7 +2065,7 @@
 
     <!-- MODAL ETIQUETA DE PRODUCTO (código de barras) -->
     <div id="modalEtiqueta" class="modal-box">
-        <div class="modal-content" style="max-width:520px;">
+        <div class="modal-content" style="max-width:400px;">
             <h5 style="font-weight:400; margin-bottom:12px;">🏷️ Etiqueta de Producto</h5>
             <div id="contenidoEtiqueta"
                 style="background:#fff; color:#000; border-radius:6px; padding:14px; text-align:center; margin:10px 0;">
@@ -2129,38 +2079,14 @@
                     <option value="texto">Protocolo: Texto plano</option>
                 </select>
             </div>
-            <div style="display:flex; align-items:center; gap:8px; margin:8px 0 2px 0; flex-wrap:nowrap;">
-                <button type="button" class="btn-premium-outline" style="width:auto; flex:0 0 auto; padding:8px 14px;"
-                    onclick="ajustarCentro(-8)"
-                    title="Mover el centro de la etiqueta 8 puntos a la izquierda (reimprime la prueba para ver el cambio).">◀</button>
-                <button type="button" class="btn-premium-outline" style="flex:1 1 auto; min-width:0; padding:8px 10px; white-space:nowrap;"
-                    onclick="imprimirPruebaCentrado()"
-                    title="Imprime una línea de calibración para ajustar el centrado horizontal de la etiqueta en tu impresora.">🎯
-                    Prueba de centrado</button>
-                <button type="button" class="btn-premium-outline" style="width:auto; flex:0 0 auto; padding:8px 14px;"
-                    onclick="ajustarCentro(8)"
-                    title="Mover el centro de la etiqueta 8 puntos a la derecha (reimprime la prueba para ver el cambio).">▶</button>
-            </div>
-            <div style="display:flex; align-items:center; justify-content:center; gap:10px; margin:6px 0 2px 0; flex-wrap:nowrap;">
-                <button type="button" class="btn-premium-outline" style="width:auto; flex:0 0 auto; padding:7px 12px;"
-                    onclick="imprimirPruebaRegla()"
-                    title="Imprime una regla con marcas cada 16 puntos y el centro marcado, para medir las posiciones reales.">📏
-                    Regla</button>
-                <button type="button" class="btn-premium-outline" style="width:auto; flex:0 0 auto; padding:7px 12px;"
-                    onclick="imprimirDiagnostico()"
-                    title="Imprime etiquetas con filas de letras en varios X para medir el ancho real de las fuentes.">🔍
-                    Diagnóstico</button>
-                <span style="font-size:13px; color:#ccc; white-space:nowrap; border-left:1px solid #3a3a3a; padding-left:12px; margin-left:2px;">Centro: <span
-                        id="centroEtiquetaVal" style="color:#4fc3f7; font-weight:700;">--</span> pts</span>
-            </div>
-            <div style="display:flex; gap:10px; justify-content:center; margin-top:14px; flex-wrap:nowrap;">
-                <button type="button" class="btn-premium-outline" style="flex:1 1 auto; min-width:0; padding:8px 10px; white-space:nowrap;"
+            <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:14px;">
+                <button type="button" class="btn-premium-outline" style="width: auto;"
                     onclick="enviarEtiquetaBluetooth()"
                     title="Enviar la etiqueta por Bluetooth a tu impresora portátil."><i class="fas fa-bluetooth-b"></i>
                     Enviar a Bluetooth</button>
-                <button type="button" class="btn-premium-outline" style="flex:0 1 auto; min-width:0; padding:8px 12px;" onclick="cerrarEtiqueta()"
+                <button type="button" class="btn-premium-outline" style="width: auto;" onclick="cerrarEtiqueta()"
                     title="Cerrar esta ventana sin imprimir.">Cerrar</button>
-                <button type="button" class="btn-premium" style="flex:0 1 auto; min-width:0; padding:8px 12px;" onclick="imprimirEtiqueta()"
+                <button type="button" class="btn-premium" style="width: auto;" onclick="imprimirEtiqueta()"
                     title="Imprimir la etiqueta desde esta página (con QZ o en el navegador)."><i
                         class="fas fa-print"></i> Imprimir</button>
             </div>
