@@ -6921,14 +6921,19 @@ function filaTiendaHTML(t) {
     id === "nueva"
       ? ""
       : ` onchange="cambiarVisitadaTienda('${id}', this)"`;
+  const acciones =
+    id === "nueva"
+      ? `<button class="btn btn-outline-success btn-sm btn-guardar-tienda" onclick="guardarTienda('${id}')" title="Guardar la tienda nueva.">💾</button>
+      <button class="btn btn-outline-secondary btn-sm" onclick="cancelarTiendaNueva()" title="Descartar la fila en blanco sin guardar.">✖</button>`
+      : `<button class="btn btn-outline-success btn-sm btn-guardar-tienda" onclick="guardarTienda('${id}')" title="Guardar los cambios de esta tienda.">💾</button>
+      <button class="btn btn-outline-danger btn-sm" onclick="pedirEliminarTienda('${id}')" title="Eliminar esta tienda de la lista.">🗑️</button>`;
   return `<tr data-id="${id}" data-nombre="${escTienda(t.nombre)}">
     <td><input type="text" class="input-luxury tienda-nombre" style="margin:0;min-width:160px;" value="${escTienda(t.nombre)}" title="Nombre de la tienda."></td>
     <td><input type="text" class="input-luxury tienda-direccion" style="margin:0;min-width:220px;" value="${escTienda(t.direccion || "McAllen, Texas")}" title="Dirección. Por defecto McAllen, Texas."></td>
     <td><select class="input-luxury tienda-tipo" style="margin:0;min-width:140px;" title="Tipo de producto que maneja la tienda.">${opcionesTipoTienda(t.tipo || "general")}</select></td>
     <td style="text-align:center;"><input type="checkbox" class="tienda-visitada" ${visitada}${chequeoOnchange} title="Marca aquí si ya la visitaron." style="width:16px;height:16px;cursor:pointer;"></td>
     <td style="text-align:center; white-space:nowrap;">
-      <button class="btn btn-outline-success btn-sm btn-guardar-tienda" onclick="guardarTienda('${id}')" title="Guardar los cambios de esta tienda.">💾</button>
-      <button class="btn btn-outline-danger btn-sm" onclick="pedirEliminarTienda('${id}')" title="Eliminar esta tienda de la lista.">🗑️</button>
+      ${acciones}
     </td>
   </tr>`;
 }
@@ -7044,10 +7049,38 @@ function agregarTiendaFila() {
 
   const fila = tbody.querySelector('tr[data-id="nueva"]');
   if (fila) {
+    configurarFilaTiendaNueva(fila);
     fila.scrollIntoView({ behavior: "smooth", block: "center" });
     const input = fila.querySelector(".tienda-nombre");
     if (input) input.focus();
   }
+}
+
+function configurarFilaTiendaNueva(fila) {
+  let tocada = false;
+  fila.addEventListener("input", function () {
+    tocada = true;
+  });
+  fila.addEventListener("focusout", function () {
+    if (tocada) return;
+    const inputNombre = fila.querySelector(".tienda-nombre");
+    if (inputNombre && (inputNombre.value || "").trim()) return;
+    setTimeout(function () {
+      const actual = document.querySelector('#listaTiendas tr[data-id="nueva"]');
+      if (actual && !actual.contains(document.activeElement)) {
+        actual.remove();
+        const tbody = document.querySelector("#listaTiendas tbody");
+        if (tbody && !tbody.children.length) renderTiendas();
+      }
+    }, 0);
+  });
+}
+
+function cancelarTiendaNueva() {
+  const fila = document.querySelector('#listaTiendas tr[data-id="nueva"]');
+  if (fila) fila.remove();
+  const tbody = document.querySelector("#listaTiendas tbody");
+  if (tbody && !tbody.children.length) renderTiendas();
 }
 
 async function guardarTienda(id) {
@@ -7263,3 +7296,4 @@ window.agregarTiendaFila = agregarTiendaFila;
 window.guardarTienda = guardarTienda;
 window.cambiarVisitadaTienda = cambiarVisitadaTienda;
 window.pedirEliminarTienda = pedirEliminarTienda;
+window.cancelarTiendaNueva = cancelarTiendaNueva;
