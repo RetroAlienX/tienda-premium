@@ -1622,6 +1622,7 @@ select.input-luxury option:active {
 
 .social-icons {
   display: flex;
+  justify-content: center;
   gap: 14px;
 }
 
