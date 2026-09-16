@@ -12,6 +12,10 @@ let eliminarTipo = null;
 // ============================================
 let ticketProductos = [];
 let pedidoTicketPrecargado = null;
+// Modo del ticket: "impresion" (solo imprime, sin guardar),
+// "impresion" o "venta_directa".
+// ÚNICO modo que descuenta stock: "venta_directa".
+let modoTicketActual = "venta_directa";
 
 // Abre una ventana emergente centrada en la pantalla (en vez de la esquina
 // superior izquierda, que es donde el navegador la pone por defecto).
@@ -413,10 +417,18 @@ async function buscarPedidoPorId(id) {
   }
 }
 
+// Normaliza un código escaneado: reemplaza glifos que un escáner puede leer
+// en lugar del guion (apóstrofes, comillas, acentos como "P'260914'0618") que
+// ocurrían cuando el CODE128 salía con módulos finos. Los códigos de ticket
+// SIEMPRE usan guiones, así que es seguro normalizar cualquier código.
+function normalizarCodigoBarras(codigo) {
+  return String(codigo || "").trim().replace(/[''ʼ`]/g, "-");
+}
+
 // Busca un pedido por su N° de pedido (que es el mismo valor que se imprime
 // como CÓDIGO DE PEDIDO en el código de barras del ticket).
 async function buscarPedidoPorNumero(codigo) {
-  const c = String(codigo || "").trim();
+  const c = normalizarCodigoBarras(codigo);
   if (!c) return null;
   try {
     const { data, error } = await window.supabase
@@ -1248,16 +1260,22 @@ document.addEventListener("DOMContentLoaded", function () {
       modalCorreoAbierto();
     if (!activo) return;
 
+    // Ignora teclas repetidas (mantener presionada una tecla no es un escaneo).
+    if (e.repeat) return;
+
     if (e.key === "Enter") {
       const codigo = bufferEscaneoGlobal.trim();
       bufferEscaneoGlobal = "";
       if (
         !enCampo &&
         codigo.length >= 3 &&
-        Date.now() - tiempoUltimaTeclaEscaneo < 12000
+        Date.now() - tiempoUltimaTeclaEscaneo < 20000
       ) {
         e.preventDefault();
-        manejarEscaneoGlobal(codigo);
+        // Normalizar aquí (una sola vez) para que todos los tabs reciban el
+        // código con guiones ("P-260914-0618") aunque el escáner haya leído
+        // apóstrofes ("P'260914'0618").
+        manejarEscaneoGlobal(normalizarCodigoBarras(codigo));
       }
       tiempoUltimaTeclaEscaneo = 0;
       return;
@@ -1265,11 +1283,13 @@ document.addEventListener("DOMContentLoaded", function () {
 
     if (enCampo || e.ctrlKey || e.metaKey || e.altKey) return;
     if (e.key.length === 1) {
-      // Patrón típico de los escáneres: una ráfaga rápida (menos de 600 ms por tecla).
+      // Patrón típico de los escáneres: una ráfaga rápida. Tolerancia amplia
+      // (1200 ms entre teclas) porque algunos escáneres van más lento; si pasan
+      // más de 1.2 s se considera que empezó un "escaneo" nuevo.
       const ahora = Date.now();
       if (
         tiempoUltimaTeclaEscaneo &&
-        ahora - tiempoUltimaTeclaEscaneo > 600
+        ahora - tiempoUltimaTeclaEscaneo > 1200
       ) {
         bufferEscaneoGlobal = "";
       }
@@ -1387,6 +1407,12 @@ document.addEventListener("DOMContentLoaded", function () {
     .getElementById("btnMostrarLugaresTicket")
     ?.addEventListener("click", abrirModalLugaresEntrega);
 
+  // Estado inicial del tab Ticket: Venta Directa (el modo se resalta y el
+  // botón de enviar queda con su texto correcto).
+  if (typeof seleccionarModoTicket === "function") {
+    seleccionarModoTicket("venta_directa");
+  }
+
   esperarSupabase(function () {
     cargarProductosTicket();
     cargarPedidosParaTicket();
@@ -1411,6 +1437,12 @@ document.addEventListener("DOMContentLoaded", function () {
       document
         .getElementById(idEl)
         ?.addEventListener("input", function () {
+          // Si el escáner escribió apóstrofes en el N° de pedido, se limpian
+          // en el campo para que se vea con guiones (el filtro ya normaliza).
+          if (idEl === "buscarNumeroPedido") {
+            const limpio = normalizarCodigoBarras(this.value);
+            if (limpio !== this.value) this.value = limpio;
+          }
           clearTimeout(debounceBusquedaPedidos);
           debounceBusquedaPedidos = setTimeout(() => {
             const activeFilter = document.querySelector(".filtro-pedido.active");
@@ -1543,6 +1575,14 @@ document.addEventListener("DOMContentLoaded", function () {
   // Se espera a que Supabase esté listo antes de cargar la primera
   // pestaña, para no disparar el reintento de "Supabase no disponible".
   esperarSupabase(function () {
+    // Alerta de pedidos nuevos desde el inicio (botón y badge del tab).
+    cargarPedidosNuevos();
+
+    // Sondeo ligero cada minuto para avisar de pedidos nuevos sin recargar.
+    setInterval(function () {
+      cargarPedidosNuevos();
+    }, 60000);
+
     let tabInicial = "productos";
     try { tabInicial = sessionStorage.getItem("adminActiveTab") || "productos"; } catch (_) {}
     cambiarTab(tabInicial);
@@ -1552,6 +1592,352 @@ document.addEventListener("DOMContentLoaded", function () {
 // ============================================
 // 1. PRODUCTOS (CRUD)
 // ============================================
+
+// ============================================
+// EMOJIS SOLO SE QUITAN AL IMPRIMIR ETIQUETAS
+// (los datos se conservan tal cual; es solo en los bytes que se mandan a la
+// impresora/PDF para que no salgan recuadros o "?" donde la térmica no los
+// soporta). Cobertura amplia: símbolos/emojis, banderas, signs, variantes
+// FE0F y secuencias con ZWJ (\u200D).
+// ============================================
+const RE_EMOJIS_IMPRESION =
+  /[\u{1F000}-\u{1FAFF}\u{1F1E6}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{2B00}-\u{2BFF}\u{2E50}-\u{2EFF}\u{2300}-\u{23FF}\u{2190}-\u{21FF}\u{2B05}-\u{2B07}\u{2934}-\u{2935}\u{3030}\u{303D}\u{3297}\u{3299}\u{FE0F}\u{200D}\u{00A9}\u{00AE}\u{2122}\u{2B50}\u{2764}\u{274C}\u{27A1}\u{20E3}]/gu;
+
+function quitarEmojisParaImpresion(texto) {
+  return String(texto || "")
+    .replace(RE_EMOJIS_IMPRESION, "")
+    .replace(/[ \t]{2,}/g, " ")
+    .trim();
+}
+
+// ============================================
+// 1.0 SOLICITUDES DE STOCK (clientes piden reposición)
+// ============================================
+let solicitudesStockCache = [];
+
+async function cargarSolicitudesStock() {
+  try {
+    if (!window.supabase || typeof window.supabase.from !== "function") return;
+    const { data, error } = await window.supabase
+      .from("solicitudes_stock")
+      .select("id, producto_id, created_at, estado")
+      .eq("estado", "pendiente");
+    if (error) {
+      // La tabla aún no existe (no se ha ejecutado sql_solicitudes_stock.sql):
+      // se apaga la notificación sin romper el panel.
+      if (/relation .*solicitudes_stock.* does not exist/i.test(String(error.message || ""))) {
+        const btn = document.getElementById("btnVerSolicitudesStock");
+        if (btn && !btn.textContent.includes("(0)")) btn.textContent = "🔔 Solicitudes de stock (0)";
+      }
+      return;
+    }
+
+    solicitudesStockCache = data || [];
+    const porProducto = {};
+    solicitudesStockCache.forEach((r) => {
+      if (r.producto_id)
+        porProducto[r.producto_id] = (porProducto[r.producto_id] || 0) + 1;
+    });
+    window.__solicitudesMap = porProducto;
+
+    const totalProductos = Object.keys(porProducto).length;
+    const btn = document.getElementById("btnVerSolicitudesStock");
+    if (btn) {
+      btn.textContent = `🔔 Solicitudes de stock (${totalProductos})`;
+      btn.classList.toggle("btn-solicitudes-pendientes", totalProductos > 0);
+    }
+
+    // Badges por fila de la lista (si ya está renderizada).
+    document
+      .querySelectorAll("#listaProductos tr[data-prod-id]")
+      .forEach((tr) => {
+        tr.querySelectorAll(".solicitud-stock-badge").forEach((b) => b.remove());
+        const id = tr.getAttribute("data-prod-id");
+        const n = porProducto[id] || 0;
+        if (n > 0) {
+          const celda = tr.querySelector("td:nth-child(2)");
+          if (celda) {
+            const div = document.createElement("div");
+            div.className = "solicitud-stock-badge";
+            div.title =
+              "Cuántas veces han pedido stock de este producto. Haz clic en '🔔 Solicitudes de stock' para atenderlas.";
+            div.textContent = `🔔 ${n} ${n === 1 ? "solicitud" : "solicitudes"}`;
+            celda.appendChild(div);
+          }
+        }
+      });
+  } catch (e) {
+    console.warn("Error cargando solicitudes de stock:", e);
+  }
+}
+
+async function abrirSolicitudesStock() {
+  const modal = document.getElementById("modalSolicitudesStock");
+  if (!modal) return;
+  modal.style.display = "flex";
+  const cont = document.getElementById("listaSolicitudesStock");
+  if (cont)
+    cont.innerHTML =
+      '<div style="text-align:center; padding:20px; color:var(--text-dim);">Cargando...</div>';
+
+  await cargarSolicitudesStock();
+
+  // Mapa id → nombre (del listado ya cargado o de una consulta ligera).
+  const nombres = {};
+  if (Array.isArray(window.__productosPanel)) {
+    window.__productosPanel.forEach((p) => (nombres[p.id] = p.nombre || "Producto"));
+  }
+  if (!Object.keys(nombres).length) {
+    try {
+      const { data } = await window.supabase
+        .from("productos")
+        .select("id, nombre");
+      (data || []).forEach((p) => (nombres[p.id] = p.nombre || "Producto"));
+    } catch (_) {}
+  }
+
+  const agrupado = {};
+  (solicitudesStockCache || []).forEach((r) => {
+    if (r.estado !== "pendiente") return;
+    const key = r.producto_id || "sin_producto";
+    if (!agrupado[key]) agrupado[key] = { count: 0, ultima: null };
+    agrupado[key].count++;
+    const t = r.created_at ? new Date(r.created_at) : null;
+    if (t && (!agrupado[key].ultima || t > agrupado[key].ultima)) agrupado[key].ultima = t;
+  });
+
+  const entries = Object.keys(agrupado);
+  if (!entries.length) {
+    if (cont)
+      cont.innerHTML =
+        '<div style="text-align:center; padding:24px; color:var(--text-silver);">✨ No hay solicitudes pendientes.</div>';
+    return;
+  }
+
+  if (cont) {
+    cont.innerHTML = entries
+      .map((key) => {
+        const g = agrupado[key];
+        const nombre =
+          key === "sin_producto"
+            ? "Producto eliminado"
+            : nombres[key] || "Producto (no encontrado)";
+        const fecha = g.ultima
+          ? " · " +
+            g.ultima.toLocaleString("es-MX", {
+              day: "2-digit",
+              month: "short",
+              hour: "2-digit",
+              minute: "2-digit",
+            })
+          : "";
+        return `<div class="fila-solicitud">
+            <div>
+              <strong>${escTienda(nombre)}</strong>
+              <div style="color:var(--text-dim); font-size:0.7rem;">pedido ${g.count} ${g.count === 1 ? "vez" : "veces"}${fecha}</div>
+            </div>
+            <span class="solicitud-stock-badge">🔔 ${g.count}</span>
+          </div>`;
+      })
+      .join("");
+  }
+}
+
+function cerrarSolicitudesStock() {
+  const modal = document.getElementById("modalSolicitudesStock");
+  if (modal) modal.style.display = "none";
+}
+
+async function marcarSolicitudesAtendidas() {
+  try {
+    if (!solicitudesStockCache.length) {
+      cerrarSolicitudesStock();
+      return;
+    }
+    const { error } = await window.supabase
+      .from("solicitudes_stock")
+      .update({ estado: "atendida" })
+      .eq("estado", "pendiente");
+    if (error) throw error;
+    notificar("✅ Solicitudes marcadas como atendidas.", "ok");
+    cerrarSolicitudesStock();
+    cargarSolicitudesStock();
+  } catch (error) {
+    console.error("Error marcando solicitudes atendidas:", error);
+    notificar("❌ " + (error.message || "Error al marcar atendidas"), "error");
+  }
+}
+
+// ============================================
+// 1.1 PEDIDOS NUEVOS (clientes hicieron pedido desde la tienda)
+// ============================================
+
+let pedidosNuevosCache = [];
+
+function actualizarConteoPedidosNuevos() {
+  const total = pedidosNuevosCache.length;
+  const btn = document.getElementById("btnVerPedidosNuevos");
+  if (btn) {
+    btn.textContent = `🔔 Pedidos nuevos (${total})`;
+    btn.classList.toggle("btn-pedidos-nuevos-pendientes", total > 0);
+  }
+  const badge = document.getElementById("badgePedidosNuevos");
+  if (badge) {
+    if (total > 0) {
+      badge.textContent = total;
+      badge.style.display = "inline-block";
+    } else {
+      badge.textContent = "";
+      badge.style.display = "none";
+    }
+  }
+}
+
+async function cargarPedidosNuevos() {
+  try {
+    if (!window.supabase || typeof window.supabase.from !== "function") return;
+    const { data, error } = await window.supabase
+      .from("pedidos")
+      .select(
+        "id, numero_pedido, cliente_nombre, cliente_telefono, cliente_email, productos, total, fecha_pedido, lugar_entrega, metodo_pago, estado",
+      )
+      .eq("atendido", false)
+      .order("fecha_pedido", { ascending: false });
+    if (error) {
+      // La columna `atendido` aún no existe (no se ha ejecutado
+      // sql_pedidos_atendido.sql): se apaga la alerta sin romper el panel.
+      if (/atendido/i.test(String(error.message || ""))) {
+        const btn = document.getElementById("btnVerPedidosNuevos");
+        if (btn && !btn.textContent.includes("(0)")) {
+          btn.textContent = "🔔 Pedidos nuevos (0)";
+        }
+        return;
+      }
+      throw error;
+    }
+    pedidosNuevosCache = data || [];
+    actualizarConteoPedidosNuevos();
+  } catch (e) {
+    console.warn("Error cargando pedidos nuevos:", e);
+  }
+}
+
+function abrirPedidosNuevos() {
+  const modal = document.getElementById("modalPedidosNuevos");
+  if (!modal) return;
+  modal.style.display = "flex";
+  cargarPedidosNuevos().then(renderListaPedidosNuevos);
+}
+
+function renderListaPedidosNuevos() {
+  const cont = document.getElementById("listaPedidosNuevos");
+  if (!cont) return;
+  if (!pedidosNuevosCache.length) {
+    cont.innerHTML =
+      '<div style="text-align:center; padding:24px; color:var(--text-silver);">✨ No hay pedidos nuevos pendientes.</div>';
+    return;
+  }
+  cont.innerHTML = pedidosNuevosCache
+    .map((p) => {
+      const productosText = (p.productos || [])
+        .map((x) => `${x.nombre} x${x.cantidad}`)
+        .join(", ");
+      const fecha = p.fecha_pedido
+        ? " · " +
+          formatearFecha(p.fecha_pedido)
+        : "";
+      const estadoLabel =
+        p.estado === "pendiente"
+          ? "📋 Pendiente"
+          : p.estado === "confirmado"
+            ? "✅ Confirmado"
+            : p.estado === "vendido"
+              ? "💰 Vendido"
+              : p.estado === "entregado"
+                ? "📦 Entregado"
+                : p.estado === "cancelado"
+                  ? "❌ Cancelado"
+                  : p.estado === "devuelto"
+                    ? "↩️ Devuelto"
+                    : (p.estado || "—");
+      return `<div class="fila-solicitud">
+            <div style="flex:1; min-width:0;">
+              <div style="font-weight:600; margin-bottom:4px;">
+                ${escTienda(p.numero_pedido || "N/A")} — ${escTienda(p.cliente_nombre)}
+                <span style="margin-left:6px; font-size:0.7rem; color:var(--accent);">${estadoLabel}</span>
+              </div>
+              <div style="color:var(--text-silver); font-size:0.7rem; margin-bottom:4px; line-height:1.4;">
+                ${p.cliente_telefono ? "📱 " + escTienda(p.cliente_telefono) : ""}
+                ${p.cliente_email ? " · 📧 " + escTienda(p.cliente_email) : ""}
+              </div>
+              <div style="color:var(--text-dim); font-size:0.68rem;">
+                💰 ${formatearMoneda(p.total)} · 📍 ${escTienda(p.lugar_entrega || "Por confirmar")} · ${escTienda(p.metodo_pago || "—")}${fecha}
+              </div>
+              <div style="color:var(--text-dim); font-size:0.68rem; margin-top:2px;">${escTienda(productosText)}</div>
+            </div>
+            <button class="btn btn-outline-secondary btn-sm" style="white-space:nowrap;" onclick="cerrarPedidosNuevos(); verDetallePedido('${p.id}')" title="Ver el detalle completo de este pedido y tomar acción.">👁️ Ver detalle</button>
+            <button class="btn btn-success btn-sm" style="white-space:nowrap;" onclick="marcarPedidoNuevoAtendido('${p.id}')" title="Marca este pedido como revisado (desaparece del contador).">✅ Atender</button>
+          </div>`;
+    })
+    .join("");
+}
+
+function cerrarPedidosNuevos() {
+  const modal = document.getElementById("modalPedidosNuevos");
+  if (modal) modal.style.display = "none";
+}
+
+async function marcarPedidosNuevosAtendidos() {
+  try {
+    if (!pedidosNuevosCache.length) {
+      notificar(
+        "✨ No hay pedidos nuevos pendientes por marcar.",
+        "ok",
+      );
+      cerrarPedidosNuevos();
+      return;
+    }
+    const ids = pedidosNuevosCache.map((p) => p.id);
+    const { error } = await window.supabase
+      .from("pedidos")
+      .update({ atendido: true })
+      .in("id", ids);
+    if (error) throw error;
+    notificar("✅ Pedidos nuevos marcados como revisados.", "ok");
+    cerrarPedidosNuevos();
+    cargarPedidosNuevos();
+    cargarPedidos();
+  } catch (error) {
+    console.error("Error marcando pedidos como revisados:", error);
+    notificar(
+      "❌ " + (error.message || "Error al marcar como revisados"),
+      "error",
+    );
+  }
+}
+
+// Marca UN solo pedido nuevo como atendido (botón "✅ Atender" por fila).
+async function marcarPedidoNuevoAtendido(id) {
+  try {
+    if (!id) return;
+    const { error } = await window.supabase
+      .from("pedidos")
+      .update({ atendido: true })
+      .eq("id", id);
+    if (error) throw error;
+    pedidosNuevosCache = pedidosNuevosCache.filter((p) => p.id !== id);
+    actualizarConteoPedidosNuevos();
+    renderListaPedidosNuevos();
+    cargarPedidos();
+    notificar("✅ Pedido marcado como revisado.", "ok");
+  } catch (error) {
+    console.error("Error marcando pedido como revisado:", error);
+    notificar(
+      "❌ " + (error.message || "Error al marcar como revisado"),
+      "error",
+    );
+  }
+}
 
 function renderFilaProducto(p) {
   return `
@@ -1584,6 +1970,15 @@ function renderFilaProducto(p) {
                             <td><span class="badge bg-secondary">${
                               p.categoria || "otros"
                             }</span></td>
+                            <td style="text-align:center;">
+                                <input type="checkbox" class="form-check-input" style="margin:0 auto; display:block; cursor:pointer;" ${
+                                  p.activo !== false ? "checked" : ""
+                                } onclick="toggleActivoProducto('${p.id}', this.checked)" title="${
+                                  p.activo !== false
+                                    ? "Visible en la tienda: desmarca para Ocultar"
+                                    : "Oculto de la tienda: marca para Mostrar"
+                                }">
+                            </td>
                             <td>
                                 <button onclick="abrirEtiquetaProducto('${
                                   p.id
@@ -1600,6 +1995,38 @@ function renderFilaProducto(p) {
                             </td>
                         </tr>
                     `;
+}
+
+// Muestra/oculta la card del producto en index.html (columna "Visible").
+// El checkbox se revierte automáticamente si falla la actualización.
+async function toggleActivoProducto(id, visible) {
+  if (!window.supabase || typeof window.supabase.from !== "function") {
+    notificar("⚠️ Supabase no disponible", "error");
+    return;
+  }
+  const checkbox = document.querySelector(
+    `#listaProductos tr[data-prod-id="${id}"] input[type="checkbox"]`,
+  );
+  try {
+    const { error } = await window.supabase
+      .from("productos")
+      .update({ activo: visible })
+      .eq("id", id);
+    if (error) throw error;
+    notificar(
+      visible
+        ? "👁️ Producto VISIBLE en la tienda."
+        : "🚫 Producto OCULTO de la tienda.",
+      "ok",
+    );
+  } catch (error) {
+    console.error("Error al cambiar visibilidad:", error);
+    notificar(
+      "❌ Error al cambiar la visibilidad: " + (error.message || ""),
+      "error",
+    );
+    if (checkbox) checkbox.checked = !visible;
+  }
 }
 
 // Actualiza solo la fila editada (misma posición), sin reordenar la lista.
@@ -1658,6 +2085,8 @@ async function cargarProductos() {
       String(a.nombre || "").localeCompare(String(b.nombre || ""), "es"),
     );
 
+    window.__productosPanel = data;
+
     if (!data || !data.length) {
       container.innerHTML =
         '<p class="text-center text-dim py-3">📦 No hay productos</p>';
@@ -1667,7 +2096,7 @@ async function cargarProductos() {
 
     container.innerHTML = `
             <table class="table table-dark table-hover table-sm">
-                <thead><tr><th>Imagen</th><th>Producto</th><th>Origen</th><th>Marca</th><th>Código</th><th>Precio</th><th>Stock</th><th>Categoría</th><th>Acciones</th></tr></thead>
+                <thead><tr><th>Imagen</th><th>Producto</th><th>Origen</th><th>Marca</th><th>Código</th><th>Precio</th><th>Stock</th><th>Categoría</th><th>Visible</th><th>Acciones</th></tr></thead>
                 <tbody>
                     ${data.map(renderFilaProducto).join("")}
                 </tbody>
@@ -1675,6 +2104,7 @@ async function cargarProductos() {
         `;
     renderBarcodesProductos();
     cargarSelectProductosInventario();
+    cargarSolicitudesStock();
   } catch (error) {
     console.error("Error cargando productos:", error);
     container.innerHTML = `
@@ -1692,6 +2122,7 @@ function mostrarFormProducto(data = null) {
 
   container.style.display = "flex";
   container.scrollIntoView({ behavior: "smooth" });
+  cargarCategoriasProducto();
 
   if (data) {
     productoEditando = data;
@@ -1730,27 +2161,68 @@ function mostrarFormProducto(data = null) {
   }
 }
 
-// Asigna la categoría al select de productos. Si el valor guardado no está
-// en la lista de opciones (la categoría es texto libre en la BD), la agrega
-// en automático para que SIEMPRE quede visible al editar.
-function setCategoriaProducto(valor) {
-  const sel = document.getElementById("prodCategoria");
-  if (!sel) return;
-  const v = String(valor || "").trim();
-  let existe = false;
-  for (const o of sel.options) {
-    if (o.value === v) {
-      existe = true;
-      break;
+// Categorías sugeridas del panel (además de las que ya existan en la BD).
+// El Administrador puede escribir una categoría totalmente nueva: esa categoría
+// aparecerá en el filtro de cards de index.html automáticamente.
+const CATEGORIAS_PREDEFINIDAS_ADMIN = [
+  "Suplementos",
+  "Accesorios",
+  "Ropa Deportiva",
+  "Ropa y Calzado",
+  "Perfumes",
+  "Cuidado Personal",
+  "Juguetes",
+  "Bebidas",
+  "Bebidas Energéticas",
+  "Soporte Saludable",
+  "Bebidas Alcohólicas",
+  "Zapatos",
+  "Juegos Didácticos",
+  "Alimentos",
+  "Otros",
+];
+
+// Llena el datalist de categorías: las predefinidas + todas las que ya están
+// en uso en la BD (así se puede volver a elegir cualquier categoría creada).
+async function cargarCategoriasProducto() {
+  const lista = document.getElementById("listaCategoriasProd");
+  if (!lista) return;
+  const conjunto = new Set(CATEGORIAS_PREDEFINIDAS_ADMIN);
+  try {
+    if (window.supabase && typeof window.supabase.from === "function") {
+      const { data, error } = await window.supabase
+        .from("productos")
+        .select("categoria");
+      if (!error && Array.isArray(data)) {
+        data.forEach((p) => {
+          const c =
+            p && typeof p.categoria === "string" ? p.categoria.trim() : "";
+          if (c) conjunto.add(c);
+        });
+      }
     }
+  } catch (e) {
+    /* silencioso: se quedan las predefinidas */
   }
-  if (!existe && v) {
+  lista.innerHTML = Array.from(conjunto)
+    .sort((a, b) => a.localeCompare(b, "es"))
+    .map((c) => `<option value="${escapeHtml(c)}"></option>`)
+    .join("");
+}
+
+// Asigna la categoría al campo. Si el valor guardado no está en el datalist
+// (categoría creada a mano), la agrega para que quede como sugerencia.
+function setCategoriaProducto(valor) {
+  const input = document.getElementById("prodCategoria");
+  if (!input) return;
+  const v = String(valor || "").trim();
+  const lista = document.getElementById("listaCategoriasProd");
+  if (v && lista && !Array.from(lista.options).some((o) => o.value === v)) {
     const op = document.createElement("option");
     op.value = v;
-    op.textContent = v.replace(/_/g, " ");
-    sel.appendChild(op);
+    lista.appendChild(op);
   }
-  sel.value = v;
+  input.value = v;
 }
 
 // Mini vista previa en vivo de la imagen del producto (al escribir el link).
@@ -2077,6 +2549,65 @@ async function procesarCodigoLeido(codigo) {
 
     if (error) throw error;
 
+    // REINTENTO LAXO: algunos escáneres alteran el código (espacios al inicio,
+    // guiones, un carácter extra o un reenvío parcial). Si el código no trae el
+    // formato "NOMBRE|MARCA|PRECIO|CATEGORÍA", buscamos coincidencia parcial
+    // antes de asumir que es un producto nuevo.
+    if (codigo.indexOf("|") === -1) {
+      // El listado local de productos ya cargado en el panel sirve para verificar
+      // coincidencias sin red; si no está, se lanza una consulta ilike.
+      if (Array.isArray(window.__productosPanel) && window.__productosPanel.length) {
+        const normBuscado = codigo.replace(/[^0-9]/g, "");
+        const normBase = normBuscado.replace(/^0+/, "");
+        const candidato = window.__productosPanel.find((pr) => {
+          const cb = String((pr && pr.codigo_barras) || "");
+          if (!cb) return false;
+          const normCb = cb.replace(/[^0-9]/g, "");
+          return (
+            cb === codigo ||
+            normCb === normBuscado ||
+            (normBase.length >= 6 && normCb.indexOf(normBase) !== -1) ||
+            normCb.indexOf(normBuscado.replace(/^0+/, "")) !== -1
+          );
+        });
+        if (candidato) {
+          if (input) input.value = "";
+          if (resultado) resultado.innerHTML = "";
+          if (typeof editarProducto === "function") {
+            editarProducto(candidato.id);
+            return;
+          }
+        }
+      }
+
+      const candidato2 = { data: null, error: null };
+      for (const variante of [
+        codigo,
+        codigo.replace(/[^0-9]/g, ""),
+        codigo.replace(/[^0-9]/g, "").replace(/^0+/, ""),
+      ]) {
+        if (!variante || variante === codigo) continue;
+        const q = await window.supabase
+          .from("productos")
+          .select("*")
+          .ilike("codigo_barras", `%${variante}%`)
+          .limit(1);
+        if (q.error) throw q.error;
+        if (q.data && q.data.length > 0) {
+          candidato2.data = q.data[0];
+          break;
+        }
+      }
+      if (candidato2.data) {
+        if (input) input.value = "";
+        if (resultado) resultado.innerHTML = "";
+        if (typeof editarProducto === "function") {
+          editarProducto(candidato2.data.id);
+          return;
+        }
+      }
+    }
+
     // CÓDIGO "CREADOR DE PRODUCTO": NOMBRE|MARCA|PRECIO|CATEGORÍA
     // Se genera desde la web recomendada (Code 128) e inserta automáticamente
     // los datos en el formulario: producto, marca, precio y categoría.
@@ -2236,18 +2767,23 @@ function abrirEtiquetaProducto(id) {
       }
       etiquetaActiva = data;
       actualizarCentroUI();
+      // En la etiqueta NUNCA se imprimen emojis (la térmica/cp1252 los imprime
+      // como "?"): se quitan aquí, en la etiqueta termal Bluetooth y en el PDF.
+      const etNombre = quitarEmojisParaImpresion(data.nombre);
+      const etMarca = quitarEmojisParaImpresion(data.marca);
+      const etCategoria = quitarEmojisParaImpresion(data.categoria);
       contenedor.innerHTML = `
         <div class="etiqueta-producto">
-          <div class="etiqueta-nombre">${data.nombre || ""}</div>
-          ${data.marca ? `<div class="etiqueta-marca">${data.marca}</div>` : ""}
+          <div class="etiqueta-nombre">${escapeHtml(etNombre)}</div>
+          ${etMarca ? `<div class="etiqueta-marca">${escapeHtml(etMarca)}</div>` : ""}
           <div class="etiqueta-precio">${formatearMoneda(data.precio)}</div>
           ${
-            data.categoria
-              ? `<div class="etiqueta-categoria">${String(data.categoria).replace(/_/g, " ")}</div>`
+            etCategoria
+              ? `<div class="etiqueta-categoria">${escapeHtml(String(etCategoria).replace(/_/g, " "))}</div>`
               : ""
           }
           ${data.codigo_barras ? '<svg id="etiquetaSVG"></svg>' : ""}
-          <div class="etiqueta-codigo">${data.codigo_barras || "Sin código"}</div>
+          <div class="etiqueta-codigo">${escapeHtml(data.codigo_barras || "Sin código")}</div>
         </div>
       `;
       if (data.codigo_barras && window.JsBarcode) {
@@ -2374,16 +2910,21 @@ function codigoBarraDataURL(codigo) {
   });
 }
 
-// Genera el PDF "etiquetas-productos.pdf" con jsPDF: una hoja A4 con las
+// Genera el PDF "etiquetas-productos.pdf" con jsPDF: una hoja Letter con las
 // etiquetas (código de barras, nombre, marca, precio y categoría) lista
 // para imprimir en una impresora normal.
+//
+// IMPORTANTE: se usa formato Letter (papel de EE. UU., 8.5" x 11"). Antes se
+// usaba A4 y, al imprimir en papel Letter, la impresora reajustaba/cortaba la
+// hoja y algunas etiquetas salían en hojas separadas. Con Letter las 6
+// etiquetas (2 columnas x 3 filas) caben exactas en una sola página.
 async function generarPDFEtiquetas(productos) {
   if (!window.jspdf || !window.jspdf.jsPDF) return false;
   try {
     const doc = new window.jspdf.jsPDF({
       orientation: "portrait",
       unit: "mm",
-      format: "a4",
+      format: "letter",
     });
     const ancho = doc.internal.pageSize.getWidth();
     const alto = doc.internal.pageSize.getHeight();
@@ -2403,31 +2944,38 @@ async function generarPDFEtiquetas(productos) {
     doc.setDrawColor(170);
     doc.setLineWidth(0.3);
 
+    let paginaActual = 0;
     productos.forEach(function (p, idx) {
       const fila = Math.floor(idx / cols);
       const col = idx % cols;
       const pagina = Math.floor(fila / filas);
-      if (pagina > 0) doc.addPage();
+      // Solo se agrega página cuando se cambia de hoja (no por cada etiqueta).
+      if (pagina > paginaActual) {
+        doc.addPage();
+        paginaActual = pagina;
+      }
       const y0 = margen + (fila % filas) * (alt + gap);
       const x0 = margen + col * (anc + gap);
       const cx = x0 + anc / 2;
 
       doc.roundedRect(x0, y0, anc, alt, 2, 2, "S");
 
-      // Nombre centrado
+      // Nombre centrado (emojis fuera de la etiqueta impresa)
       let y = y0 + 10;
       doc.setFont("helvetica", "bold");
       doc.setFontSize(10);
       doc.setTextColor(0);
-      const lineasNombre = doc.splitTextToSize(p.nombre || "", anc - 16);
+      const etNombre = quitarEmojisParaImpresion(p.nombre);
+      const lineasNombre = doc.splitTextToSize(etNombre || "", anc - 16);
       doc.text(lineasNombre.slice(0, 3), cx, y, { align: "center" });
       y += Math.min(lineasNombre.length, 3) * 4.4 + 3;
 
       // Marca centrada
-      if (p.marca) {
+      const etMarca = quitarEmojisParaImpresion(p.marca);
+      if (etMarca) {
         doc.setFont("helvetica", "bold");
         doc.setFontSize(9);
-        doc.text(String(p.marca), cx, y, { align: "center" });
+        doc.text(etMarca, cx, y, { align: "center" });
         y += 8;
       }
 
@@ -2438,11 +2986,12 @@ async function generarPDFEtiquetas(productos) {
       y += 10;
 
       // Categoría centrada
-      if (p.categoria) {
+      const etCategoria = quitarEmojisParaImpresion(p.categoria);
+      if (etCategoria) {
         doc.setFont("helvetica", "normal");
         doc.setFontSize(7.5);
         doc.setTextColor(85);
-        doc.text(String(p.categoria).replace(/_/g, " ").toUpperCase(), cx, y, {
+        doc.text(String(etCategoria).replace(/_/g, " ").toUpperCase(), cx, y, {
           align: "center",
         });
         doc.setTextColor(0);
@@ -2493,18 +3042,18 @@ function descargarEtiquetasHTML(productos) {
   const etiquetas = productos
     .map(function (p) {
       const svg = construirSVGCodigo(p.codigo_barras);
+      // Emojis fuera de la etiqueta impresa también aquí.
+      const etNombre = quitarEmojisParaImpresion(p.nombre);
+      const etMarca = quitarEmojisParaImpresion(p.marca);
+      const etCategoria = quitarEmojisParaImpresion(p.categoria);
       return `
           <div class="etiqueta">
-            <div class="et-nombre">${escapeHtml(p.nombre)}</div>
-            ${
-              p.marca
-                ? `<div class="et-marca">${escapeHtml(p.marca)}</div>`
-                : ""
-            }
+            <div class="et-nombre">${escapeHtml(etNombre)}</div>
+            ${etMarca ? `<div class="et-marca">${escapeHtml(etMarca)}</div>` : ""}
             <div class="et-precio">${formatearMoneda(p.precio)}</div>
             ${
-              p.categoria
-                ? `<div class="et-categoria">${escapeHtml(String(p.categoria).replace(/_/g, " "))}</div>`
+              etCategoria
+                ? `<div class="et-categoria">${escapeHtml(String(etCategoria).replace(/_/g, " "))}</div>`
                 : ""
             }
             ${svg}
@@ -2544,7 +3093,15 @@ function descargarEtiquetasHTML(productos) {
   @media print {
     .cabecera { display: none; }
     body { padding: 0; }
-    .grid { gap: 6px !important; }
+    .grid {
+      display: block;
+      gap: 0;
+    }
+    .etiqueta {
+      display: inline-block;
+      vertical-align: top;
+      margin: 0 6px 6px 0;
+    }
   }
 </style>
 </head>
@@ -2699,7 +3256,18 @@ async function imprimirPruebaRegla() {
   }
 }
 
-function construirBytesEtiqueta(proto, datos, texto) {
+// continuarLote = true indica que esta etiqueta es parte de un lote y ya se
+// configuró SIZE/GAP en la primera: se envían solo CLS + contenido + PRINT.
+function construirBytesEtiqueta(proto, datos, texto, continuarLote) {
+  // Garantía: ningún emoji llega a los bytes (cp1252 los volvería "?").
+  datos = {
+    nombre: quitarEmojisParaImpresion(datos && datos.nombre),
+    marca: quitarEmojisParaImpresion(datos && datos.marca),
+    codigo: quitarEmojisParaImpresion(datos && datos.codigo),
+    precio: quitarEmojisParaImpresion(datos && datos.precio),
+    categoria: quitarEmojisParaImpresion(datos && datos.categoria),
+  };
+  texto = quitarEmojisParaImpresion(String(texto || ""));
   if (proto === "escpos") {
     const out = [];
     const a = (...arrs) => { for (const x of arrs) out.push(...x); };
@@ -2755,7 +3323,12 @@ function construirBytesEtiqueta(proto, datos, texto) {
     precioL = precioL.slice(0, maxChars(precioFont));
     const codigo = datos.codigo ? String(datos.codigo).slice(0, 24) : "";
 
-    const lineas = ["SIZE " + ETIQUETA_ANCHO, "GAP 2 mm, 0 mm", "CLS"];
+    // En un lote, SIZE/GAP se envían UNA sola vez al inicio. Volver a
+    // enviarlos por cada etiqueta desincroniza el sensor de gap en estos
+    // clones y produce el "una impresa / una en blanco" alternado.
+    const lineas = continuarLote
+      ? ["CLS"]
+      : ["SIZE " + ETIQUETA_ANCHO, "GAP 2 mm, 0 mm", "CLS"];
     const NOMBRE_STEP = 78;
     let y = 12;
     (nombreLineas.length ? nombreLineas : [""]).forEach((nl, i) => {
@@ -2783,6 +3356,27 @@ function construirBytesEtiqueta(proto, datos, texto) {
   return new Uint8Array(codificarCp1252(texto));
 }
 
+// Prepara los datos y texto de una etiqueta para un producto (reutilizado por
+// la impresión individual y la impresión masiva).
+function prepararEtiquetaProducto(p) {
+  const nombre = quitarEmojisParaImpresion(p.nombre);
+  const marca = quitarEmojisParaImpresion(p.marca);
+  const codigo = quitarEmojisParaImpresion(p.codigo_barras);
+  const precio = formatearMoneda(p.precio);
+  const categoria = quitarEmojisParaImpresion(p.categoria);
+  const texto =
+    nombre +
+    (marca ? "\n" + marca : "") +
+    (codigo ? "\n" + codigo : "") +
+    "\n" +
+    precio +
+    "\n\n";
+  return {
+    datos: { nombre: nombre.split("\n")[0], marca, codigo, precio, categoria },
+    texto,
+  };
+}
+
 // Envía la etiqueta a una impresora térmica de etiquetas por Web Bluetooth.
 // Detecta automáticamente el servicio/característica escribible de la P1_BAB3
 // u otra impresora genérica (prefiere Nordic UART si está disponible).
@@ -2795,24 +3389,9 @@ async function enviarEtiquetaBluetooth() {
     notificar("❌ Primero abre la etiqueta de un producto.", "error");
     return;
   }
-  const nombre = etiquetaActiva.nombre || "";
-  const marca = etiquetaActiva.marca || "";
-  const codigo = etiquetaActiva.codigo_barras || "";
-  const precio = formatearMoneda(etiquetaActiva.precio);
-  const categoria = etiquetaActiva.categoria || "";
-  const texto =
-    nombre +
-    (marca ? "\n" + marca : "") +
-    (codigo ? "\n" + codigo : "") +
-    "\n" +
-    precio +
-    "\n\n";
+  const { datos, texto } = prepararEtiquetaProducto(etiquetaActiva);
   const proto = (document.getElementById("protoEtiqueta") || { value: "tspl" }).value || "tspl";
-  const data = construirBytesEtiqueta(
-    proto,
-    { nombre: nombre.split("\n")[0], marca: marca, codigo: codigo, precio: precio, categoria: categoria },
-    texto
-  );
+  const data = construirBytesEtiqueta(proto, datos, texto);
 
   try {
     const { server, target, diag } = await conectarImpresoraBluetooth();
@@ -2841,6 +3420,54 @@ async function enviarEtiquetaBluetooth() {
       notificar("❌ No se pudo conectar con la impresora.", "error");
     } else {
       notificar("❌ Error al enviar por Bluetooth: " + (error.message || error), "error");
+    }
+  }
+}
+
+// Imprime TODAS las etiquetas de productos (los que tengan código de barras)
+// en la impresora térmica Bluetooth, de un solo clic. Conecta una sola vez
+// y envía cada etiqueta con una pausa breve para que la impresora no se sature.
+async function imprimirTodasEtiquetas() {
+  if (!navigator.bluetooth) {
+    notificar("❌ Este navegador no soporta Web Bluetooth. Usa Chrome o Edge.", "error");
+    return;
+  }
+  notificar("⏳ Cargando productos...");
+  try {
+    const { data, error } = await window.supabase
+      .from("productos")
+      .select("*")
+      .order("nombre");
+    if (error) throw error;
+    const productos = (Array.isArray(data) ? data : []).filter(
+      (p) => p && p.codigo_barras,
+    );
+    if (!productos.length) {
+      notificar("❌ No hay productos con código de barras para imprimir.", "error");
+      return;
+    }
+    const proto =
+      (document.getElementById("protoEtiqueta") || { value: "tspl" }).value ||
+      "tspl";
+    notificar("⏳ Conectando con la impresora...");
+    const { server, target } = await conectarImpresoraBluetooth();
+    const total = productos.length;
+    for (let i = 0; i < total; i++) {
+      notificar("🖨️ Imprimiendo " + (i + 1) + " / " + total + "...");
+      const { datos, texto } = prepararEtiquetaProducto(productos[i]);
+      // La primera etiqueta envía SIZE/GAP (configuran la hoja); las demás
+      // solo CLS + contenido + PRINT para no desincronizar el sensor de gap.
+      const bytes = construirBytesEtiqueta(proto, datos, texto, i > 0);
+      await escribirEnImpresora(server, target, bytes);
+      if (i < total - 1)
+        await new Promise((r) => setTimeout(r, 400));
+    }
+    notificar("✅ " + total + " etiquetas enviadas a la impresora por Bluetooth.");
+  } catch (error) {
+    if (error && error.name === "NotFoundError") {
+      notificar("❌ No se pudo conectar con la impresora.", "error");
+    } else {
+      notificar("❌ Error al imprimir etiquetas: " + (error.message || error), "error");
     }
   }
 }
@@ -3198,23 +3825,28 @@ async function cargarInventario() {
 
     cargarSelectProductosInventario();
 
-    // Búsqueda por producto (filtro en memoria por nombre O código de barras).
+    // Filtros del tab: búsqueda por nombre/código + estado de stock ACTUAL.
     const busquedaInventario = document
       .getElementById("buscarProductoInventario")
       ?.value.trim()
       .toLowerCase();
-    const movimientosVisibles = busquedaInventario
-      ? data.filter((m) => {
-          const nombre = String(m.productos?.nombre || "").toLowerCase();
-          const codigo = String(
-            m.productos?.codigo_barras || "",
-          ).toLowerCase();
-          return (
-            nombre.includes(busquedaInventario) ||
-            codigo.includes(busquedaInventario)
-          );
-        })
-      : data;
+    const filtroStock = document.getElementById("filtroStockInventario")?.value || "todos";
+    const movimientosVisibles = data.filter((m) => {
+      const nombre = String(m.productos?.nombre || "").toLowerCase();
+      const codigo = String(
+        m.productos?.codigo_barras || "",
+      ).toLowerCase();
+      const stockActual = Number(m.productos?.stock) || 0;
+      if (filtroStock === "con" && stockActual <= 0) return false;
+      if (filtroStock === "sin" && stockActual > 0) return false;
+      if (
+        busquedaInventario &&
+        !nombre.includes(busquedaInventario) &&
+        !codigo.includes(busquedaInventario)
+      )
+        return false;
+      return true;
+    });
 
     if (!movimientosVisibles.length) {
       container.innerHTML = busquedaInventario
@@ -3557,17 +4189,38 @@ async function reemplazarFilaPedido(id) {
   }
 }
 
+// Borra los filtros de búsqueda del tab Pedidos (N°, correo y nombre) y
+// recarga la lista con todos los pedidos del filtro de estado activo.
+function limpiarBusquedaPedidos() {
+  ["buscarNumeroPedido", "buscarEmailPedido", "buscarNombrePedido"].forEach(
+    (id) => {
+      const el = document.getElementById(id);
+      if (el) el.value = "";
+    },
+  );
+  const ms = document.getElementById("mensajeScanPedidos");
+  if (ms) {
+    ms.textContent = "";
+    ms.className = "";
+  }
+  const activeFilter = document.querySelector(".filtro-pedido.active");
+  cargarPedidos(activeFilter?.dataset?.estado || "todos");
+}
+
 async function cargarPedidos(estado = "todos") {
   const container = document.getElementById("listaPedidos");
   if (!container) return;
 
-  const tabPedidos = document.getElementById("tab-pedidos");
-  if (tabPedidos && tabPedidos.style.display === "none") {
-    return;
-  }
+const tabPedidos = document.getElementById("tab-pedidos");
+    if (tabPedidos && tabPedidos.style.display === "none") {
+      return;
+    }
 
-  container.innerHTML =
-    '<div class="text-center text-dim py-3">Cargando...</div>';
+    // Mantener al día el contador de "Pedidos nuevos" (botón + badge).
+    cargarPedidosNuevos();
+
+    container.innerHTML =
+      '<div class="text-center text-dim py-3">Cargando...</div>';
 
   try {
     const { data: todosPedidos, error: countError } = await window.supabase
@@ -3616,9 +4269,11 @@ async function cargarPedidos(estado = "todos") {
       .order("cliente_nombre", { ascending: true });
     if (estado !== "todos") query = query.eq("estado", estado);
 
-    const busquedaNumero = document
-      .getElementById("buscarNumeroPedido")
-      ?.value.trim();
+    // Normalizar el N° de pedido por si el escáner escribió apóstrofes
+    // directamente en el campo (p. ej. "P'260914'0618" → "P-260914-0618").
+    const busquedaNumero = normalizarCodigoBarras(
+      document.getElementById("buscarNumeroPedido")?.value,
+    );
     if (busquedaNumero)
       query = query.ilike("numero_pedido", `%${busquedaNumero}%`);
 
@@ -4874,12 +5529,87 @@ async function cargarPedidosParaTicket() {
   }
 }
 
+// Cambia el modo del ticket (impresion / venta_directa) y actualiza la UI.
+// La forma de pago solo aplica a la VENTA DIRECTA.
+function seleccionarModoTicket(modo, limpiar) {
+  modoTicketActual = modo || "venta_directa";
+  const btns = document.querySelectorAll(".modo-ticket-btn");
+  btns.forEach((b) => {
+    b.classList.toggle("activo", b.dataset.modo === modoTicketActual);
+  });
+
+  // Si el usuario cambia de modo manualmente, se limpia todo: productos
+  // agregados, campos del formulario y select de pedido. Así si se precargó
+  // un pedido en impresión (con productos sin stock) y se cambia a venta
+  // directa, no quedan productos inválidos en la lista.
+  if (limpiar) {
+    ticketProductos = [];
+    pedidoTicketPrecargado = null;
+    ["ticketCliente", "ticketTelefono", "ticketDireccion",
+     "ticketLugarEntrega", "ticketEnvio", "ticketDescuento"].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.value = "";
+    });
+    const selPrev = document.getElementById("ticketPedidoSelect");
+    if (selPrev) selPrev.value = "";
+    const selProd = document.getElementById("ticketProductoSelect");
+    if (selProd) selProd.value = "";
+  }
+
+  if (modoTicketActual === "venta_directa" && pedidoTicketPrecargado) {
+    pedidoTicketPrecargado = null;
+    const selPrev = document.getElementById("ticketPedidoSelect");
+    if (selPrev) selPrev.value = "";
+  }
+
+  const esVentaDirecta = modoTicketActual === "venta_directa";
+  const selProducto = document.getElementById("ticketProductoSelect");
+  if (selProducto) {
+    selProducto.toggleAttribute("required", esVentaDirecta);
+  }
+  const telCampo = document.getElementById("ticketTelefono");
+  if (telCampo) {
+    telCampo.toggleAttribute("required", esVentaDirecta);
+  }
+
+  const grupoPago = document.getElementById("grupoFormaPagoTicket");
+  if (grupoPago) {
+    grupoPago.classList.toggle("oculto", !esVentaDirecta);
+    grupoPago.querySelectorAll('input[name="formaPagoTicket"]').forEach((r) => {
+      r.disabled = !esVentaDirecta;
+    });
+  }
+
+  const nota = document.getElementById("modoTicketEstado");
+  if (nota) {
+    if (esVentaDirecta) {
+      nota.textContent = "⚠️ Este ticket SÍ descuenta stock y registra la venta.";
+    } else {
+      nota.textContent =
+        "✅ Este ticket NO descuenta stock (solo se imprime).";
+    }
+  }
+
+  // Recargar los productos para que el dropdown refleje el nuevo modo
+  // (en venta directa ocultar los de stock=0; en impresión mostrar todos).
+  if (limpiar) {
+    cargarProductosTicket();
+    actualizarListaTicket();
+    actualizarTotalesTicket();
+  }
+  actualizarBotonTicket();
+}
+
 function actualizarBotonTicket() {
   const btn = document.querySelector('#formTicketVenta button[type="submit"]');
   if (!btn) return;
-  btn.innerHTML = pedidoTicketPrecargado
-    ? '<i class="fas fa-print"></i> 🖨️ Reimprimir Ticket (pedido)'
-    : '<i class="fas fa-cash-register"></i> 💵 Generar Ticket · Venta Nueva';
+  if (modoTicketActual === "impresion") {
+    btn.innerHTML =
+      '<i class="fas fa-print"></i> 🖨️ Imprimir Ticket (sin registrar ni tocar stock)';
+  } else {
+    btn.innerHTML =
+      '<i class="fas fa-cash-register"></i> 💵 Registrar Venta y Generar Ticket (descuenta stock)';
+  }
 }
 
 function limpiarFormularioTicket() {
@@ -4891,12 +5621,19 @@ function limpiarFormularioTicket() {
   document.getElementById("ticketLugarEntrega").value = "";
   document.getElementById("ticketEnvio").value = "";
   document.getElementById("ticketDescuento").value = "";
-  // En venta nueva el producto vuelve a ser obligatorio.
+  // En venta nueva el producto y el teléfono vuelven a ser obligatorios;
+  // el modo vuelve a "Venta directa" y la forma de pago queda visible.
   const selProducto = document.getElementById("ticketProductoSelect");
   if (selProducto) selProducto.setAttribute("required", "required");
+  const telCampo = document.getElementById("ticketTelefono");
+  if (telCampo) telCampo.setAttribute("required", "required");
+  const pagoCompleto = document.querySelector(
+    'input[name="formaPagoTicket"][value="completo"]',
+  );
+  if (pagoCompleto) pagoCompleto.checked = true;
+  seleccionarModoTicket("venta_directa");
   actualizarListaTicket();
   actualizarTotalesTicket();
-  actualizarBotonTicket();
 }
 
 async function precargarPedidoEnTicket(pedido) {
@@ -4946,6 +5683,15 @@ async function precargarPedidoEnTicket(pedido) {
   const selProducto = document.getElementById("ticketProductoSelect");
   if (selProducto) selProducto.removeAttribute("required");
 
+  // #11: en solo impresión, teléfono y punto de entrega son OPCIONALES.
+  const telCampo = document.getElementById("ticketTelefono");
+  if (telCampo) telCampo.removeAttribute("required");
+  // Modo IMPRESIÓN: la forma de pago queda oculta/deshabilitada porque no
+  // se registra ninguna venta ni movimiento de finanzas.
+  seleccionarModoTicket("impresion");
+  const msgModo = document.getElementById("modoTicketEstado");
+  if (msgModo) msgModo.textContent = "🖨️ Solo impresión: no se registra venta ni se descuenta stock.";
+
   ticketProductos = (pedido.productos || []).map((p) => {
     const match = productosDisponibles.find((d) => d.nombre === p.nombre);
     return {
@@ -4994,17 +5740,15 @@ async function cargarProductosTicket() {
     productosDisponibles = data || [];
     select.innerHTML = '<option value="">Selecciona un producto...</option>';
 
-    const productosConStock = data?.filter((p) => p.stock > 0) || [];
-
-    if (productosConStock.length === 0) {
-      select.innerHTML =
-        '<option value="">⚠️ No hay productos con stock disponible</option>';
-      return;
-    }
-
-    productosConStock.forEach((p) => {
+    // En Venta Directa solo se muestran productos con stock; en Impresión
+    // se muestran todos (aunque estén agotados).
+    const esVentaDirecta = modoTicketActual === "venta_directa";
+    (data || []).forEach((p) => {
       const precio = Number(p.precio) || 0;
-      select.innerHTML += `<option value="${p.id}" data-stock="${p.stock}" data-precio="${precio}">${p.nombre} - $${precio} (Stock: ${p.stock})</option>`;
+      const sinStock = Number(p.stock) <= 0;
+      if (esVentaDirecta && sinStock) return;
+      const stockLabel = sinStock ? "Sin stock" : "Stock: " + p.stock;
+      select.innerHTML += `<option value="${p.id}" data-stock="${p.stock}" data-precio="${precio}">${p.nombre} - $${precio} (${stockLabel})</option>`;
     });
 
   } catch (error) {
@@ -5038,7 +5782,10 @@ function agregarProductoTicket() {
     return;
   }
 
-  if (cantidad > producto.stock) {
+// Solo VENTA DIRECTA valida y decrementa el stock visual de la lista; en
+  // Impresión se puede agregar cualquier producto sin límite.
+const esVentaDirecta = modoTicketActual === "venta_directa";
+if (esVentaDirecta && cantidad > producto.stock) {
     mostrarModalAlerta(
       `❌ Stock insuficiente. Disponible: ${producto.stock}`,
     );
@@ -5050,7 +5797,7 @@ function agregarProductoTicket() {
   const existente = ticketProductos.find((p) => p.id === productoId);
   if (existente) {
     const nuevaCantidad = existente.cantidad + cantidad;
-    if (nuevaCantidad > stockOriginal) {
+    if (esVentaDirecta && nuevaCantidad > stockOriginal) {
       mostrarModalAlerta(
         `❌ Stock insuficiente. Disponible: ${stockOriginal}`,
       );
@@ -5068,15 +5815,19 @@ function agregarProductoTicket() {
     ticketProductos.push(nuevoProducto);
   }
 
-  producto.stock -= cantidad;
+  // Solo en venta directa se decrementa el stock visual del selector (simula
+  // el descuento real que ocurrirá al procesar la venta).
+  if (esVentaDirecta) {
+    producto.stock -= cantidad;
+  }
 
   actualizarListaTicket();
   actualizarTotalesTicket();
 
-  if (option) {
+  if (option && esVentaDirecta) {
     const nuevoStock = producto.stock;
     option.dataset.stock = nuevoStock;
-    option.textContent = `${producto.nombre} - $${precio} (Stock: ${nuevoStock})`;
+    option.textContent = `${producto.nombre} - $${precio} (${nuevoStock <= 0 ? "Sin stock" : "Stock: " + nuevoStock})`;
     if (nuevoStock <= 0) {
       option.disabled = true;
     }
@@ -5090,29 +5841,87 @@ function actualizarListaTicket() {
   if (!container) return;
 
   if (ticketProductos.length === 0) {
-    container.innerHTML =
-      '<p class="text-dim text-center small">No hay productos agregados</p>';
+    container.innerHTML = `
+      <div class="tf-vacia">
+        <span class="tf-vacia-icon">📦</span>
+        <p>Agrega productos para armar el ticket</p>
+      </div>`;
     document.getElementById("ticketSubtotal").value = "$0.00";
     document.getElementById("ticketTotal").value = "$0.00";
     return;
   }
 
   container.innerHTML = ticketProductos
-    .map(
-      (p, index) => `
-        <div class="d-flex justify-content-between align-items-center bg-secondary bg-opacity-25 p-2 rounded-2 mb-1">
-            <div>
-                <span class="text-white">${p.nombre}</span>
-                <span class="text-dim small"> × ${p.cantidad}</span>
-                <span class="text-warning small">$${(
-                  p.precio * p.cantidad
-                ).toFixed(2)}</span>
+    .map((p, index) => {
+      const subFila = (
+        (Number(p.precio) || 0) * (Number(p.cantidad) || 1)
+      ).toFixed(2);
+      return `
+        <div class="ticket-fila">
+          <div class="tf-cabecera">
+            <div class="tf-info">
+              <span class="tf-numero">${index + 1}</span>
+              <span class="tf-nombre">${escTienda(p.nombre)}</span>
             </div>
-            <button onclick="eliminarProductoTicket(${index})" class="btn btn-danger btn-sm">✕</button>
-        </div>
-    `,
-    )
+            <button type="button" class="tf-quitar" onclick="eliminarProductoTicket(${index})" title="Quitar del ticket">✕</button>
+          </div>
+          <div class="tf-cuerpo">
+            <div class="tf-campo">
+              <span class="tf-etiqueta">Cant.</span>
+              <div class="tf-stepper">
+                <button type="button" onclick="cambiarCantidadTicket(${index}, -1)" title="Disminuir cantidad">−</button>
+                <span class="tf-cantidad">${Number(p.cantidad) || 1}</span>
+                <button type="button" onclick="cambiarCantidadTicket(${index}, 1)" title="Aumentar cantidad">+</button>
+              </div>
+            </div>
+            <div class="tf-campo">
+              <span class="tf-etiqueta">Precio unit.</span>
+              <div class="tf-precio">
+                <span class="tf-monedero">$</span>
+                <input type="number" class="ticket-precio-input" value="${Number(p.precio) || 0}" min="0" step="0.01" inputmode="decimal"
+                    title="Precio de venta por unidad (editable)"
+                    onchange="cambiarPrecioTicket(${index}, this.value)">
+              </div>
+            </div>
+            <div class="tf-campo tf-campo-subtotal">
+              <span class="tf-etiqueta">Subtotal</span>
+              <strong class="tf-subtotal">$${subFila}</strong>
+            </div>
+          </div>
+        </div>`;
+    })
     .join("");
+}
+
+// #9: permite editar el precio de venta de un producto dentro del ticket.
+function cambiarPrecioTicket(index, valor) {
+  const p = ticketProductos[index];
+  if (!p) return;
+  p.precio = Math.max(0, parseFloat(String(valor)) || 0);
+  actualizarListaTicket();
+  actualizarTotalesTicket();
+}
+
+// #10: permite editar la cantidad dentro del ticket (para reimprimir o ajustar
+// una venta). En venta nueva respeta el stock original del producto.
+function cambiarCantidadTicket(index, delta) {
+  const p = ticketProductos[index];
+  if (!p) return;
+  const nuevo = (Number(p.cantidad) || 1) + Number(delta) || 1;
+  if (nuevo < 1) {
+    mostrarModalAlerta("❌ La cantidad mínima es 1");
+    return;
+  }
+  // En Impresión no hay límite de stock.
+  if (modoTicketActual === "venta_directa" && nuevo > Number(p.stockOriginal || 0)) {
+    mostrarModalAlerta(
+      `❌ Stock insuficiente. Disponible: ${Number(p.stockOriginal) || 0}`,
+    );
+    return;
+  }
+  p.cantidad = nuevo;
+  actualizarListaTicket();
+  actualizarTotalesTicket();
 }
 
 function eliminarProductoTicket(index) {
@@ -5179,6 +5988,18 @@ function actualizarTotalesTicket() {
   if (totalInput) totalInput.value = `$${total.toFixed(2)}`;
 }
 
+// Genera un código de ticket (T-...) para que el código de barras SIEMPRE
+// se imprima, incluso cuando no hay un pedido real (impresión manual o venta
+// a quincenas que aún no se registra).
+function generarCodigoTicketLimpio() {
+  const f = new Date();
+  const yy = f.getFullYear().toString().slice(-2);
+  const mm = String(f.getMonth() + 1).padStart(2, "0");
+  const dd = String(f.getDate()).padStart(2, "0");
+  const rnd = String(Math.floor(Math.random() * 10000)).padStart(4, "0");
+  return `T-${yy}${mm}${dd}-${rnd}`;
+}
+
 async function generarTicketVenta(e) {
   e.preventDefault();
   const msg = document.getElementById("mensajeTicket");
@@ -5192,10 +6013,17 @@ async function generarTicketVenta(e) {
     parseFloat(document.getElementById("ticketDescuento").value) || 0;
   descuentoPct = Math.min(100, Math.max(0, descuentoPct));
 
-  if (!cliente || !telefono) {
+  // El teléfono solo es obligatorio en VENTA DIRECTA. La Impresión jamás
+  // descuenta stock (aunque se editen campos del ticket).
+  const modo = modoTicketActual || "venta_directa";
+  const esVentaDirecta = modo === "venta_directa";
+  if (!cliente) {
+    return mostrarMensaje(msg, "❌ El nombre del cliente es obligatorio", "error");
+  }
+  if (esVentaDirecta && !telefono) {
     return mostrarMensaje(
       msg,
-      "❌ Cliente y teléfono son obligatorios",
+      "❌ El teléfono es obligatorio en una venta nueva",
       "error",
     );
   }
@@ -5213,18 +6041,19 @@ async function generarTicketVenta(e) {
   const totalActual = subtotalActual - descuentoMontoActual;
 
   // ============================================
-  // MODO REIMPRESIÓN: pedido ya existente precargado.
-  // Solo se genera/imprime el ticket, sin tocar stock,
-  // sin crear otro pedido ni otro movimiento financiero.
+  // MODO SOLO IMPRESIÓN: imprime lo que está en pantalla (manual o con un
+  // pedido precargado del selector de arriba). NO registra la venta,
+  // NO descuenta stock, NO crea pedido ni movimiento en finanzas.
   // ============================================
-  if (pedidoTicketPrecargado) {
+  if (modo === "impresion") {
+    const ped = pedidoTicketPrecargado;
     const datosTicket = {
       cliente: cliente,
       telefono: telefono,
       direccion: direccion || "",
       lugar_entrega: document.getElementById("ticketLugarEntrega").value || "",
       metodo_pago:
-        pedidoTicketPrecargado.metodo_pago === "transferencia"
+        ped && ped.metodo_pago === "transferencia"
           ? "Transferencia"
           : "Efectivo",
       items: ticketProductos.map((p) => ({
@@ -5236,37 +6065,89 @@ async function generarTicketVenta(e) {
       envio: envio,
       descuento: descuentoPct,
       total: totalActual,
-      fecha:
-        pedidoTicketPrecargado.fecha_entregado ||
-        pedidoTicketPrecargado.fecha_vendido ||
-        pedidoTicketPrecargado.fecha_pedido ||
-        new Date().toISOString(),
-      entrega_dia:
-        pedidoTicketPrecargado?.fecha_entregado ||
-        pedidoTicketPrecargado?.dia_entrega ||
-        "",
-      entrega_hora: pedidoTicketPrecargado?.hora_entrega || "",
-      punto_entrega: pedidoTicketPrecargado?.punto_entrega || "",
+      fecha: ped
+        ? ped.fecha_entregado ||
+          ped.fecha_vendido ||
+          ped.fecha_pedido ||
+          new Date().toISOString()
+        : new Date().toISOString(),
+      entrega_dia: (ped && (ped.fecha_entregado || ped.dia_entrega)) || "",
+      entrega_hora: (ped && ped.hora_entrega) || "",
+      punto_entrega: (ped && ped.punto_entrega) || "",
       ticket_numero: `T-${Date.now().toString(36).toUpperCase()}`,
-      numero_pedido: pedidoTicketPrecargado.numero_pedido || "",
-      estado: pedidoTicketPrecargado.estado || "",
+      // Si hay un pedido precargado se imprime su código; si es manual se
+      // genera un código de ticket para que el barcode SIEMPRE se imprima.
+      numero_pedido: ped ? ped.numero_pedido || "" : generarCodigoTicketLimpio(),
+      estado: (ped && ped.estado) || "",
     };
 
     imprimirTicketAdmin(datosTicket);
 
     mostrarMensaje(
       msg,
-      "✅ Ticket generado (no se registró otra venta).",
+      ped
+        ? "✅ Ticket impreso sin registrar (pedido precargado, no se tocó stock)."
+        : "✅ Ticket impreso (solo impresión). No se registró nada ni se tocó el stock.",
       "exito",
     );
     return;
   }
 
   // ============================================
-  // MODO VENTA NUEVA: comportamiento original,
-  // valida stock, crea el pedido, descuenta inventario
-  // y registra el ingreso en finanzas.
+  // MODO VENTA DIRECTA: valida stock, crea el pedido,
+  // descuenta inventario y registra el ingreso en finanzas.
   // ============================================
+  if (pedidoTicketPrecargado) {
+    return mostrarMensaje(
+      msg,
+      "❌ Quita el pedido seleccionado arriba antes de hacer una Venta Directa (evita duplicar ventas).",
+      "error",
+    );
+  }
+
+  // #8: forma de pago. "completo" → se registra el ingreso en finanzas;
+  // "quincenas" → SOLO se imprime el ticket (el admin da de alta al cliente
+  // en el tab Pagos y gestiona ahí el dinero; no se crea pedido ni se toca
+  // inventario ni finanzas).
+  const formaPagoChecked = document.querySelector(
+    'input[name="formaPagoTicket"]:checked',
+  );
+  const pagoEnUnSoloPago =
+    !formaPagoChecked || formaPagoChecked.value === "completo";
+
+  // Venta a quincenas: solo ticket impreso, sin efectos en la base de datos.
+  if (!pagoEnUnSoloPago) {
+    const datosTicket = {
+      cliente: cliente,
+      telefono: telefono,
+      direccion: direccion || "",
+      lugar_entrega: document.getElementById("ticketLugarEntrega").value || "",
+      metodo_pago: "A quincenas",
+      items: ticketProductos.map((p) => ({
+        nombre: p.nombre,
+        precio: p.precio,
+        cantidad: p.cantidad,
+      })),
+      subtotal: subtotalActual,
+      envio: envio,
+      descuento: descuentoPct,
+      total: totalActual,
+      fecha: new Date().toISOString(),
+      ticket_numero: `T-${Date.now().toString(36).toUpperCase()}`,
+      numero_pedido: generarCodigoTicketLimpio(),
+      estado: "",
+    };
+
+    imprimirTicketAdmin(datosTicket);
+
+    mostrarMensaje(
+      msg,
+      "🖨️ Ticket a quincenas impreso. No se registró venta ni ganancia: da de alta al cliente en el tab Pagos y gestiona ahí el dinero.",
+      "exito",
+    );
+    return;
+  }
+
   let subtotal = 0;
   const productosValidados = [];
 
@@ -5302,14 +6183,19 @@ async function generarTicketVenta(e) {
       );
     }
 
+    // Si el usuario editó el precio en el ticket (campo editable), ese es el
+    // precio de venta que se cobra/registra (fallback: precio de BD).
+    const precioVenta =
+      Number(item.precio) > 0 ? Number(item.precio) : Number(productoBD.precio) || 0;
+
     productosValidados.push({
       id: productoBD.id,
       nombre: productoBD.nombre,
-      precio: productoBD.precio,
+      precio: precioVenta,
       cantidad: item.cantidad,
     });
 
-    subtotal += productoBD.precio * item.cantidad;
+    subtotal += precioVenta * item.cantidad;
   }
 
   const subtotalConEnvio = subtotal + envio;
@@ -5317,6 +6203,9 @@ async function generarTicketVenta(e) {
   const total = subtotalConEnvio - descuentoMonto;
   const numeroPedido = generarNumeroPedido();
 
+  // Aquí solo llegan ventas de PAGO COMPLETO (las de quincenas retornaron
+  // antes imprimiendo únicamente el ticket). Se descontará el inventario y
+  // se registrará el ingreso en finanzas de una sola vez.
   try {
     btn.disabled = true;
     btn.textContent = "Procesando...";
@@ -5338,7 +6227,10 @@ async function generarTicketVenta(e) {
       metodo_pago: "efectivo",
       estado: "vendido",
       fecha_vendido: new Date().toISOString(),
-      notas: `Ticket generado desde el panel.`,
+      notas:
+        "Ticket generado desde el panel (pago completo).",
+      // Hecho por el propio admin: no aparece como "pedido nuevo".
+      atendido: true,
     };
 
     const { data: pedidoData, error: pedidoError } = await window.supabase
@@ -5379,14 +6271,17 @@ async function generarTicketVenta(e) {
       }
     }
 
-    const { error: finError } = await window.supabase.from("finanzas").insert([
-      {
-        tipo: "ingreso",
-        categoria: "venta",
-        descripcion: `Venta a ${cliente}`,
-        monto: total,
-      },
-    ]);
+    // Pago completo: se registra el ingreso en finanzas.
+    const { error: finError } = await window.supabase
+      .from("finanzas")
+      .insert([
+        {
+          tipo: "ingreso",
+          categoria: "venta",
+          descripcion: `Venta a ${cliente}`,
+          monto: total,
+        },
+      ]);
 
     if (finError) throw finError;
 
@@ -5413,7 +6308,11 @@ async function generarTicketVenta(e) {
 
     imprimirTicketAdmin(datosTicket);
 
-    mostrarMensaje(msg, "✅ ¡Venta registrada! Ticket generado.", "exito");
+    mostrarMensaje(
+      msg,
+      "✅ ¡Venta registrada! Ticket generado.",
+      "exito",
+    );
 
     limpiarFormularioTicket();
 
@@ -5432,7 +6331,7 @@ async function generarTicketVenta(e) {
   }
 }
 
-// Vista previa del ticket desde el tab Ticket (reimpresión o venta nueva).
+// Vista previa del ticket desde el tab Ticket (solo impresión o venta nueva).
 // Lee los mismos campos del formulario que generarTicketVenta,
 // pero solo abre la vista previa sin imprimir ni guardar.
 function verVistaPreviaVenta() {
@@ -5445,8 +6344,18 @@ function verVistaPreviaVenta() {
   descuentoPct = Math.min(100, Math.max(0, descuentoPct));
 
   const msg = document.getElementById("mensajeTicket");
-  if (!cliente || !telefono) {
-    return mostrarMensaje(msg, "❌ Cliente y teléfono son obligatorios", "error");
+  // El teléfono solo es obligatorio en VENTA DIRECTA (la impresión no
+  // registra venta).
+  const esImpresion = (modoTicketActual || "venta_directa") !== "venta_directa";
+  if (!cliente) {
+    return mostrarMensaje(msg, "❌ El nombre del cliente es obligatorio", "error");
+  }
+  if (!esImpresion && !telefono) {
+    return mostrarMensaje(
+      msg,
+      "❌ El teléfono es obligatorio en una venta nueva",
+      "error",
+    );
   }
   if (ticketProductos.length === 0) {
     return mostrarMensaje(msg, "❌ Agrega al menos un producto", "error");
@@ -5463,6 +6372,8 @@ function verVistaPreviaVenta() {
   let numeroPedido = "";
   let fechaPedido = new Date().toISOString();
   let estado = "vendido";
+  // En "solo impresión" no hay venta: el estado se deja vacío (informativo).
+  if ((modoTicketActual || "") === "impresion") estado = "";
 
   if (pedidoTicketPrecargado) {
     metodoPago =
@@ -5476,6 +6387,10 @@ function verVistaPreviaVenta() {
       pedidoTicketPrecargado.fecha_pedido ||
       fechaPedido;
     estado = pedidoTicketPrecargado.estado || estado;
+  } else {
+    // #8: en venta nueva el método de pago depende de la forma seleccionada.
+    const fP = document.querySelector('input[name="formaPagoTicket"]:checked');
+    if (fP && fP.value === "quincenas") metodoPago = "A quincenas";
   }
 
   const datosTicket = {
@@ -7212,9 +8127,20 @@ function buscarInventarioAdmin() {
 
 window.eliminarProductoTicket = eliminarProductoTicket;
 window.agregarProductoTicket = agregarProductoTicket;
+window.cambiarCantidadTicket = cambiarCantidadTicket;
+window.cambiarPrecioTicket = cambiarPrecioTicket;
 window.cargarProductosTicket = cargarProductosTicket;
+window.cargarSolicitudesStock = cargarSolicitudesStock;
+window.abrirSolicitudesStock = abrirSolicitudesStock;
+window.cerrarSolicitudesStock = cerrarSolicitudesStock;
+window.marcarSolicitudesAtendidas = marcarSolicitudesAtendidas;
 window.verProductosSinStock = verProductosSinStock;
+window.abrirPedidosNuevos = abrirPedidosNuevos;
+window.cerrarPedidosNuevos = cerrarPedidosNuevos;
+window.marcarPedidosNuevosAtendidos = marcarPedidosNuevosAtendidos;
+window.marcarPedidoNuevoAtendido = marcarPedidoNuevoAtendido;
 window.abrirModalCorreo = abrirModalCorreo;
+window.limpiarBusquedaPedidos = limpiarBusquedaPedidos;
 window.enviarCorreoDesdeModal = enviarCorreoDesdeModal;
 window.procesarPedido = procesarPedido;
 window.buscarProductosAdmin = buscarProductosAdmin;
@@ -7225,6 +8151,7 @@ window.descargarEtiquetas = descargarEtiquetas;
 window.subirImagenProducto = subirImagenProducto;
   window.cerrarEtiqueta = cerrarEtiqueta;
   window.enviarEtiquetaBluetooth = enviarEtiquetaBluetooth;
+  window.imprimirTodasEtiquetas = imprimirTodasEtiquetas;
 window.imprimirPruebaCentrado = imprimirPruebaCentrado;
 window.imprimirPruebaRegla = imprimirPruebaRegla;
 window.imprimirDiagnostico = imprimirDiagnostico;

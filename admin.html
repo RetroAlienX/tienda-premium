@@ -774,17 +774,18 @@
             <button class="tab-btn active" data-tab="productos"
                 title="Catálogo de productos que se venden en la tienda (precio, imagen, categoría)">📦 Productos ·
                 Panel Venta</button>
-            <button class="tab-btn" data-tab="pedidos"
+            <button class="tab-btn" data-tab="pedidos" id="tabBtnPedidos"
                 title="Pedidos recibidos de la tienda: ver estados y acciones (confirmar, marcar vendido/entregado, cancelar).">🛒
-                Pedidos</button>
+                Pedidos<span id="badgePedidosNuevos" class="tab-badge-nuevos"></span></button>
             <button class="tab-btn" data-tab="inventario"
-                title="Movimientos de stock: entradas y salidas de cada producto">📊 Inventario</button>
+                title="Inventario y movimientos de stock: entradas y salidas de cada producto">📊 Inventario y
+                Movimientos</button>
             <button class="tab-btn" data-tab="envios"
                 title="Enviar correo al cliente con los datos, total y políticas de su pedido (confirmación o personalizado).">📧
                 Enviar Email</button>
             <button class="tab-btn" data-tab="ticket"
-                title="Ticket de 58mm: imprimir con impresora QZ o en navegador, reimprimir, ver vista previa o registrar venta directa.">🧾
-                Ticket · Impresión | Reimpresión | Venta Directa</button>
+                title="Ticket de 58mm: imprimir con impresora QZ o en navegador, ver vista previa o registrar venta directa.">🧾
+                Ticket · Impresión | Venta Directa</button>
             <button class="tab-btn" data-tab="finanzas"
                 title="Ingresos y gastos del negocio: registrar transacciones y ver totales.">💰 Finanzas</button>
             <button class="tab-btn" data-tab="promociones"
@@ -809,6 +810,11 @@
                         <button id="btnRefrescarProductos" class="btn-premium-outline"
                             style="padding:10px 16px;font-size:0.75rem; width: auto;"
                             title="Recargar la lista de productos desde la base de datos.">🔄 Refrescar</button>
+                        <button id="btnVerSolicitudesStock" class="btn-premium-outline"
+                            onclick="abrirSolicitudesStock()"
+                            style="padding:10px 16px;font-size:0.75rem; width: auto;"
+                            title="Ver las solicitudes de reposición que los clientes enviaron desde la tienda (productos agotados).">🔔
+                            Solicitudes de stock (0)</button>
                         <button class="btn-premium danger"
                             onclick="limpiarTabla('productos', 'Esto incluye TODOS los productos del catálogo.', cargarProductos)"
                             style="padding:10px 16px;font-size:0.75rem; width: auto; background:var(--regio-red); color:white; border:none;"
@@ -819,6 +825,10 @@
                             title="Abrir el formulario para registrar un producto nuevo en el catálogo."><i
                                 class="fas fa-plus"></i>
                             Agregar Producto</button>
+                        <button class="btn-premium-outline" onclick="imprimirTodasEtiquetas()"
+                            style="padding:10px 16px;font-size:0.75rem; width: auto;"
+                            title="Imprime una etiqueta por cada producto en la impresora térmica Bluetooth, de un solo clic.">🖨️
+                            Imprimir etiquetas</button>
                         <button class="btn-premium-outline" onclick="descargarEtiquetas(null)"
                             style="padding:10px 16px;font-size:0.75rem; width: auto;"
                             title="Descarga un archivo imprimible (HTML) con el código de barras y datos de TODOS los productos, listo para imprimir en tu impresora normal (USB/u otros).">⬇️
@@ -852,8 +862,9 @@
             <div class="stat-grid">
                 <div class="stat-card"><span class="label">Con stock</span><span class="number" id="totalProductosStock"
                         style="color:var(--regio-green);">0</span></div>
-                <div class="stat-card" onclick="verProductosSinStock()" style="cursor:pointer;"><span class="label">Sin
-                        stock</span><span class="number" id="totalSinStock" style="color:var(--regio-red);">0</span>
+                <div class="stat-card"><span class="label">Sin
+                        stock</span><span class="number" id="totalSinStock"
+                        style="color:var(--regio-red);">0</span>
                 </div>
                 <div class="stat-card"><span class="label">Movimientos</span><span class="number"
                         id="totalMovimientos">0</span></div>
@@ -882,6 +893,13 @@
                         placeholder="🔍 Buscar por producto o código de barras..." style="max-width:300px; margin:0;"
                         oninput="buscarInventarioAdmin()"
                         title="Filtrar los movimientos de stock por nombre de producto o por su código de barras (escanea para buscarlo).">
+                    <select id="filtroStockInventario" class="input-luxury" style="max-width:220px; margin:0;"
+                        onchange="cargarInventario()"
+                        title="Filtrar los movimientos según el stock ACTUAL del producto: todos, solo con stock o solo sin stock.">
+                        <option value="todos">📊 Todos los movimientos</option>
+                        <option value="con">✅ Solo productos con stock</option>
+                        <option value="sin">❌ Solo productos sin stock</option>
+                    </select>
                 </div>
                 <div id="listaInventario" class="table-responsive">
                     <div style="text-align:center; padding:40px; color:var(--text-silver);">Cargando...</div>
@@ -894,9 +912,18 @@
                 <div style="display:flex; justify-content:space-between; align-items:center;">
                     <h5>Gestión de Pedidos</h5>
                     <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                        <button id="btnVerPedidosNuevos" class="btn-premium-outline"
+                            style="padding:10px 16px;font-size:0.75rem; width: auto;"
+                            onclick="abrirPedidosNuevos()"
+                            title="Muestra los pedidos que los clientes realizaron desde la tienda y que aún no has revisado.">🔔
+                            Pedidos nuevos (0)</button>
                         <button id="btnRefrescarPedidos" class="btn-premium-outline"
                             style="padding:10px 16px;font-size:0.75rem; width: auto;"
                             title="Recargar la lista de pedidos desde la base de datos.">🔄 Refrescar</button>
+                        <button type="button" class="btn-premium-outline" id="btnLimpiarBusquedaPedidos"
+                            onclick="limpiarBusquedaPedidos()" style="padding:10px 16px;font-size:0.75rem; width:auto;"
+                            title="Borra los filtros de búsqueda (N°, correo y nombre) y muestra todos los pedidos.">🧹
+                            Limpiar búsqueda</button>
                         <button class="btn-premium danger"
                             onclick="limpiarTabla('pedidos', 'Esto borra TODOS los pedidos registrados.', cargarPedidos)"
                             style="padding:10px 16px;font-size:0.75rem; width: auto; background:var(--regio-red); color:white; border:none;"
@@ -1016,7 +1043,7 @@
             <div class="admin-card">
                 <div
                     style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:15px;">
-                    <h5 style="margin:0;">🧾 Ticket · Impresión | Reimpresión | Venta Directa</h5>
+                    <h5 style="margin:0;">🧾 Ticket · Impresión | Venta Directa</h5>
                     <div style="display:flex; gap:10px; flex-wrap:wrap;">
                         <button type="button" id="btnMostrarLugaresTicket" class="btn-premium-outline"
                             style="padding:8px 16px;font-size:0.75rem; width:auto;"
@@ -1048,6 +1075,32 @@
                 </select>
 
                 <form id="formTicketVenta">
+                    <div id="grupoModoTicket" class="modo-ticket">
+                        <div class="modo-ticket-cabecera">
+                            <span class="modo-ticket-titulo">Modo del ticket</span>
+                            <span class="modo-ticket-nota">Solo la <strong>Venta directa</strong> descuenta stock y
+                                registra la venta. La Impresión NUNCA toca el inventario.</span>
+                            <span id="modoTicketEstado" class="modo-ticket-estado"></span>
+                        </div>
+                        <div class="modo-ticket-opciones">
+                            <button type="button" class="modo-ticket-btn" data-modo="impresion"
+                                onclick="seleccionarModoTicket('impresion', true)"
+                                title="Imprime un ticket con lo que está en pantalla (manual o precargando un pedido existente de arriba), sin registrar venta ni tocar stock.">
+                                <span class="modo-icon">🖨️</span>
+                                <span class="modo-label"><strong>Solo impresión</strong><small>Imprime lo que está en
+                                        pantalla, sin registrar ni tocar stock</small></span>
+                                <span class="modo-check">✓</span>
+                            </button>
+                            <button type="button" class="modo-ticket-btn" data-modo="venta_directa"
+                                onclick="seleccionarModoTicket('venta_directa', true)"
+                                title="Registra la venta en la base de datos, descuenta stock e imprime el ticket. Es el ÚNICO modo que toca el inventario.">
+                                <span class="modo-icon">💵</span>
+                                <span class="modo-label"><strong>Venta directa</strong><small>Registra la venta, descuenta
+                                        stock e imprime el ticket</small></span>
+                                <span class="modo-check">✓</span>
+                            </button>
+                        </div>
+                    </div>
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                         <input type="text" id="ticketCliente" class="input-luxury" placeholder="Cliente *" required
                             title="Nombre del cliente que aparecerá impreso en el ticket.">
@@ -1098,6 +1151,28 @@
                         El envío y el descuento son opcionales: solo se imprimen en el ticket si tienen un valor mayor
                         a 0. El descuento es un PORCENTAJE sobre productos + envío.
                     </label>
+                    <div id="grupoFormaPagoTicket" class="forma-pago-ticket">
+                        <div class="forma-pago-cabecera">
+                            <span class="forma-pago-titulo">Forma de pago</span>
+                            <span class="forma-pago-nota">Se registra en Finanzas</span>
+                        </div>
+                        <div class="forma-pago-opciones">
+                            <label class="forma-pago-opcion">
+                                <input type="radio" name="formaPagoTicket" value="completo" checked>
+                                <span class="forma-pago-icon">💵</span>
+                                <span class="forma-pago-texto"><strong>Pago completo</strong><small>La ganancia se
+                                        registra en Finanzas automáticamente</small></span>
+                                <span class="forma-pago-check">✓</span>
+                            </label>
+                            <label class="forma-pago-opcion">
+                                <input type="radio" name="formaPagoTicket" value="quincenas">
+                                <span class="forma-pago-icon">📆</span>
+                                <span class="forma-pago-texto"><strong>A quincenas</strong><small>No registra ganancia;
+                                        la darás de alta en el tab Pagos</small></span>
+                                <span class="forma-pago-check">✓</span>
+                            </label>
+                        </div>
+                    </div>
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                         <input type="text" id="ticketSubtotal" class="input-luxury" placeholder="Subtotal" readonly
                             title="Se calcula solo: suma de los productos agregados más el envío.">
@@ -1108,7 +1183,7 @@
 
                     <div style="display:flex; gap:10px; margin-top:15px;">
                         <button type="submit" class="btn-premium" style="flex:1; padding:15px;"
-                            title="Registra la venta en pedidos y finanzas (descuenta stock) e imprime el ticket de la venta (o lo muestra en pantalla si no hay impresora)."><i
+                            title="Según el modo seleccionado: la Venta directa registra la venta y descuenta stock; la Impresión solo imprime el ticket sin tocar inventario (manual o con un pedido precargado)."><i
                                 class="fas fa-print"></i> Generar Ticket y Registrar Venta</button>
                         <button type="button" class="btn-premium-outline" style="padding:15px;"
                             onclick="verVistaPreviaVenta()"
@@ -1339,17 +1414,10 @@
                 </p>
                 <input type="text" id="prodTienda" class="input-luxury" placeholder="De dónde se trae (McAllen, Texas)"
                     title="De dónde se trae/compra el producto. Por defecto: McAllen, Texas. Se puede editar.">
-                <select id="prodCategoria" class="input-luxury"
-                    title="Categoría bajo la cual se filtra este producto en la tienda pública (ej: Suplementos, Ropa Deportiva, Perfumes).">
-                    <option value="">Selecciona categoría</option>
-                    <option value="Suplementos">Suplementos</option>
-                    <option value="Accesorios">Accesorios</option>
-                    <option value="Ropa Deportiva">Ropa Deportiva</option>
-                    <option value="Ropa y Calzado">Ropa y Calzado</option>
-                    <option value="Perfumes">Perfumes</option>
-                    <option value="Cuidado Personal">Cuidado Personal</option>
-                    <option value="Otros">Otros</option>
-                </select>
+                <input type="text" id="prodCategoria" list="listaCategoriasProd" class="input-luxury"
+                    placeholder="Selecciona o escribe una categoría (puedes crear una nueva)"
+                    title="Categoría bajo la cual se filtra este producto en la tienda pública. Puedes escoger una existente o escribir una nueva; la nueva aparecerá en el filtro de la tienda.">
+                <datalist id="listaCategoriasProd"></datalist>
                 <textarea id="prodDescripcion" class="input-luxury" rows="2" placeholder="Descripción"
                     title="Texto que ve el cliente en la tarjeta del producto."></textarea>
                 <div style="display:flex; gap:10px; margin-top:10px;">
@@ -1875,6 +1943,48 @@
                 <button id="modalConfirmarAccionOk" class="btn-premium danger"
                     style="background:var(--regio-red); color:white; border:none; width: auto;"
                     title="Confirmar la acción.">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL SOLICITUDES DE STOCK (clientes que pidieron reposición) -->
+    <div id="modalSolicitudesStock" class="modal-box">
+        <div class="modal-content" style="max-width:520px;">
+            <h5 style="font-weight:400; margin:0 0 4px;">🔔 Solicitudes de stock (pendientes)</h5>
+            <p style="color:var(--text-silver); font-size:0.75rem; margin:0 0 16px;">
+                Clientes que pidieron reposición de un producto agotado desde la tienda. Al
+                atenderlas se quitan de este contador.
+            </p>
+            <div id="listaSolicitudesStock" style="max-height:55vh; overflow-y:auto;">
+                <div style="text-align:center; padding:30px; color:var(--text-dim);">Cargando...</div>
+            </div>
+            <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:18px;">
+                <button class="btn-premium-outline" style="width:auto;" onclick="cerrarSolicitudesStock()"
+                    title="Cerrar sin cambios.">Cerrar</button>
+                <button class="btn-premium" style="width:auto;" onclick="marcarSolicitudesAtendidas()"
+                    title="Marca todas las solicitudes pendientes como atendidas.">✅ Marcar atendidas</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL PEDIDOS NUEVOS (clientes hicieron pedido desde la tienda) -->
+    <div id="modalPedidosNuevos" class="modal-box">
+        <div class="modal-content" style="max-width:640px;">
+            <h5 style="font-weight:400; margin:0 0 4px;">🔔 Pedidos nuevos (pendientes de revisar)</h5>
+            <p style="color:var(--text-silver); font-size:0.75rem; margin:0 0 16px;">
+                Pedidos que los clientes realizaron desde la tienda y que aún no has revisado.
+                Ábrelos para confirmarlos, marcarlos o imprimir su ticket; o márcalos como
+                revisados para que desaparezcan de esta lista.
+            </p>
+            <div id="listaPedidosNuevos" style="max-height:55vh; overflow-y:auto;">
+                <div style="text-align:center; padding:30px; color:var(--text-dim);">Cargando...</div>
+            </div>
+            <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:18px;">
+                <button class="btn-premium-outline" style="width:auto;" onclick="cerrarPedidosNuevos()"
+                    title="Cerrar sin cambios.">Cerrar</button>
+                <button class="btn-premium" style="width:auto;" onclick="marcarPedidosNuevosAtendidos()"
+                    title="Marca TODOS los pedidos nuevos como revisados/atendidos (desaparecen del contador).">✅
+                    Marcar como revisados</button>
             </div>
         </div>
     </div>

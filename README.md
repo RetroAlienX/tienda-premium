@@ -14,13 +14,19 @@ tickets térmicos, base de datos en Supabase e integración de correos con Email
 
 - **Tienda pública**: catálogo de productos, marcas, cupones, noticias, carrito,
   checkout con punto/horario de entrega y contacto directo por WhatsApp.
-- **Panel admin con 9 pestañas**: Productos, Pedidos, Inventario, Enviar Email,
-  Ticket, Finanzas, Promociones, Lealtad y Pagos.
-- **Impresión de etiquetas** de producto (50×60 mm, TSPL) con código de barras.
+- **Panel admin con 10 pestañas**: Productos, Pedidos, Inventario, Enviar Email,
+  Ticket, Finanzas, Promociones, Lealtad, Pagos y Tiendas.
+- **Impresión de etiquetas** de producto (50×60 mm, TSPL) con código de barras
+  CODE128 (Set C, óptimo para pedidos largos), individual o de todas a la vez
+  desde un solo clic.
 - **Impresión de tickets** térmicos (POS-58, 58 mm) con CODE128 rasterizado y
   corte de papel automático (QZ Tray).
 - **Escáner de códigos de barras**: busca productos / pedidos al instante en
-  varias pestañas (el código del ticket = número de pedido).
+  varias pestañas (el código del ticket = número de pedido, con normalización
+  de apóstrofes para que siempre haga match).
+- **Alerta de pedidos nuevos**: botón 🔔 (tab Pedidos) que resalta los pedidos
+  creados desde la tienda aún no revisados (columna `atendido`).
+- **Tab Tiendas**: registro informativo de las tiendas origen en McAllen, TX.
 - **Finanzas con gráficas**: ingresos/gastos/ganancia (6 meses) y gastos por
   categoría (Chart.js), contadores y reinicio a $0.
 - **Pagos a crédito**: abonos, cargos, morosidad y estados (en_mora /
@@ -93,7 +99,7 @@ Todos los colores viven en la variable `:root` del archivo `css/custom.css`.
 
 ```
 tienda-premium/
-├── admin.html              # Panel de administración (9 pestañas)
+├── admin.html              # Panel de administración (10 pestañas)
 ├── index.html              # Tienda pública (SPA)
 ├── login.html              # Inicio de sesión del panel
 ├── recuperar.html          # Recuperar contraseña

@@ -125,16 +125,26 @@ async function cargarProductos() {
 
   esperarSupabase(async function () {
     try {
+      // Productos OCULTOS en el panel (checkbox "Visible") no aparecen aquí.
+      // Se filtra en cliente: antes de crear la columna `activo` todos eran
+      // undefined (=> visibles); un cambio a false los oculta.
       const { data, error } = await window.supabase
         .from("productos")
         .select("*")
-        .order("created_at", { ascending: false });
+        .order("nombre", { ascending: true });
 
       if (error) throw error;
 
-      productos = data || [];
+      productos = (data || []).filter((p) => p.activo !== false);
+
+      // Orden alfabético A→Z por nombre (incluye acentos correctamente).
+      productos.sort((a, b) =>
+        String(a.nombre || "").localeCompare(String(b.nombre || ""), "es"),
+      );
+
       mostrarProductos(productos);
       cargarSelectProductos(productos);
+      renderizarFiltrosCategorias();
     } catch (error) {
       console.error("Error cargando productos:", error);
       grid.innerHTML = `
@@ -150,6 +160,15 @@ async function cargarProductos() {
 // ============================================
 // RENDERIZADO DE CARDS CON NEON Y PLACEHOLDER
 // ============================================
+
+function escCatalogo(texto) {
+  return String(texto == null ? "" : texto)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
 
 function mostrarProductos(lista) {
   const grid = document.getElementById("productos-grid");
@@ -170,8 +189,20 @@ function mostrarProductos(lista) {
 
       const tieneImagen = p.imagen_url && p.imagen_url.trim() !== "";
       const imagenHtml = tieneImagen
-        ? `<img src="${p.imagen_url}" alt="${p.nombre}" loading="lazy" decoding="async" onerror="this.parentElement.innerHTML='<div class=\\'placeholder-icon\\'>📦</div>'">`
+        ? `<img src="${p.imagen_url}" alt="${escCatalogo(p.nombre)}" loading="lazy" decoding="async" onerror="this.parentElement.innerHTML='<div class=\\'placeholder-icon\\'>📦</div>'">`
         : `<div class="placeholder-icon">📦</div>`;
+
+      const descripcion = (p.descripcion || "").toString().trim();
+      const descripcionHtml = descripcion
+        ? `<p class="card-descripcion">${escCatalogo(descripcion)}</p>`
+        : "";
+
+      // Si el producto está agotado, el botón principal pasa a "PEDIR STOCK":
+      // envía una solicitud de reposición que el panel Admin ve en el tab
+      // Productos (con contador de cuántas veces se ha solicitado).
+      const botonPrincipal = agotado
+        ? `<button onclick="pedirStock('${p.id}')" class="btn-card">📦 PEDIR STOCK</button>`
+        : `<button onclick="hacerPedido('${p.id}')" class="btn-card">PEDIR AHORA</button>`;
 
       return `
                 <div class="card-premium" style="${
@@ -187,20 +218,72 @@ function mostrarProductos(lista) {
                         </div>
                         <div class="card-info">
                             <span class="usa-tag"><span class="flag-icon">🇺🇸</span> <span class="highlight-text">Importado de USA</span></span>
-                            <h3>${p.nombre}</h3>
+                            <h3>${escCatalogo(p.nombre)}</h3>
+                            ${descripcionHtml}
                             <span class="price">${formatearMoneda(
                               p.precio,
                             )}</span>
                             <span class="stock-status ${stockClass}">${stockText}</span>
-                            <button onclick="hacerPedido('${
-                              p.id
-                            }')" class="btn-card" ${agotado ? "disabled" : ""}>
-                                ${agotado ? "SIN STOCK" : "PEDIR AHORA"}
-                            </button>
+                            ${botonPrincipal}
                         </div>
                     </div>
             `;
     })
+    .join("");
+}
+
+// ============================================
+// FILTRO DE PRODUCTOS POR CATEGORÍA (index)
+// ============================================
+
+// Categorías de la tienda (las 6 solicitadas + las que ya existían). Solo se
+// muestran como botones las que tienen al menos un producto, más "Todos".
+const CATEGORIAS_TIENDA = [
+  "Juguetes",
+  "Bebidas",
+  "Bebidas Energéticas",
+  "Soporte Saludable",
+  "Bebidas Alcohólicas",
+  "Zapatos",
+  "Juegos Didácticos",
+  "Suplementos",
+  "Perfumes",
+  "Cuidado Personal",
+  "Ropa Deportiva",
+  "Ropa y Calzado",
+  "Accesorios",
+  "Alimentos",
+  "Otros",
+];
+
+function renderizarFiltrosCategorias() {
+  const cont = document.getElementById("filtro-categorias");
+  if (!cont) return;
+
+  const usadas = new Set(
+    (productos || [])
+      .map((p) => (p && p.categoria ? p.categoria.trim() : ""))
+      .filter(Boolean),
+  );
+
+  const lista = ["todos"].concat(
+    CATEGORIAS_TIENDA.filter((c) => usadas.has(c)),
+  );
+
+  // Cualquier categoría que no esté en la lista fija también aparece.
+  usadas.forEach((c) => {
+    if (!lista.includes(c)) lista.push(c);
+  });
+
+  cont.innerHTML = lista
+    .map(
+      (c) =>
+        `<button type="button" class="categoria-chip${
+          c === "todos" ? " active" : ""
+        }" data-filtro="${escCatalogo(c)}" title="${
+          c === "todos" ? "Mostrar todos los productos" : "Filtrar por: " + escCatalogo(c)
+        }" onclick="seleccionarCategoriaFiltro(this)">${c === "todos" ? "Todos" : escCatalogo(c)}</button>`,
+    )
     .join("");
 }
 
@@ -401,6 +484,39 @@ function seleccionarProducto(id) {
 }
 
 // ============================================
+// PEDIR STOCK (productos agotados de la tienda)
+// ============================================
+// El cliente planta una solicitud de reposición. Se guarda en la tabla
+// "solicitudes_stock" (requiere el script sql_solicitudes_stock.sql) y el
+// panel Admin la ve en el tab Productos como notificación + contador.
+async function pedirStock(productoId) {
+  if (!productoId) {
+    mostrarToastCupon("❌ Producto no identificado");
+    return;
+  }
+  await new Promise((resolve) => esperarSupabase(resolve));
+  try {
+    const { error } = await window.supabase
+      .from("solicitudes_stock")
+      .insert([{ producto_id: productoId }]);
+    if (error) throw error;
+    mostrarToastCupon("✅ ¡Solicitud enviada! Te avisaremos cuando llegue stock.");
+  } catch (error) {
+    const msg = String((error && error.message) || "");
+    if (/relation "public\.solicitudes_stock" does not exist/i.test(msg)) {
+      mostrarToastCupon(
+        "⚠️ Aún no está habilitado pedir stock. Pronto estará disponible.",
+      );
+    } else {
+      console.error("Error solicitando stock:", error);
+      mostrarToastCupon("❌ No se pudo enviar la solicitud. Intenta de nuevo.");
+    }
+  }
+}
+
+window.pedirStock = pedirStock;
+
+// ============================================
 // FILTRAR PRODUCTOS
 // ============================================
 
@@ -414,6 +530,22 @@ function filtrarProductos(categoria) {
   document.querySelectorAll(".filtro-btn").forEach((b) => {
     b.classList.toggle("active", b.dataset.filtro === categoria);
   });
+  document.querySelectorAll(".categoria-chip").forEach((b) => {
+    b.classList.toggle("active", b.dataset.filtro === categoria);
+  });
+}
+
+// Marca el chip pulsado como activo y filtra (semántica idéntica a .filtro-btn).
+function seleccionarCategoriaFiltro(btn) {
+  if (!btn) return;
+  const categoria = String(btn.dataset.filtro || "todos");
+  document.querySelectorAll(".categoria-chip").forEach((c) => {
+    c.classList.toggle("active", c.dataset.filtro === categoria);
+  });
+  document.querySelectorAll(".filtro-btn").forEach((b) => {
+    b.classList.toggle("active", b.dataset.filtro === categoria);
+  });
+  filtrarProductos(categoria);
 }
 
 // ============================================
@@ -1335,6 +1467,9 @@ function cambiarLugarEntrega(sel) {
 
 // Expoone para poder llamarla desde el atributo onchange del form.
 window.cambiarLugarEntrega = cambiarLugarEntrega;
+window.filtrarProductos = filtrarProductos;
+window.seleccionarCategoriaFiltro = seleccionarCategoriaFiltro;
+window.renderizarFiltrosCategorias = renderizarFiltrosCategorias;
 
 
 document.addEventListener("DOMContentLoaded", function () {
@@ -1633,6 +1768,9 @@ document.addEventListener("DOMContentLoaded", function () {
         cupon: cuponCodigo || null,
         descuento: descuentoCupon,
         estado: "pendiente",
+        // Clientes de la tienda nacen como "pedido NUEVO" para que el
+        // admin los vea en la alerta 🔔 del tab Pedidos hasta revisarlos.
+        atendido: false,
       };
 
       try {
@@ -1643,10 +1781,25 @@ document.addEventListener("DOMContentLoaded", function () {
           throw new Error("Supabase no está listo. Intenta de nuevo.");
         }
 
-        const { error } = await window.supabase
-          .from("pedidos")
-          .insert([pedido]);
-        if (error) throw error;
+        let insertError = null;
+        {
+          const { error } = await window.supabase
+            .from("pedidos")
+            .insert([pedido]);
+          if (error && /atendido/i.test(String(error.message || ""))) {
+            // La columna `atendido` aún no existe (falta ejecutar
+            // sql_pedidos_atendido.sql): reintentamos sin ese campo para
+            // no romper el pedido de la tienda.
+            const { atendido: _omitido, ...pedidoBasico } = pedido;
+            const { error: error2 } = await window.supabase
+              .from("pedidos")
+              .insert([pedidoBasico]);
+            insertError = error2;
+          } else {
+            insertError = error;
+          }
+        }
+        if (insertError) throw insertError;
 
         // Registrar el uso del cupón (una vez por correo)
         if (cuponCodigo && email.toLowerCase() !== CORREO_TEST_CUPON) {

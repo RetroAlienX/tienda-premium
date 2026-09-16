@@ -184,37 +184,112 @@ const ESCPOS_ANCHO_PTS = 384;
 
 function escposCodigo128Raster(codigo, alturaDots) {
   const texto = String(codigo || "").toUpperCase();
-  const vals = [104]; // START CODE SET B
-  for (let i = 0; i < texto.length; i++) {
-    let v = texto.charCodeAt(i) - 32;
-    if (v < 0 || v > 94) v = 63; // '?' por caracteres fuera de CODE-B
-    vals.push(v);
+
+  // Genera la secuencia de valores CODE128 con auto-selección: usa Code C
+  // (empaquetado numérico) para bloques de dígitos pares y Code B para el
+  // resto. Code C comprime cada 2 dígitos en un solo símbolo, así que el
+  // código completo ocupa menos módulos y podemos usar MW≥2 (barras más
+  // gruesas = lectura fiable). Con Code B puro, códigos de 12+ caracteres
+  // (como "P-260914-0618") necesitaban MW=1 y el escáner los leía mal
+  // (el guion "-" aparecía como apóstrofe "'"). CODE C elimina ese problema.
+  const esDigito = (c) => c >= "0" && c <= "9";
+  const valB = (c) => {
+    let v = c.charCodeAt(0) - 32;
+    if (v < 0 || v > 94) v = 63; // '?' para chars fuera de CODE-B
+    return v;
+  };
+  const runDigitos = (s, idx) => {
+    let n = 0;
+    while (idx + n < s.length && esDigito(s[idx + n])) n++;
+    return n;
+  };
+
+  const vals = [
+    runDigitos(texto, 0) >= 2 &&
+    runDigitos(texto, 0) === texto.length
+      ? 105
+      : 104, // START C o START B
+  ];
+  let modo = vals[0] === 105 ? "C" : "B";
+  let idx = 0;
+  while (idx < texto.length) {
+    if (modo === "B") {
+      const run = esDigito(texto[idx]) ? runDigitos(texto, idx) : 0;
+      if (run >= 4 && run % 2 === 0) {
+        vals.push(99); // CODE C
+        modo = "C";
+        continue;
+      }
+      if (run >= 3 && run % 2 === 1) {
+        // Corred impar: envía 1 dígito en B y los demás en C.
+        vals.push(valB(texto[idx]));
+        idx += 1;
+        if (idx < texto.length) {
+          vals.push(99);
+          modo = "C";
+        }
+        continue;
+      }
+      vals.push(valB(texto[idx]));
+      idx += 1;
+      continue;
+    }
+    // modo C
+    if (
+      idx + 1 < texto.length &&
+      esDigito(texto[idx]) &&
+      esDigito(texto[idx + 1])
+    ) {
+      vals.push(
+        (texto.charCodeAt(idx) - 48) * 10 + (texto.charCodeAt(idx + 1) - 48),
+      );
+      idx += 2;
+      continue;
+    }
+    vals.push(100); // CODE B
+    modo = "B";
   }
-  let suma = 104;
-  for (let i = 1; i < vals.length; i++) suma += vals[i] * i;
+
+  // Checksum
+  let suma = vals[0];
+  for (let j = 1; j < vals.length; j++) suma += vals[j] * j;
   vals.push(suma % 103); // checksum
   vals.push(106); // stop
 
   const quiet = 10;
   let mods = [];
-  for (let i = 0; i < quiet; i++) mods.push(0);
-  for (let i = 0; i < vals.length; i++) {
-    const p = C128_PAT[vals[i]] || C128_PAT[106];
+  for (let k = 0; k < quiet; k++) mods.push(0);
+  for (let j = 0; j < vals.length; j++) {
+    const p = C128_PAT[vals[j]] || C128_PAT[106];
     for (let k = 0; k < p.length; k++) mods.push(p[k] === "1" ? 1 : 0);
   }
-  for (let i = 0; i < quiet; i++) mods.push(0);
+  for (let k = 0; k < quiet; k++) mods.push(0);
 
-  const MW = mods.length * 2 > ESCPOS_ANCHO_PTS ? 1 : 2;
+  // Margen de seguridad: las térmicas suelen cortar ~1 mm en cada borde.
+  // Se reservan 6 dots por lado para que el raster no quede recortado.
+  const maxAncho = ESCPOS_ANCHO_PTS - 12;
+  // MW = ancho de cada módulo en puntos. Se elige el MÁXIMO (3 o 2) que
+  // quepa para que las barras sean gruesas y fiables para el escáner.
+  // MW=1 (0.125 mm) es demasiado fino; el escáner mezclaba barras y
+  // espacios y leía caracteres erróneos (guiones → apóstrofes).
+  let MW = 1;
+  for (let m = 3; m >= 2; m--) {
+    if (mods.length * m <= maxAncho) {
+      MW = m;
+      break;
+    }
+  }
   const ancho = mods.length * MW;
-  const xIni = Math.floor((ESCPOS_ANCHO_PTS - ancho) / 2);
+  const xIni = Math.max(0, Math.floor((maxAncho - ancho) / 2));
   const xBytes = Math.ceil(ancho / 8);
   const filas = [];
   for (let y = 0; y < alturaDots; y++) {
-    for (let i = 0; i < xBytes; i++) {
+    for (let j = 0; j < xBytes; j++) {
       let byte = 0;
       for (let b = 0; b < 8; b++) {
-        const dot = i * 8 + b;
-        if (dot < ancho && mods[Math.floor(dot / MW)] === 1) byte |= 0x80 >> b;
+        const dot = j * 8 + b;
+        if (dot < ancho && mods[Math.floor(dot / MW)] === 1)
+          byte |= 0x80 >> b;
       }
       filas.push(byte);
     }
@@ -341,7 +416,8 @@ function construirTicketESC(datos) {
   // así que se dibuja el código como imagen de mapa de bits con GS v 0.
   if (datos.numero_pedido) {
     const codigoPedido = String(datos.numero_pedido).toUpperCase();
-    L.push(qzCentrar("CODIGO DE PEDIDO", ANCHO));
+    const esPedidoReal = /^P-/.test(codigoPedido);
+    L.push(qzCentrar(esPedidoReal ? "CODIGO DE PEDIDO" : "CODIGO DE TICKET", ANCHO));
     L.push(qzCentrar("(informativo)", ANCHO));
     // Marcador de partición: el barcode va en un segundo trabajo de impresión
     // para que el raster nunca conviva con el ticket largo (este clon se traga
@@ -455,8 +531,11 @@ function qzImprimirTexto(texto, chunk) {
         type: "raw",
         format: "base64",
         language: "POS",
+        // Sin opción "encoding": la imagen raster del código de barras usa
+        // bytes 0x00-0xFF y re-codificarla (windows-1252) corrompía algunos
+        // puntos haciendo que el código impreso saliera descuadrado/fallado
+        // y que el escáner leyera caracteres raros en lugar del guion.
         data: qzBytesABase64(bytes),
-        options: { encoding: "windows-1252" },
       },
     ];
     const cfg = $.configs.create(impresoraObj);
@@ -518,7 +597,10 @@ function imprimirConQZ(datos, fallback) {
       return new Promise(function (resolve) {
         setTimeout(resolve, 200);
       }).then(function () {
-        return qzImprimirTexto(p2, 256);
+        // El raster completo (~1.2 KB) va en un SOLO trabajo sin partirse en
+        // bloques: dividirlo a la mitad cortaba el mapa de puntos y hacía que
+        // la imagen quedara corrida/rota. 4096 deja holgura.
+        return qzImprimirTexto(p2, 4096);
       });
     })
     .then(function () {
