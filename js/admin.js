@@ -8118,6 +8118,21 @@ function buscarProductosAdmin() {
   debounceBuscarProductos = setTimeout(() => cargarProductos(), 300);
 }
 
+// Borra los filtros de búsqueda del tab Productos (término y código
+// escaneado) y recarga la lista con todos los productos.
+function limpiarBusquedaProductos() {
+  const buscar = document.getElementById("buscarProducto");
+  if (buscar) buscar.value = "";
+  const codigo = document.getElementById("inputCodigoBarras");
+  if (codigo) codigo.value = "";
+  const res = document.getElementById("resultadoBusquedaCodigo");
+  if (res) {
+    res.textContent = "";
+    res.className = "";
+  }
+  cargarProductos();
+}
+
 // Búsqueda de producto en inventario (tab Inventario): recarga con debounce.
 let debounceBuscarInventario = null;
 function buscarInventarioAdmin() {
@@ -8144,6 +8159,7 @@ window.limpiarBusquedaPedidos = limpiarBusquedaPedidos;
 window.enviarCorreoDesdeModal = enviarCorreoDesdeModal;
 window.procesarPedido = procesarPedido;
 window.buscarProductosAdmin = buscarProductosAdmin;
+window.limpiarBusquedaProductos = limpiarBusquedaProductos;
 window.buscarInventarioAdmin = buscarInventarioAdmin;
 window.abrirEtiquetaProducto = abrirEtiquetaProducto;
 window.imprimirEtiqueta = imprimirEtiqueta;
