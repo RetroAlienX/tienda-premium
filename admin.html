@@ -630,6 +630,19 @@
                 justify-content: flex-start;
             }
 
+            /* Forzar que los encabezados con botones envuelvan para que ningún
+               botón (p. ej. "Movimiento" en Inventario) se salga de la tarjeta. */
+            .admin-card>div[style*="justify-content:space-between"] {
+                flex-wrap: wrap !important;
+                row-gap: 10px !important;
+            }
+
+            .admin-card>div[style*="justify-content:space-between"]>div[style*="gap"] {
+                flex-wrap: wrap !important;
+                justify-content: flex-start !important;
+                max-width: 100%;
+            }
+
             .stat-grid {
                 grid-template-columns: 1fr 1fr;
             }
@@ -1199,6 +1212,12 @@
                             onclick="verVistaPreviaVenta()"
                             title="Ver cómo quedará el ticket en pantalla antes de imprimir (sin registrar ni cobrar)."><i
                                 class="fas fa-eye"></i> Vista Previa</button>
+                    </div>
+                    <div style="display:flex; gap:10px; margin-top:12px;">
+                        <button type="button" id="btnVentaSinTicket" class="btn-premium-outline"
+                            onclick="generarVentaDirectaSinTicket()" style="flex:1; padding:15px;"
+                            title="Registra la venta directa (pago completo o a quincenas, respetando stock y ganancias) pero SIN imprimir ticket. Úsalo cuando la venta no requiere ticket; el otro botón sigue imprimiendo."><i
+                                class="fas fa-cash-register"></i> Registrar Venta Directa (sin ticket)</button>
                     </div>
                     <div id="mensajeTicket" class="mt-2" style="margin-top:10px;"></div>
                 </form>

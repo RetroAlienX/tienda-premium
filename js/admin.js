@@ -6153,10 +6153,14 @@ async function descontarStockVentaDirecta(items, descripcion) {
   }
 }
 
-async function generarTicketVenta(e) {
+async function generarTicketVenta(e, opciones = {}) {
   e.preventDefault();
+  const imprimir = opciones.imprimir !== false;
   const msg = document.getElementById("mensajeTicket");
-  const btn = e.target.querySelector('button[type="submit"]');
+  const btn =
+    e && e.target && e.target.querySelector
+      ? e.target.querySelector('button[type="submit"]')
+      : document.querySelector('#formTicketVenta button[type="submit"]');
 
   const cliente = document.getElementById("ticketCliente").value.trim();
   const telefono = document.getElementById("ticketTelefono").value.trim();
@@ -6305,11 +6309,15 @@ async function generarTicketVenta(e) {
       estado: "",
     };
 
-    imprimirTicketAdmin(datosTicket);
+    if (imprimir) {
+      imprimirTicketAdmin(datosTicket);
+    }
 
     mostrarMensaje(
       msg,
-      "🖨️ Ticket a quincenas impreso. Stock descontado, pero NO se registró en Finanzas: captura la ganancia/ingreso manualmente.",
+      imprimir
+        ? "🖨️ Ticket a quincenas impreso. Stock descontado, pero NO se registró en Finanzas: captura la ganancia/ingreso manualmente."
+        : "📆 Venta a quincenas registrada SIN ticket. Stock descontado, pero NO se registró en Finanzas: captura la ganancia/ingreso manualmente.",
       "exito",
     );
 
@@ -6414,11 +6422,15 @@ async function generarTicketVenta(e) {
       estado: "vendido",
     };
 
-    imprimirTicketAdmin(datosTicket);
+    if (imprimir) {
+      imprimirTicketAdmin(datosTicket);
+    }
 
     mostrarMensaje(
       msg,
-      "✅ ¡Venta registrada! Ticket generado.",
+      imprimir
+        ? "✅ ¡Venta registrada! Ticket generado."
+        : "✅ ¡Venta registrada SIN ticket!",
       "exito",
     );
 
@@ -6437,6 +6449,32 @@ async function generarTicketVenta(e) {
     btn.disabled = false;
     actualizarBotonTicket();
   }
+}
+
+// Venta directa SIN TICKET: misma lógica que la venta directa (pago completo o
+// a quincenas, respetando stock y ganancias), pero NO imprime ticket.
+function generarVentaDirectaSinTicket() {
+  const msg = document.getElementById("mensajeTicket");
+  if ((modoTicketActual || "venta_directa") === "impresion") {
+    return mostrarMensaje(
+      msg,
+      "❌ Cambia a modo '💵 Venta directa' antes de registrar la venta sin ticket.",
+      "error",
+    );
+  }
+  const btnSinTicket = document.getElementById("btnVentaSinTicket");
+  if (btnSinTicket && btnSinTicket.disabled) return;
+  if (btnSinTicket) btnSinTicket.disabled = true;
+  const promesa = generarTicketVenta(
+    { preventDefault: function () {} },
+    { imprimir: false },
+  );
+  if (promesa && promesa.finally) {
+    promesa.finally(function () {
+      if (btnSinTicket) btnSinTicket.disabled = false;
+    });
+  }
+  return promesa;
 }
 
 // Vista previa del ticket desde el tab Ticket (solo impresión o venta nueva).
@@ -8288,6 +8326,7 @@ window.verVistaPreviaPedido = verVistaPreviaPedido;
 window.verVistaPreviaTicket = verVistaPreviaTicket;
 window.verVistaPreviaDetallePedidoActual = verVistaPreviaDetallePedidoActual;
 window.verVistaPreviaVenta = verVistaPreviaVenta;
+window.generarVentaDirectaSinTicket = generarVentaDirectaSinTicket;
 window.cambiarEstadoPedido = cambiarEstadoPedido;
 window.buscarPorCodigoBarras = buscarPorCodigoBarras;
 window.mostrarFormProducto = mostrarFormProducto;
