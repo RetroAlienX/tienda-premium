@@ -5582,10 +5582,6 @@ function seleccionarModoTicket(modo, limpiar) {
   if (selProducto) {
     selProducto.toggleAttribute("required", esVentaDirecta);
   }
-  const telCampo = document.getElementById("ticketTelefono");
-  if (telCampo) {
-    telCampo.toggleAttribute("required", esVentaDirecta);
-  }
 
   const grupoPago = document.getElementById("grupoFormaPagoTicket");
   if (grupoPago) {
@@ -5637,12 +5633,11 @@ function limpiarFormularioTicket() {
   document.getElementById("ticketPuntoEntrega").value = "";
   document.getElementById("ticketEnvio").value = "";
   document.getElementById("ticketDescuento").value = "";
-  // En venta nueva el producto y el teléfono vuelven a ser obligatorios;
-  // el modo vuelve a "Venta directa" y la forma de pago queda visible.
+  // En venta nueva el producto vuelve a ser obligatorio; el modo vuelve a
+  // "Venta directa" y la forma de pago queda visible. El teléfono NO es
+  // obligatorio en ningún modo.
   const selProducto = document.getElementById("ticketProductoSelect");
   if (selProducto) selProducto.setAttribute("required", "required");
-  const telCampo = document.getElementById("ticketTelefono");
-  if (telCampo) telCampo.setAttribute("required", "required");
   const pagoCompleto = document.querySelector(
     'input[name="formaPagoTicket"][value="completo"]',
   );
@@ -5701,9 +5696,8 @@ async function precargarPedidoEnTicket(pedido) {
   const selProducto = document.getElementById("ticketProductoSelect");
   if (selProducto) selProducto.removeAttribute("required");
 
-  // #11: en solo impresión, teléfono y punto de entrega son OPCIONALES.
-  const telCampo = document.getElementById("ticketTelefono");
-  if (telCampo) telCampo.removeAttribute("required");
+  // #11: en solo impresión, punto de entrega y teléfono son OPCIONALES.
+  // El teléfono es opcional en todos los modos (solo se imprime si se llena).
   // Modo IMPRESIÓN: la forma de pago queda oculta/deshabilitada porque no
   // se registra ninguna venta ni movimiento de finanzas.
   seleccionarModoTicket("impresion");
@@ -6103,19 +6097,10 @@ async function generarTicketVenta(e) {
     parseFloat(document.getElementById("ticketDescuento").value) || 0;
   descuentoPct = Math.min(100, Math.max(0, descuentoPct));
 
-  // El teléfono solo es obligatorio en VENTA DIRECTA. La Impresión jamás
-  // descuenta stock (aunque se editen campos del ticket).
+  // El teléfono es opcional en TODOS los modos (solo se imprime si se llena).
   const modo = modoTicketActual || "venta_directa";
-  const esVentaDirecta = modo === "venta_directa";
   if (!cliente) {
     return mostrarMensaje(msg, "❌ El nombre del cliente es obligatorio", "error");
-  }
-  if (esVentaDirecta && !telefono) {
-    return mostrarMensaje(
-      msg,
-      "❌ El teléfono es obligatorio en una venta nueva",
-      "error",
-    );
   }
 
   if (ticketProductos.length === 0) {
@@ -6398,18 +6383,9 @@ function verVistaPreviaVenta() {
   descuentoPct = Math.min(100, Math.max(0, descuentoPct));
 
   const msg = document.getElementById("mensajeTicket");
-  // El teléfono solo es obligatorio en VENTA DIRECTA (la impresión no
-  // registra venta).
-  const esImpresion = (modoTicketActual || "venta_directa") !== "venta_directa";
+  // El teléfono es opcional en todos los modos.
   if (!cliente) {
     return mostrarMensaje(msg, "❌ El nombre del cliente es obligatorio", "error");
-  }
-  if (!esImpresion && !telefono) {
-    return mostrarMensaje(
-      msg,
-      "❌ El teléfono es obligatorio en una venta nueva",
-      "error",
-    );
   }
   if (ticketProductos.length === 0) {
     return mostrarMensaje(msg, "❌ Agrega al menos un producto", "error");
