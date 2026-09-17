@@ -7196,11 +7196,6 @@ async function guardarNoticia(e) {
     activo: document.getElementById("noticiaActivo").value === "true",
   };
 
-  if (!datos.titulo || !datos.descripcion || !datos.fecha) {
-    if (msg) mostrarMensaje(msg, "❌ Completa todos los campos", "error");
-    return;
-  }
-
   try {
     if (btn) {
       btn.disabled = true;
