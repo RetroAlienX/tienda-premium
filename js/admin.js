@@ -4499,7 +4499,7 @@ async function limpiarTabla(tablas, descripcion, refrescar) {
 // ============================================
 
 async function cargarBaseFinanzas() {
-  const base = { ingresos: 0, gastos: 0 };
+  const base = { ingresos: 0, gastos: 0, saldo_ingresos: 0, saldo_gastos: 0 };
   try {
     const { data, error } = await window.supabase
       .from("settings")
@@ -4509,6 +4509,8 @@ async function cargarBaseFinanzas() {
       const v = Number(row.valor) || 0;
       if (row.llave === "fin_ingresos_inicial") base.ingresos = v;
       if (row.llave === "fin_gastos_inicial") base.gastos = v;
+      if (row.llave === "fin_ingresos_saldo") base.saldo_ingresos = v;
+      if (row.llave === "fin_gastos_saldo") base.saldo_gastos = v;
     });
   } catch (e) {
     // Si la tabla settings no existe, usamos 0 (no rompe el tab).
@@ -4517,11 +4519,18 @@ async function cargarBaseFinanzas() {
   return base;
 }
 
-async function guardarBaseFinanzas(ingresosBase, gastosBase) {
+async function guardarBaseFinanzas(
+  ingresosBase,
+  gastosBase,
+  saldoIngresos = 0,
+  saldoGastos = 0,
+) {
   const { error } = await window.supabase.from("settings").upsert(
     [
       { llave: "fin_ingresos_inicial", valor: ingresosBase },
       { llave: "fin_gastos_inicial", valor: gastosBase },
+      { llave: "fin_ingresos_saldo", valor: saldoIngresos },
+      { llave: "fin_gastos_saldo", valor: saldoGastos },
     ],
     { onConflict: "llave" },
   );
@@ -4548,7 +4557,7 @@ function reiniciarContadoresFinanzas() {
             .filter((f) => f.tipo === "gasto")
             .reduce((s, f) => s + (Number(f.monto) || 0), 0);
 
-          await guardarBaseFinanzas(ingresosBase, gastosBase);
+          await guardarBaseFinanzas(ingresosBase, gastosBase, 0, 0);
           mostrarModalAlerta(
             "✅ Contadores reiniciados a $0.00. El historial de movimientos se conserva intacto.",
           );
@@ -4556,6 +4565,57 @@ function reiniciarContadoresFinanzas() {
         } catch (error) {
           console.error("Error reiniciando contadores:", error);
           mostrarModalAlerta("❌ Error al reiniciar: " + error.message);
+        }
+      },
+    );
+  }
+}
+
+// Borra TODOS los movimientos de finanzas pero conserva los contadores tal como
+// estaban (información histórica). Solo "Reiniciar contadores" los regresa a 0.
+function limpiarBaseFinanzas() {
+  if (typeof modalConfirmar === "function") {
+    modalConfirmar(
+      "⚠️ Esto borrará de forma PERMANENTE todos los movimientos de finanzas. Los contadores de Ingresos, Gastos y Ganancia NO se reinician: se conservan como información histórica. Esta acción NO se puede deshacer. ¿Continuar?",
+      async () => {
+        try {
+          const [{ data }, base] = await Promise.all([
+            window.supabase.from("finanzas").select("tipo, monto"),
+            cargarBaseFinanzas(),
+          ]);
+          const ingresosRaw = (data || [])
+            .filter((f) => f.tipo === "ingreso")
+            .reduce((s, f) => s + (Number(f.monto) || 0), 0);
+          const gastosRaw = (data || [])
+            .filter((f) => f.tipo === "gasto")
+            .reduce((s, f) => s + (Number(f.monto) || 0), 0);
+
+          const saldoIngresos =
+            (base.saldo_ingresos || 0) +
+            Math.max(0, ingresosRaw - (base.ingresos || 0));
+          const saldoGastos =
+            (base.saldo_gastos || 0) +
+            Math.max(0, gastosRaw - (base.gastos || 0));
+
+          const { error: delError } = await window.supabase
+            .from("finanzas")
+            .delete()
+            .neq("id", "00000000-0000-0000-0000-000000000000");
+          if (delError) throw delError;
+
+          await guardarBaseFinanzas(
+            base.ingresos || 0,
+            base.gastos || 0,
+            saldoIngresos,
+            saldoGastos,
+          );
+          mostrarModalAlerta(
+            "✅ Movimientos de finanzas borrados. Los contadores se conservan como estaban.",
+          );
+          if (typeof cargarFinanzas === "function") cargarFinanzas();
+        } catch (error) {
+          console.error("Error limpiando finanzas:", error);
+          mostrarModalAlerta("❌ Error al limpiar: " + error.message);
         }
       },
     );
@@ -5299,12 +5359,33 @@ async function cargarFinanzas() {
     const gastosRaw = registros
       .filter((f) => f.tipo === "gasto")
       .reduce((s, f) => s + (Number(f.monto) || 0), 0);
-    const ingresos = Math.max(0, ingresosRaw - (base.ingresos || 0));
-    const gastos = Math.max(0, gastosRaw - (base.gastos || 0));
+    const ingresos = Math.max(
+      0,
+      (base.saldo_ingresos || 0) + ingresosRaw - (base.ingresos || 0),
+    );
+    const gastos = Math.max(
+      0,
+      (base.saldo_gastos || 0) + gastosRaw - (base.gastos || 0),
+    );
     const ganancia = ingresos - gastos;
 
+    // Los contadores (top) incluyen el saldo histórico preservado, así se
+    // mantienen aunque la tabla de movimientos esté vacía (tras una limpieza).
+    const totalIngresos = document.getElementById("totalIngresos");
+    const totalGastos = document.getElementById("totalGastos");
+    const gananciaNeta = document.getElementById("gananciaNeta");
+
+    if (totalIngresos) totalIngresos.textContent = formatearMoneda(ingresos);
+    if (totalGastos) totalGastos.textContent = formatearMoneda(gastos);
+    if (gananciaNeta) {
+      gananciaNeta.textContent = formatearMoneda(ganancia);
+      gananciaNeta.style.color =
+        ganancia >= 0 ? "var(--regio-green)" : "var(--regio-red)";
+    }
+
     if (!registros.length) {
-      // No hay movimientos tras reinicio o limpieza → muestro contadores a 0.
+      // No hay movimientos tras reinicio o limpieza → el contador refleja el
+      // saldo histórico preservado y las métricas "de hoy" quedan en 0.
       destruirGraficasFinanzas();
       const iHoy = document.getElementById("ingresosHoy");
       const gHoy = document.getElementById("gastosHoy");
@@ -5318,18 +5399,6 @@ async function cargarFinanzas() {
       container.innerHTML =
         '<p class="text-center text-dim py-3">💰 No hay movimientos</p>';
       return;
-    }
-
-    const totalIngresos = document.getElementById("totalIngresos");
-    const totalGastos = document.getElementById("totalGastos");
-    const gananciaNeta = document.getElementById("gananciaNeta");
-
-    if (totalIngresos) totalIngresos.textContent = formatearMoneda(ingresos);
-    if (totalGastos) totalGastos.textContent = formatearMoneda(gastos);
-    if (gananciaNeta) {
-      gananciaNeta.textContent = formatearMoneda(ganancia);
-      gananciaNeta.style.color =
-        ganancia >= 0 ? "var(--regio-green)" : "var(--regio-red)";
     }
 
     // Filtro por categoría (en memoria; los contadores usan TODOS los movimientos).
@@ -8210,6 +8279,7 @@ window.cargarProductos = cargarProductos;
 window.cargarInventario = cargarInventario;
 window.cargarFinanzas = cargarFinanzas;
 window.reiniciarContadoresFinanzas = reiniciarContadoresFinanzas;
+window.limpiarBaseFinanzas = limpiarBaseFinanzas;
 window.editarProducto = editarProducto;
 window.pedirEliminar = pedirEliminar;
 window.verDetallePedido = verDetallePedido;
