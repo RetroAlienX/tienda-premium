@@ -1287,23 +1287,27 @@
         <div id="tab-promociones" class="tab-content" style="display:none;">
             <div class="admin-card">
                 <div
+                    style="display:flex; justify-content:flex-end; align-items:center; flex-wrap:wrap; gap:10px;">
+                    <button id="btnRefrescarPromociones" class="btn-premium-outline"
+                        style="padding:10px 16px;font-size:0.75rem; width:auto;"
+                        title="Recargar cupones, noticias, lugares de entrega y marcas.">🔄 Refrescar</button>
+                    <button class="btn-premium danger"
+                        onclick="limpiarTabla(['cupones','noticias','lugares_entrega','marcas'], 'Borra TODOS los cupones, noticias, lugares de entrega y marcas.', function(){ cargarCupones(); cargarNoticias(); cargarLugaresEntregaAdmin(); cargarMarcas(); })"
+                        style="padding:10px 16px;font-size:0.75rem; width:auto; background:var(--regio-red); color:white; border:none;"
+                        title="⚠️ BORRA todos los cupones, noticias, lugares de entrega y marcas de forma permanente (pide confirmación).">🧹
+                        Limpiar base de datos</button>
+                </div>
+            </div>
+
+            <div class="admin-card" style="margin-top:20px;">
+                <div
                     style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:20px;">
                     <h5>🎯 Cupones del Carrusel</h5>
-                    <div style="display:flex; gap:10px; flex-wrap:wrap;">
-                        <button id="btnRefrescarPromociones" class="btn-premium-outline"
-                            style="padding:10px 16px;font-size:0.75rem; width:auto;"
-                            title="Recargar cupones, noticias, lugares de entrega y marcas.">🔄 Refrescar</button>
-                        <button class="btn-premium danger"
-                            onclick="limpiarTabla(['cupones','noticias','lugares_entrega','marcas'], 'Borra TODOS los cupones, noticias, lugares de entrega y marcas.', function(){ cargarCupones(); cargarNoticias(); cargarLugaresEntregaAdmin(); cargarMarcas(); })"
-                            style="padding:10px 16px;font-size:0.75rem; width:auto; background:var(--regio-red); color:white; border:none;"
-                            title="⚠️ BORRA todos los cupones, noticias, lugares de entrega y marcas de forma permanente (pide confirmación).">🧹
-                            Limpiar base de datos</button>
-                        <button id="btnAgregarCupon" class="btn-premium"
-                            style="padding:10px 16px;font-size:0.75rem; width:auto;"
-                            title="Abrir el formulario para crear un cupón de descuento nuevo.">
-                            <i class="fas fa-plus"></i> Agregar Cupón
-                        </button>
-                    </div>
+                    <button id="btnAgregarCupon" class="btn-premium"
+                        style="padding:10px 16px;font-size:0.75rem; width:auto;"
+                        title="Abrir el formulario para crear un cupón de descuento nuevo.">
+                        <i class="fas fa-plus"></i> Agregar Cupón
+                    </button>
                 </div>
                 <div id="listaCupones" class="table-responsive">
                     <div style="text-align:center; padding:40px; color:var(--text-silver);">Cargando...</div>
