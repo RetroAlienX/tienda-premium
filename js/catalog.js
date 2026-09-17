@@ -1275,9 +1275,9 @@ const LUGARES_FALLBACK = [
   { lugar: "Apodaca centro (frente a iglesia)", costo: 0, horario_fijo: "08:00-08:30" },
   { lugar: "San Nicolas centro (plaza presidencia)", costo: 0, horario_fijo: "09:00-09:30" },
   { lugar: "Costco Escobedo", costo: 0, horario_fijo: "10:00-10:30" },
-  { lugar: "San Pedro (punto y horario a convenir)", costo: 200, horario_fijo: null },
-  { lugar: "Monterrey (punto y horario a convenir)", costo: 200, horario_fijo: null },
-  { lugar: "Guadalupe (punto y horario a convenir)", costo: 200, horario_fijo: null },
+  { lugar: "San Pedro (punto y horario a convenir)", costo: 180, horario_fijo: null },
+  { lugar: "Monterrey (punto y horario a convenir)", costo: 180, horario_fijo: null },
+  { lugar: "Guadalupe (punto y horario a convenir)", costo: 180, horario_fijo: null },
 ];
 
 // Traduce un horario "HH:MM-HH:MM" a "8:00 AM – 8:30 AM"

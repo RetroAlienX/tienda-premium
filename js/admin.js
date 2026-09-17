@@ -7479,9 +7479,9 @@ const LUGARES_FALLBACK_ADMIN = [
   { lugar: "Apodaca centro (frente a iglesia)", costo: 0 },
   { lugar: "San Nicolas centro (plaza presidencia)", costo: 0 },
   { lugar: "Costco Escobedo", costo: 0 },
-  { lugar: "San Pedro (punto y horario a convenir)", costo: 200 },
-  { lugar: "Monterrey (punto y horario a convenir)", costo: 200 },
-  { lugar: "Guadalupe (punto y horario a convenir)", costo: 200 },
+  { lugar: "San Pedro (punto y horario a convenir)", costo: 180 },
+  { lugar: "Monterrey (punto y horario a convenir)", costo: 180 },
+  { lugar: "Guadalupe (punto y horario a convenir)", costo: 180 },
 ];
 
 function pedirEliminarLugar(id) {
@@ -7524,9 +7524,9 @@ async function cargarLugaresTicketAdmin() {
       { lugar: "Apodaca centro (frente a iglesia)", costo: 0, horario_fijo: "08:00-08:30" },
       { lugar: "San Nicolas centro (plaza presidencia)", costo: 0, horario_fijo: "09:00-09:30" },
       { lugar: "Costco Escobedo", costo: 0, horario_fijo: "10:00-10:30" },
-      { lugar: "San Pedro (punto y horario a convenir)", costo: 200, horario_fijo: null },
-      { lugar: "Monterrey (punto y horario a convenir)", costo: 200, horario_fijo: null },
-      { lugar: "Guadalupe (punto y horario a convenir)", costo: 200, horario_fijo: null },
+      { lugar: "San Pedro (punto y horario a convenir)", costo: 180, horario_fijo: null },
+      { lugar: "Monterrey (punto y horario a convenir)", costo: 180, horario_fijo: null },
+      { lugar: "Guadalupe (punto y horario a convenir)", costo: 180, horario_fijo: null },
     ];
   }
   lugares.forEach((l) => {
