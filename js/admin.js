@@ -3827,6 +3827,41 @@ async function cargarInventario() {
 
     cargarSelectProductosInventario();
 
+    // Saldo resultante por movimiento: cada fila muestra el stock del producto
+    // justo DESPUES de ese movimiento (histórico), no el stock vivo de hoy.
+    // Se ancla al stock actual del catálogo para que sea correcto aunque falten
+    // movimientos viejos (base = stockActual - suma de todos los movimientos).
+    function cantidadFirmada(m) {
+      if (m.tipo === "entrada") return Number(m.cantidad) || 0;
+      if (m.tipo === "salida") return -(Number(m.cantidad) || 0);
+      return 0;
+    }
+    const saldoPorMovimiento = new Map();
+    const agrupados = new Map();
+    for (const m of data) {
+      const clave = m.producto_id || "sin_producto";
+      if (!agrupados.has(clave)) agrupados.set(clave, []);
+      agrupados.get(clave).push(m);
+    }
+    for (const movs of agrupados.values()) {
+      movs.sort((a, b) =>
+        a.fecha < b.fecha
+          ? -1
+          : a.fecha > b.fecha
+            ? 1
+            : a.id < b.id
+              ? -1
+              : 1,
+      );
+      const stockVivo = Number(movs[0]?.productos?.stock);
+      const sumaTotal = movs.reduce((s, m) => s + cantidadFirmada(m), 0);
+      let base = typeof stockVivo === "number" ? stockVivo - sumaTotal : 0;
+      for (const m of movs) {
+        base += cantidadFirmada(m);
+        saldoPorMovimiento.set(m.id, base);
+      }
+    }
+
     // Filtros del tab: búsqueda por nombre/código + estado de stock ACTUAL.
     const busquedaInventario = document
       .getElementById("buscarProductoInventario")
@@ -3871,7 +3906,7 @@ async function cargarInventario() {
                         <th>Tipo</th>
                         <th>Cantidad</th>
                         <th>Descripción</th>
-                        <th>Stock actual</th>
+                        <th title="Stock del producto justo después de este movimiento (histórico). La fila de 'Stock inicial' conserva el stock con el que se inició." style="cursor:help;">Stock resultante</th>
                         <th>Acciones</th>
                     </tr>
                 </thead>
@@ -3925,7 +3960,9 @@ async function cargarInventario() {
                             </td>
                             <td><small>${m.descripcion || "-"}</small></td>
                             <td><span class="text-warning">${
-                              esRegistro ? "—" : m.productos?.stock || 0
+                              esRegistro
+                                ? "—"
+                                : saldoPorMovimiento.get(m.id) ?? 0
                             }</span></td>
                             <td>
                                 <button onclick="pedirEliminar('${
