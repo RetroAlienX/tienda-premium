@@ -3834,13 +3834,16 @@ async function cargarInventario() {
       .toLowerCase();
     const filtroStock = document.getElementById("filtroStockInventario")?.value || "todos";
     const movimientosVisibles = data.filter((m) => {
+      const esRegistro = m.tipo === "registro";
       const nombre = String(m.productos?.nombre || "").toLowerCase();
       const codigo = String(
         m.productos?.codigo_barras || "",
       ).toLowerCase();
       const stockActual = Number(m.productos?.stock) || 0;
-      if (filtroStock === "con" && stockActual <= 0) return false;
-      if (filtroStock === "sin" && stockActual > 0) return false;
+      // Los registros genéricos (Control de Pagos) no tienen producto: se
+      // muestran siempre, sin importar el filtro de stock.
+      if (!esRegistro && filtroStock === "con" && stockActual <= 0) return false;
+      if (!esRegistro && filtroStock === "sin" && stockActual > 0) return false;
       if (
         busquedaInventario &&
         !nombre.includes(busquedaInventario) &&
@@ -3874,46 +3877,55 @@ async function cargarInventario() {
                 </thead>
                 <tbody>
                     ${movimientosVisibles
-                      .map(
-                        (m) => `
+                      .map((m) => {
+                        const esRegistro = m.tipo === "registro";
+                        const esEntrada = m.tipo === "entrada";
+                        const colorTipo = esRegistro
+                          ? "text-info"
+                          : esEntrada
+                            ? "text-success"
+                            : "text-danger";
+                        return `
                         <tr>
                             <td><small>${formatearFecha(m.fecha)}</small></td>
                             <td><strong>${
-                              m.productos?.nombre || "Producto eliminado"
+                              esRegistro
+                                ? "📝 Control de Pagos"
+                                : m.productos?.nombre || "Producto eliminado"
                             }</strong></td>
                             <td>${
-                              m.productos?.precio
-                                ? formatearMoneda(m.productos.precio)
-                                : "-"
+                              esRegistro || !m.productos?.precio
+                                ? "-"
+                                : formatearMoneda(m.productos.precio)
                             }</td>
                             <td><code style="background:var(--bg-input);padding:2px 6px;border-radius:4px;font-size:11px;color:var(--accent);">${
-                              m.productos?.codigo_barras || "-"
+                              esRegistro
+                                ? "-"
+                                : m.productos?.codigo_barras || "-"
                             }</code></td>
                             <td>
-                                <span class="${
-                                  m.tipo === "entrada"
-                                    ? "text-success"
-                                    : "text-danger"
-                                }">
+                                <span class="${colorTipo}">
                                     ${
-                                      m.tipo === "entrada"
-                                        ? "📥 Entrada"
-                                        : "📤 Salida"
+                                      esRegistro
+                                        ? "📋 Registro"
+                                        : esEntrada
+                                          ? "📥 Entrada"
+                                          : "📤 Salida"
                                     }
                                 </span>
                             </td>
-                            <td class="${
-                              m.tipo === "entrada"
-                                ? "text-success"
-                                : "text-danger"
-                            }">
-                                ${m.tipo === "entrada" ? "+" : "-"} ${
-                                  m.cantidad
+                            <td class="${colorTipo}">
+                                ${
+                                  esRegistro
+                                    ? "—"
+                                    : esEntrada
+                                      ? `+ ${m.cantidad}`
+                                      : `- ${m.cantidad}`
                                 }
                             </td>
                             <td><small>${m.descripcion || "-"}</small></td>
                             <td><span class="text-warning">${
-                              m.productos?.stock || 0
+                              esRegistro ? "—" : m.productos?.stock || 0
                             }</span></td>
                             <td>
                                 <button onclick="pedirEliminar('${
@@ -3921,8 +3933,8 @@ async function cargarInventario() {
                                 }','inventario')" class="btn btn-outline-danger btn-sm">🗑️</button>
                             </td>
                         </tr>
-                    `,
-                      )
+                    `;
+                      })
                       .join("")}
                 </tbody>
             </table>
@@ -6261,24 +6273,25 @@ async function generarTicketVenta(e, opciones = {}) {
   // #8: forma de pago. "completo" → descuenta stock y registra el ingreso en
   // finanzas; "quincenas" → descuenta stock (salida de inventario) pero NO
   // registra nada en finanzas (el admin captura la ganancia manualmente).
-  // En quincenas NO se crea pedido.
+  // En quincenas SÍ se crea pedido (queda como histórico en tab Pedidos).
   const formaPagoChecked = document.querySelector(
     'input[name="formaPagoTicket"]:checked',
   );
   const pagoEnUnSoloPago =
     !formaPagoChecked || formaPagoChecked.value === "completo";
 
-  // Venta a quincenas: solo ticket impreso, sin efectos en la base de datos.
+  // Venta a quincenas: SÍ crea pedido y SÍ descuenta stock (movimiento de
+  // salida en inventario), pero NO registra el ingreso/ganancia en Finanzas
+  // (el dinero aún no se cobra completo: el admin lo captura solo al cobrar).
   if (!pagoEnUnSoloPago) {
-    // Venta a quincenas: SÍ se descuenta stock (salida de inventario) pero
-    // NO se registra el ingreso/ganancia en Finanzas (el admin lo captura
-    // manualmente en el tab Finanzas).
     btn.disabled = true;
     btn.textContent = "Procesando...";
+    let itemsPreparados = null;
     try {
-      const { items } = await validarYPrepararItemsTicket();
+      const preparado = await validarYPrepararItemsTicket();
+      itemsPreparados = preparado.items;
       await descontarStockVentaDirecta(
-        items,
+        itemsPreparados,
         `Salida por venta a quincenas a ${cliente}`,
       );
     } catch (err) {
@@ -6288,6 +6301,46 @@ async function generarTicketVenta(e, opciones = {}) {
     }
     btn.disabled = false;
     actualizarBotonTicket();
+
+    // Se crea el pedido para que quede en el histórico del tab Pedidos con
+    // estado "vendido" y método de pago "quincenas". NO toca Finanzas.
+    const numeroPedidoQuincena = generarNumeroPedido();
+    try {
+      await window.supabase.from("pedidos").insert([
+        {
+          numero_pedido: numeroPedidoQuincena,
+          cliente_nombre: cliente,
+          cliente_telefono: telefono,
+          direccion_entrega: direccion || null,
+          productos: (itemsPreparados || []).map((p) => ({
+            nombre: p.nombre,
+            precio: p.precio,
+            cantidad: p.cantidad,
+          })),
+          total: totalActual,
+          costo_envio: envio,
+          descuento: descuentoPct,
+          lugar_entrega:
+            document.getElementById("ticketLugarEntrega").value || null,
+          punto_entrega:
+            document.getElementById("ticketPuntoEntrega").value || null,
+          metodo_pago: "quincenas",
+          estado: "vendido",
+          fecha_vendido: new Date().toISOString(),
+          notas:
+            "Venta a quincenas desde el panel. Pedido creado, pero NO se registró en Finanzas.",
+          atendido: true,
+        },
+      ]);
+    } catch (err) {
+      console.error("Error creando pedido a quincenas:", err);
+      return mostrarMensaje(
+        msg,
+        "❌ El stock ya se descontó, pero no se pudo crear el pedido a quincenas: " +
+          err.message,
+        "error",
+      );
+    }
 
     const datosTicket = {
       cliente: cliente,
@@ -6307,7 +6360,7 @@ async function generarTicketVenta(e, opciones = {}) {
       total: totalActual,
       fecha: new Date().toISOString(),
       ticket_numero: `T-${Date.now().toString(36).toUpperCase()}`,
-      numero_pedido: generarCodigoTicketLimpio(),
+      numero_pedido: numeroPedidoQuincena,
       estado: "",
     };
 
@@ -6318,14 +6371,16 @@ async function generarTicketVenta(e, opciones = {}) {
     mostrarMensaje(
       msg,
       imprimir
-        ? "🖨️ Ticket a quincenas impreso. Stock descontado, pero NO se registró en Finanzas: captura la ganancia/ingreso manualmente."
-        : "📆 Venta a quincenas registrada SIN ticket. Stock descontado, pero NO se registró en Finanzas: captura la ganancia/ingreso manualmente.",
+        ? "🖨️ Ticket a quincenas impreso. Pedido creado y stock descontado. NO se registró en Finanzas: cobra/registra el ingreso manualmente."
+        : "📆 Venta a quincenas registrada SIN ticket. Pedido creado y stock descontado. NO se registró en Finanzas: cobra/registra el ingreso manualmente.",
       "exito",
     );
 
     cargarProductos();
     cargarInventario();
+    cargarPedidos();
     cargarProductosTicket();
+    cargarPedidosParaTicket();
     limpiarFormularioTicket();
     return;
   }

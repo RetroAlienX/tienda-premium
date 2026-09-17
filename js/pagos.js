@@ -442,6 +442,24 @@ async function guardarPago() {
     }
 
     document.getElementById("modalPago").style.display = "none";
+
+    // Registro en el histórico del tab Inventario (tipo "registro", sin
+    // producto, cantidad 0). NO afecta stock, NO modifica Finanzas: solo
+    // deja constancia de qué cliente se registró/editó en Control de Pagos.
+    try {
+      await window.supabase.from("inventario").insert([
+        {
+          producto_id: null,
+          tipo: "registro",
+          cantidad: 0,
+          descripcion: `${
+            pagoEditando ? "Cliente editado" : "Cliente registrado"
+          } en CONTROL DE PAGOS: ${cliente}`,
+        },
+      ]);
+    } catch (e) {
+      console.warn("No se pudo registrar el cliente en inventario:", e);
+    }
     if (pagoEditando) {
       // Edición: actualiza la fila en su mismo lugar (no reordena).
       await reemplazarFilaPago(pagoEditando);
