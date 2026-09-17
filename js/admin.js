@@ -6693,10 +6693,10 @@ function parsearVigenciaAISO(texto) {
 function actualizarModoFechaNoticia() {
   const esTexto = document.getElementById("noticiaFechaEsTexto")?.checked;
   const picker = document.getElementById("noticiaFechaPicker");
-  const texto = document.getElementById("noticiaFechaTexto");
-  if (!picker || !texto) return;
+  const filaTexto = document.getElementById("noticiaFechaTextoRow");
+  if (!picker || !filaTexto) return;
   picker.style.display = esTexto ? "none" : "block";
-  texto.style.display = esTexto ? "block" : "none";
+  filaTexto.style.display = esTexto ? "flex" : "none";
 }
 
 // ============================================

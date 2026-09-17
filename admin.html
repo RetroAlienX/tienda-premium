@@ -1579,9 +1579,13 @@
                 </label>
                 <input type="date" id="noticiaFechaPicker" class="input-luxury"
                     title="Fecha de la noticia tal como se muestra (si usas fecha normal).">
-                <input type="text" id="noticiaFechaTexto" class="input-luxury"
-                    placeholder="Etiqueta especial (ej: ⚡ ¡ÚLTIMO MOMENTO!)" style="display:none;"
-                    title="Etiqueta que reemplaza a la fecha (ej: ⚡ ¡ÚLTIMO MOMENTO!).">
+                <div id="noticiaFechaTextoRow" style="display:none; gap:8px; align-items:center;">
+                    <input type="text" id="noticiaFechaTexto" class="input-luxury"
+                        placeholder="Etiqueta especial (ej: ⚡ ¡ÚLTIMO MOMENTO!)" style="flex:1; margin:0;"
+                        title="Etiqueta que reemplaza a la fecha (ej: ⚡ ¡ÚLTIMO MOMENTO!).">
+                    <button type="button" id="btnEmojiNoticia" class="btn-premium-outline"
+                        style="padding:10px 14px;font-size:1rem; flex:0 0 auto;" title="Agregar emojis a la etiqueta especial">😊</button>
+                </div>
                 <label style="display:block; font-size:0.7rem; color:var(--text-silver); margin-bottom:6px;">
                     Destacado le da un estilo resaltado en la lista de noticias del sitio público.
                 </label>
@@ -2215,7 +2219,7 @@
 
         var emojiPopupTarget = null;
 
-        function abrirEmojiPicker(btn, inputId) {
+        function abrirEmojiPicker(btn, inputId, append) {
             var popup = document.getElementById('emojiPopup');
             if (!popup) return;
             emojiPopupTarget = document.getElementById(inputId);
@@ -2237,7 +2241,14 @@
             var opts = popup.querySelectorAll('.emoji-opt');
             opts.forEach(function (o) {
                 o.addEventListener('click', function () {
-                    if (emojiPopupTarget) emojiPopupTarget.value = this.getAttribute('data-emoji');
+                    if (emojiPopupTarget) {
+                        var emoji = this.getAttribute('data-emoji');
+                        if (append) {
+                            emojiPopupTarget.value = (emojiPopupTarget.value || '') + emoji;
+                        } else {
+                            emojiPopupTarget.value = emoji;
+                        }
+                    }
                     popup.style.display = 'none';
                     emojiPopupTarget = null;
                 });
@@ -2270,6 +2281,15 @@
                     });
                 }
             });
+            var btnNoticia = document.getElementById('btnEmojiNoticia');
+            if (btnNoticia) {
+                btnNoticia.setAttribute('data-emoji-trigger', '1');
+                btnNoticia.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    abrirEmojiPicker(btnNoticia, 'noticiaFechaTexto', true);
+                });
+            }
         });
     </script>
 
