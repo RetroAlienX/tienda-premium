@@ -309,7 +309,7 @@ body {
 
 .carousel-track {
   position: relative;
-  min-height: 240px;
+  min-height: 360px;
   overflow: hidden;
   flex: 1;
   display: flex;
@@ -1884,7 +1884,7 @@ select.input-luxury option:active {
   }
 
   .carousel-track {
-    min-height: 220px;
+    min-height: 320px;
   }
 
   .cupon-card {
@@ -2134,7 +2134,7 @@ select.input-luxury option:active {
   }
 
   .carousel-track {
-    min-height: 200px;
+    min-height: 280px;
   }
 
   .cupon-card {
