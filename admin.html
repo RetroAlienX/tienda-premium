@@ -1108,8 +1108,8 @@
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                         <input type="text" id="ticketCliente" class="input-luxury" placeholder="Cliente *" required
                             title="Nombre del cliente que aparecerá impreso en el ticket.">
-                        <input type="tel" id="ticketTelefono" class="input-luxury" placeholder="Teléfono *" required
-                            title="Teléfono de contacto del cliente, se imprime en el ticket.">
+                        <input type="tel" id="ticketTelefono" class="input-luxury" placeholder="Teléfono" required
+                            title="Teléfono de contacto del cliente, se imprime en el ticket. Obligatorio en venta directa (en impresión/reimpresión es opcional).">
                     </div>
                     <input type="text" id="ticketDireccion" class="input-luxury" placeholder="Dirección"
                         title="Dirección de entrega (opcional). Se imprime en el ticket solo si se llena.">
@@ -1117,6 +1117,9 @@
                         title="Lugar de entrega seleccionado por el cliente (opcional).">
                         <option value="" selected>Selecciona tu lugar de entrega...</option>
                     </select>
+                    <input type="text" id="ticketPuntoEntrega" class="input-luxury"
+                        placeholder="Punto de entrega (opcional)"
+                        title="Punto exacto donde se acuerda la entrega (opcional). Se imprime en el ticket solo si se llena.">
 
                     <div style="display:grid; grid-template-columns: 1fr 100px; gap: 15px; margin-bottom: 15px;">
                         <select id="ticketProductoSelect" class="input-luxury" style="margin:0;" required
@@ -1158,21 +1161,19 @@
                     <div id="grupoFormaPagoTicket" class="forma-pago-ticket">
                         <div class="forma-pago-cabecera">
                             <span class="forma-pago-titulo">Forma de pago</span>
-                            <span class="forma-pago-nota">Se registra en Finanzas</span>
+                            <span class="forma-pago-nota">Ambas descuentan stock; solo el <strong>pago completo</strong> se registra en Finanzas automáticamente</span>
                         </div>
                         <div class="forma-pago-opciones">
                             <label class="forma-pago-opcion">
                                 <input type="radio" name="formaPagoTicket" value="completo" checked>
                                 <span class="forma-pago-icon">💵</span>
-                                <span class="forma-pago-texto"><strong>Pago completo</strong><small>La ganancia se
-                                        registra en Finanzas automáticamente</small></span>
+                                <span class="forma-pago-texto"><strong>Pago completo</strong><small>Descuenta stock y la ganancia se registra en Finanzas automáticamente</small></span>
                                 <span class="forma-pago-check">✓</span>
                             </label>
                             <label class="forma-pago-opcion">
                                 <input type="radio" name="formaPagoTicket" value="quincenas">
                                 <span class="forma-pago-icon">📆</span>
-                                <span class="forma-pago-texto"><strong>A quincenas</strong><small>No registra ganancia;
-                                        la darás de alta en el tab Pagos</small></span>
+                                <span class="forma-pago-texto"><strong>A quincenas</strong><small>Descuenta stock pero NO registra en Finanzas (la capturas manualmente)</small></span>
                                 <span class="forma-pago-check">✓</span>
                             </label>
                         </div>
@@ -2070,6 +2071,10 @@
                     onclick="verVistaPreviaDetallePedidoActual()"
                     title="Ver un adelanto de cómo se vería la impresión de este pedido."><i class="fas fa-eye"></i>
                     Vista Previa</button>
+                <button type="button" class="btn-premium-outline" style="width: auto;"
+                    onclick="reimprimirTicketEnPanel()"
+                    title="Cargar este pedido en el formulario del tab Ticket para ajustar precios/campos y reimprimir su ticket SIN modificar la base de datos."><i
+                        class="fas fa-pen"></i> Editar y reimprimir</button>
                 <button type="button" class="btn-premium" style="width: auto;" onclick="imprimirDetallePedidoActual()"
                     title="Imprimir el detalle de este pedido (con QZ si hay impresora, o en el navegador)."><i
                         class="fas fa-print"></i> Imprimir</button>

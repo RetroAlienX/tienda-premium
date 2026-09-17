@@ -999,6 +999,8 @@ document.addEventListener("DOMContentLoaded", function () {
       cargarTiendas();
   }
 
+  window.cambiarTab = cambiarTab;
+
   document.querySelectorAll("[data-tab]").forEach((btn) => {
     btn.addEventListener("click", function () {
       const tab = this.dataset.tab;
@@ -4914,6 +4916,19 @@ function imprimirDetallePedidoActual() {
   generarTicketPedido(detallePedidoActual.id);
 }
 
+// Reimpresión EDITABLE: carga el pedido en el formulario del tab Ticket para
+// poder ajustar precios/campos y reimprimir SIN modificar la base de datos.
+function reimprimirTicketEnPanel() {
+  if (!detallePedidoActual) return;
+  const pedido = detallePedidoActual;
+  const modal = document.getElementById("modalVerDetallePedido");
+  if (modal) modal.style.display = "none";
+  if (typeof window.cambiarTab === "function") window.cambiarTab("ticket");
+  setTimeout(function () {
+    precargarPedidoEnTicket(pedido);
+  }, 60);
+}
+
 function verVistaPreviaDetallePedidoActual() {
   if (!detallePedidoActual) return;
   verVistaPreviaPedido(detallePedidoActual.id);
@@ -5546,7 +5561,7 @@ function seleccionarModoTicket(modo, limpiar) {
     ticketProductos = [];
     pedidoTicketPrecargado = null;
     ["ticketCliente", "ticketTelefono", "ticketDireccion",
-     "ticketLugarEntrega", "ticketEnvio", "ticketDescuento"].forEach((id) => {
+     "ticketLugarEntrega", "ticketPuntoEntrega", "ticketEnvio", "ticketDescuento"].forEach((id) => {
       const el = document.getElementById(id);
       if (el) el.value = "";
     });
@@ -5619,6 +5634,7 @@ function limpiarFormularioTicket() {
   document.getElementById("ticketTelefono").value = "";
   document.getElementById("ticketDireccion").value = "";
   document.getElementById("ticketLugarEntrega").value = "";
+  document.getElementById("ticketPuntoEntrega").value = "";
   document.getElementById("ticketEnvio").value = "";
   document.getElementById("ticketDescuento").value = "";
   // En venta nueva el producto y el teléfono vuelven a ser obligatorios;
@@ -5644,6 +5660,8 @@ async function precargarPedidoEnTicket(pedido) {
     pedido.cliente_telefono || "";
   document.getElementById("ticketDireccion").value =
     pedido.direccion_entrega || "";
+  document.getElementById("ticketPuntoEntrega").value =
+    pedido.punto_entrega || "";
 
   // Primero cargar los lugares de entrega para que el select tenga
   // todas las opciones disponibles (evita race condition).
@@ -6000,6 +6018,78 @@ function generarCodigoTicketLimpio() {
   return `T-${yy}${mm}${dd}-${rnd}`;
 }
 
+// Valida que los productos del ticket existan y tengan stock suficiente, y
+// devuelve la lista validada. El precio de venta es el EDITADO en el ticket
+// si el usuario lo cambió (si no, el precio de la base de datos). Puede
+// lanzar Error con un mensaje legible para el operador.
+async function validarYPrepararItemsTicket() {
+  const items = [];
+  let subtotal = 0;
+  for (const item of ticketProductos) {
+    const { data: productoBD, error: prodError } = await window.supabase
+      .from("productos")
+      .select("id, nombre, precio, stock")
+      .eq("nombre", item.nombre)
+      .maybeSingle();
+    if (prodError) {
+      console.error("Error buscando producto:", prodError);
+      throw new Error(`Error al verificar producto "${item.nombre}"`);
+    }
+    if (!productoBD) {
+      throw new Error(
+        `Producto "${item.nombre}" no encontrado en la base de datos.`,
+      );
+    }
+    if (item.cantidad > productoBD.stock) {
+      throw new Error(
+        `Stock insuficiente para "${item.nombre}". Disponible: ${productoBD.stock}`,
+      );
+    }
+    const precioVenta =
+      Number(item.precio) > 0 ? Number(item.precio) : Number(productoBD.precio) || 0;
+    items.push({
+      id: productoBD.id,
+      nombre: productoBD.nombre,
+      precio: precioVenta,
+      cantidad: item.cantidad,
+    });
+    subtotal += precioVenta * item.cantidad;
+  }
+  return { items, subtotal };
+}
+
+// Descuenta stock por cada producto vendido: registra el movimiento "salida"
+// en inventario y baja el stock del catálogo. NO toca la tabla finanzas.
+async function descontarStockVentaDirecta(items, descripcion) {
+  for (const item of items) {
+    const { error: invError } = await window.supabase
+      .from("inventario")
+      .insert([
+        {
+          producto_id: item.id,
+          tipo: "salida",
+          cantidad: Number(item.cantidad) || 0,
+          descripcion: descripcion,
+        },
+      ]);
+    if (invError) throw invError;
+
+    const { data: prodActual } = await window.supabase
+      .from("productos")
+      .select("stock")
+      .eq("id", item.id)
+      .single();
+
+    if (prodActual) {
+      const nuevoStock = prodActual.stock - item.cantidad;
+      await window.supabase
+        .from("productos")
+        .update({ stock: nuevoStock })
+        .eq("id", item.id);
+    }
+  }
+}
+
 async function generarTicketVenta(e) {
   e.preventDefault();
   const msg = document.getElementById("mensajeTicket");
@@ -6073,7 +6163,10 @@ async function generarTicketVenta(e) {
         : new Date().toISOString(),
       entrega_dia: (ped && (ped.fecha_entregado || ped.dia_entrega)) || "",
       entrega_hora: (ped && ped.hora_entrega) || "",
-      punto_entrega: (ped && ped.punto_entrega) || "",
+      punto_entrega:
+        document.getElementById("ticketPuntoEntrega").value ||
+        (ped && ped.punto_entrega) ||
+        "",
       ticket_numero: `T-${Date.now().toString(36).toUpperCase()}`,
       // Si hay un pedido precargado se imprime su código; si es manual se
       // genera un código de ticket para que el barcode SIEMPRE se imprima.
@@ -6105,10 +6198,10 @@ async function generarTicketVenta(e) {
     );
   }
 
-  // #8: forma de pago. "completo" → se registra el ingreso en finanzas;
-  // "quincenas" → SOLO se imprime el ticket (el admin da de alta al cliente
-  // en el tab Pagos y gestiona ahí el dinero; no se crea pedido ni se toca
-  // inventario ni finanzas).
+  // #8: forma de pago. "completo" → descuenta stock y registra el ingreso en
+  // finanzas; "quincenas" → descuenta stock (salida de inventario) pero NO
+  // registra nada en finanzas (el admin captura la ganancia manualmente).
+  // En quincenas NO se crea pedido.
   const formaPagoChecked = document.querySelector(
     'input[name="formaPagoTicket"]:checked',
   );
@@ -6117,11 +6210,31 @@ async function generarTicketVenta(e) {
 
   // Venta a quincenas: solo ticket impreso, sin efectos en la base de datos.
   if (!pagoEnUnSoloPago) {
+    // Venta a quincenas: SÍ se descuenta stock (salida de inventario) pero
+    // NO se registra el ingreso/ganancia en Finanzas (el admin lo captura
+    // manualmente en el tab Finanzas).
+    btn.disabled = true;
+    btn.textContent = "Procesando...";
+    try {
+      const { items } = await validarYPrepararItemsTicket();
+      await descontarStockVentaDirecta(
+        items,
+        `Salida por venta a quincenas a ${cliente}`,
+      );
+    } catch (err) {
+      btn.disabled = false;
+      actualizarBotonTicket();
+      return mostrarMensaje(msg, "❌ " + err.message, "error");
+    }
+    btn.disabled = false;
+    actualizarBotonTicket();
+
     const datosTicket = {
       cliente: cliente,
       telefono: telefono,
       direccion: direccion || "",
       lugar_entrega: document.getElementById("ticketLugarEntrega").value || "",
+      punto_entrega: document.getElementById("ticketPuntoEntrega").value || "",
       metodo_pago: "A quincenas",
       items: ticketProductos.map((p) => ({
         nombre: p.nombre,
@@ -6142,60 +6255,27 @@ async function generarTicketVenta(e) {
 
     mostrarMensaje(
       msg,
-      "🖨️ Ticket a quincenas impreso. No se registró venta ni ganancia: da de alta al cliente en el tab Pagos y gestiona ahí el dinero.",
+      "🖨️ Ticket a quincenas impreso. Stock descontado, pero NO se registró en Finanzas: captura la ganancia/ingreso manualmente.",
       "exito",
     );
+
+    cargarProductos();
+    cargarInventario();
+    cargarProductosTicket();
+    limpiarFormularioTicket();
     return;
   }
 
-  let subtotal = 0;
-  const productosValidados = [];
-
-  for (const item of ticketProductos) {
-    const { data: productoBD, error: prodError } = await window.supabase
-      .from("productos")
-      .select("id, nombre, precio, stock")
-      .eq("nombre", item.nombre)
-      .maybeSingle();
-
-    if (prodError) {
-      console.error("Error buscando producto:", prodError);
-      return mostrarMensaje(
-        msg,
-        `❌ Error al verificar producto "${item.nombre}"`,
-        "error",
-      );
-    }
-
-    if (!productoBD) {
-      return mostrarMensaje(
-        msg,
-        `❌ Producto "${item.nombre}" no encontrado en la base de datos.`,
-        "error",
-      );
-    }
-
-    if (item.cantidad > productoBD.stock) {
-      return mostrarMensaje(
-        msg,
-        `❌ Stock insuficiente para "${item.nombre}". Disponible: ${productoBD.stock}`,
-        "error",
-      );
-    }
-
-    // Si el usuario editó el precio en el ticket (campo editable), ese es el
-    // precio de venta que se cobra/registra (fallback: precio de BD).
-    const precioVenta =
-      Number(item.precio) > 0 ? Number(item.precio) : Number(productoBD.precio) || 0;
-
-    productosValidados.push({
-      id: productoBD.id,
-      nombre: productoBD.nombre,
-      precio: precioVenta,
-      cantidad: item.cantidad,
-    });
-
-    subtotal += precioVenta * item.cantidad;
+  // Valida existencia y stock de los productos (usa el precio EDITADO en el
+  // ticket; si no se tocó, el precio del catálogo). Aquí no se modifica la
+  // base de datos: los cambios del ticket solo son de esa venta.
+  let subtotal, productosValidados;
+  try {
+    const preparado = await validarYPrepararItemsTicket();
+    productosValidados = preparado.items;
+    subtotal = preparado.subtotal;
+  } catch (err) {
+    return mostrarMensaje(msg, "❌ " + err.message, "error");
   }
 
   const subtotalConEnvio = subtotal + envio;
@@ -6204,8 +6284,8 @@ async function generarTicketVenta(e) {
   const numeroPedido = generarNumeroPedido();
 
   // Aquí solo llegan ventas de PAGO COMPLETO (las de quincenas retornaron
-  // antes imprimiendo únicamente el ticket). Se descontará el inventario y
-  // se registrará el ingreso en finanzas de una sola vez.
+  // antes tras descontar stock). Se registrará el pedido, el inventario y el
+  // ingreso en finanzas de una sola vez.
   try {
     btn.disabled = true;
     btn.textContent = "Procesando...";
@@ -6224,6 +6304,7 @@ async function generarTicketVenta(e) {
       costo_envio: envio,
       descuento: descuentoPct,
       lugar_entrega: document.getElementById("ticketLugarEntrega").value || null,
+      punto_entrega: document.getElementById("ticketPuntoEntrega").value || null,
       metodo_pago: "efectivo",
       estado: "vendido",
       fecha_vendido: new Date().toISOString(),
@@ -6240,36 +6321,8 @@ async function generarTicketVenta(e) {
 
     if (pedidoError) throw pedidoError;
 
-    for (const item of productosValidados) {
-      const { error: invError } = await window.supabase
-        .from("inventario")
-        .insert([
-          {
-            producto_id: item.id,
-            tipo: "salida",
-            cantidad: Number(item.cantidad) || 0,
-            descripcion: `Venta a ${cliente}`,
-          },
-        ]);
-
-      if (invError) throw invError;
-    }
-
-    for (const item of productosValidados) {
-      const { data: prodActual } = await window.supabase
-        .from("productos")
-        .select("stock")
-        .eq("id", item.id)
-        .single();
-
-      if (prodActual) {
-        const nuevoStock = prodActual.stock - item.cantidad;
-        await window.supabase
-          .from("productos")
-          .update({ stock: nuevoStock })
-          .eq("id", item.id);
-      }
-    }
+    // Pago completo: se descuentan TODOS los productos (inventario + stock).
+    await descontarStockVentaDirecta(productosValidados, `Venta a ${cliente}`);
 
     // Pago completo: se registra el ingreso en finanzas.
     const { error: finError } = await window.supabase
@@ -6290,6 +6343,7 @@ async function generarTicketVenta(e) {
       telefono: telefono,
       direccion: direccion || "",
       lugar_entrega: document.getElementById("ticketLugarEntrega").value || "",
+      punto_entrega: document.getElementById("ticketPuntoEntrega").value || "",
       metodo_pago: "Efectivo",
       items: productosValidados.map((p) => ({
         nombre: p.nombre,
@@ -6414,7 +6468,10 @@ function verVistaPreviaVenta() {
       pedidoTicketPrecargado?.dia_entrega ||
       "",
     entrega_hora: pedidoTicketPrecargado?.hora_entrega || "",
-    punto_entrega: pedidoTicketPrecargado?.punto_entrega || "",
+    punto_entrega:
+      document.getElementById("ticketPuntoEntrega").value ||
+      pedidoTicketPrecargado?.punto_entrega ||
+      "",
     ticket_numero: `T-${Date.now().toString(36).toUpperCase()}`,
     numero_pedido: numeroPedido,
     estado: estado,
