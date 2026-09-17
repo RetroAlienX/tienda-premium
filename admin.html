@@ -674,6 +674,12 @@
                 font-size: 0.75rem;
                 padding: 10px 14px;
             }
+
+            /* En pantallas angostas, las rejillas internas (formularios y
+               modales) colapsan a una sola columna para evitar desbordes. */
+            .container-admin [style*="grid-template-columns"] {
+                grid-template-columns: 1fr !important;
+            }
         }
 
         /* Quitar las flechas de incremento/decremento en Envío y Descuento del tab Ticket */
@@ -804,9 +810,9 @@
 
         <div id="tab-productos" class="tab-content active">
             <div class="admin-card">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
                     <h5>Gestión de Productos</h5>
-                    <div style="display: flex; gap: 10px; width: auto;">
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap; width: auto;">
                         <button id="btnRefrescarProductos" class="btn-premium-outline"
                             style="padding:10px 16px;font-size:0.75rem; width: auto;"
                             title="Recargar la lista de productos desde la base de datos.">🔄 Refrescar</button>
@@ -874,9 +880,9 @@
                         id="totalMovimientos">0</span></div>
             </div>
             <div class="admin-card">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
                     <h5>Control de Inventario</h5>
-                    <div style="display: flex; gap: 10px; width: auto;">
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap; width: auto;">
                         <button id="btnRefrescarInventario" class="btn-premium-outline"
                             style="padding:10px 16px;font-size:0.75rem; width: auto;"
                             title="Recargar la lista de movimientos de stock y las estadísticas.">🔄 Refrescar</button>
@@ -913,7 +919,7 @@
 
         <div id="tab-pedidos" class="tab-content" style="display:none;">
             <div class="admin-card">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
                     <h5>Gestión de Pedidos</h5>
                     <div style="display:flex; gap:10px; flex-wrap:wrap;">
                         <button id="btnVerPedidosNuevos" class="btn-premium-outline"
@@ -993,9 +999,9 @@
                         style="color:var(--accent);">$0.00</span></div>
             </div>
             <div class="admin-card">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
                     <h5>Control Financiero</h5>
-                    <div style="display: flex; gap: 10px; width: auto;">
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap; width: auto;">
                         <button id="btnRefrescarFinanzas" class="btn-premium-outline"
                             style="padding:10px 16px;font-size:0.75rem; width: auto;"
                             title="Recargar los movimientos financieros y los totales desde la base de datos.">🔄
@@ -1710,9 +1716,9 @@
     <!-- TAB LEALTAD -->
     <div id="tab-lealtad" class="tab-content" style="display:none;">
         <div class="admin-card">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
                 <h5>💎 Programa de Lealtad</h5>
-                <div style="display: flex; gap: 10px; width: auto;">
+                <div style="display: flex; gap: 10px; flex-wrap: wrap; width: auto;">
                     <button id="btnRefrescarLealtad" class="btn-premium-outline"
                         style="padding:10px 16px;font-size:0.75rem; width: auto;"
                         title="Recargar la lista de clientes del programa de lealtad.">🔄 Refrescar</button>
@@ -1746,9 +1752,9 @@
     <!-- TAB PAGOS -->
     <div id="tab-pagos" class="tab-content" style="display:none;">
         <div class="admin-card">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
                 <h5>💳 Control de Pagos</h5>
-                <div style="display: flex; gap: 10px; width: auto;">
+                <div style="display: flex; gap: 10px; flex-wrap: wrap; width: auto;">
                     <button id="btnRefrescarPagos" class="btn-premium-outline"
                         style="padding:10px 16px;font-size:0.75rem; width: auto;"
                         title="Vuelve a cargar la lista de pagos desde la base de datos.">🔄 Refrescar</button>
