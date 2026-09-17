@@ -1075,10 +1075,6 @@
                             style="padding:8px 16px;font-size:0.75rem; width:auto;"
                             title="Recargar la lista de pedidos disponibles en el selector de arriba.">🔄
                             Refrescar</button>
-                        <button type="button" id="btnLimpiarTicket" class="btn-premium-outline"
-                            style="padding:8px 16px;font-size:0.75rem; width:auto;"
-                            title="Vaciar los campos del ticket y la lista de productos para empezar una venta nueva.">🧹
-                            Limpiar Campos</button>
                     </div>
                 </div>
 
@@ -1204,20 +1200,25 @@
                             title="Subtotal menos el descuento aplicado. Este es el monto final a cobrar.">
                     </div>
 
-                    <div style="display:flex; gap:10px; margin-top:15px;">
-                        <button type="submit" class="btn-premium" style="flex:1; padding:15px;"
+                    <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:15px;">
+                        <button type="submit" class="btn-premium" id="btnGenerarTicket"
+                            style="flex:1 1 150px; padding:10px 14px; font-size:0.75rem; border-radius:8px;"
                             title="Según el modo seleccionado: la Venta directa registra la venta y descuenta stock; la Impresión solo imprime el ticket sin tocar inventario (manual o con un pedido precargado)."><i
-                                class="fas fa-print"></i> Generar Ticket y Registrar Venta</button>
-                        <button type="button" class="btn-premium-outline" style="padding:15px;"
+                                class="fas fa-cash-register"></i>&nbsp; Vender y generar ticket</button>
+                        <button type="button" class="btn-premium-outline"
+                            style="flex:1 1 115px; padding:10px 14px; font-size:0.75rem; border-radius:8px;"
                             onclick="verVistaPreviaVenta()"
                             title="Ver cómo quedará el ticket en pantalla antes de imprimir (sin registrar ni cobrar)."><i
-                                class="fas fa-eye"></i> Vista Previa</button>
-                    </div>
-                    <div style="display:flex; gap:10px; margin-top:12px;">
+                                class="fas fa-eye"></i>&nbsp; Vista previa</button>
                         <button type="button" id="btnVentaSinTicket" class="btn-premium-outline"
-                            onclick="generarVentaDirectaSinTicket()" style="flex:1; padding:15px;"
+                            onclick="generarVentaDirectaSinTicket()"
+                            style="flex:1 1 140px; padding:10px 14px; font-size:0.75rem; border-radius:8px;"
                             title="Registra la venta directa (pago completo o a quincenas, respetando stock y ganancias) pero SIN imprimir ticket. Úsalo cuando la venta no requiere ticket; el otro botón sigue imprimiendo."><i
-                                class="fas fa-cash-register"></i> Registrar Venta Directa (sin ticket)</button>
+                                class="fas fa-bolt"></i>&nbsp; Vender sin ticket</button>
+                        <button type="button" id="btnLimpiarTicket" class="btn-premium-outline"
+                            style="flex:1 1 95px; padding:10px 14px; font-size:0.75rem; border-radius:8px;"
+                            title="Vaciar los campos del ticket y la lista de productos para empezar una venta nueva."><i
+                                class="fas fa-broom"></i>&nbsp; Limpiar</button>
                     </div>
                     <div id="mensajeTicket" class="mt-2" style="margin-top:10px;"></div>
                 </form>

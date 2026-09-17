@@ -5684,11 +5684,13 @@ function actualizarBotonTicket() {
   const btn = document.querySelector('#formTicketVenta button[type="submit"]');
   if (!btn) return;
   if (modoTicketActual === "impresion") {
-    btn.innerHTML =
-      '<i class="fas fa-print"></i> 🖨️ Imprimir Ticket (sin registrar ni tocar stock)';
+    btn.innerHTML = '<i class="fas fa-print"></i>&nbsp; Imprimir ticket';
   } else {
-    btn.innerHTML =
-      '<i class="fas fa-cash-register"></i> 💵 Registrar Venta y Generar Ticket (descuenta stock)';
+    btn.innerHTML = '<i class="fas fa-cash-register"></i>&nbsp; Vender y generar ticket';
+  }
+  const btnSinTicket = document.getElementById("btnVentaSinTicket");
+  if (btnSinTicket) {
+    btnSinTicket.classList.toggle("oculto", modoTicketActual !== "venta_directa");
   }
 }
 
