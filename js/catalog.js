@@ -316,7 +316,7 @@ function hacerPedido(id) {
 
 📋 *POR FAVOR LEE NUESTRAS POLÍTICAS* 👇
 📍 *Puntos fijos (envío gratis):* Apodaca centro (frente a iglesia) 8:00–8:30 AM · San Nicolás centro (plaza presidencia) 9:00–9:30 AM · Costco Escobedo 10:00–10:30 AM. Acude a recoger tu pedido en el horario asignado.
-📍 *Zonas coordinadas ($200):* San Pedro, Monterrey y Guadalupe. El punto y horario exactos se acuerdan contigo por WhatsApp.
+📍 *Zonas coordinadas ($180):* San Pedro, Monterrey y Guadalupe. El punto y horario exactos se acuerdan contigo por WhatsApp.
 📲 *Siguiente paso:* te contactaremos por correo o WhatsApp para enviarte los datos de pago. Realiza tu transferencia y envíanos el comprobante para confirmar tu fecha y punto de entrega. 🚚
 🎟️ *Cupones:* si aplicaste uno, tu descuento ya está calculado sobre productos + envío.
 💳 *Pago:* si tu pedido no se paga dentro de los 3 días posteriores a la compra, se cancelará automáticamente.
@@ -1264,7 +1264,7 @@ function poblarHorariosEntrega() {
 // POLÍTICAS DE ENTREGA Y PERMANENCIA (texto reutilizable)
 // ============================================
 const TEXTO_POLITICAS_ENTREGA =
-  "🚚 Entrega: contamos con 15 minutos de tolerancia para entregarte tu pedido. Contamos con puntos fijos de entrega con envío GRATIS (Apodaca centro · 8:00-8:30 AM, San Nicolás centro · 9:00-9:30 AM y Costco Escobedo · 10:00-10:30 AM) y zonas coordinadas (San Pedro, Monterrey y Guadalupe) donde el punto y horario se acuerdan por WhatsApp con un costo de $200. Si no es posible la entrega, se reprograma con un nuevo cargo de envío. Un segundo intento fallido devuelve la mercancía a stock.";
+  "🚚 Entrega: contamos con 15 minutos de tolerancia para entregarte tu pedido. Contamos con puntos fijos de entrega con envío GRATIS (Apodaca centro · 8:00-8:30 AM, San Nicolás centro · 9:00-9:30 AM y Costco Escobedo · 10:00-10:30 AM) y zonas coordinadas (San Pedro, Monterrey y Guadalupe) donde el punto y horario se acuerdan por WhatsApp con un costo de $180. Si no es posible la entrega, se reprograma con un nuevo cargo de envío. Un segundo intento fallido devuelve la mercancía a stock.";
 const TEXTO_CANCELACION_3DIAS =
   "⏳ Puedes solicitar tu cancelación o devolución dentro de los 3 días posteriores a la recepción (los días corren a partir de que recibes tu pedido). Para que la devolución sea válida, el producto debe regresarse en su empaque original, sin daños y sin haber sido utilizado. En consumibles o productos sellados (alimentos, geles de manos, perfumes y similares), deben entregarse sellados tal como se recibieron; si ya fueron abiertos o usados, la devolución o garantía de calidad queda invalidada. 🙏";
 
@@ -1458,7 +1458,7 @@ function cambiarLugarEntrega(sel) {
       }
     }
     if (aviso) {
-      aviso.textContent = `📍 Punto y horario a convenir. Te contactaremos por WhatsApp para coordinar la entrega en "${lugar}". Envío: $200 MXN.`;
+      aviso.textContent = `📍 Punto y horario a convenir. Te contactaremos por WhatsApp para coordinar la entrega en "${lugar}". Envío: $180 MXN.`;
       aviso.classList.add("aviso-coordinado");
       aviso.style.display = "block";
     }
